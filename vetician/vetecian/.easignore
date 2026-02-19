@@ -1,0 +1,21 @@
+# EAS Build ignore file
+# This overrides .gitignore for EAS builds
+
+# Don't ignore android folder for EAS
+!android/
+!android/**
+
+# Ignore gradle cache
+android/.gradle/
+android/.gradle/**
+android/app/.cxx/
+android/app/build/
+android/build/
+
+# Still ignore these
+node_modules/
+.expo/
+.expo-shared/
+*.log
+.env
+.env.*

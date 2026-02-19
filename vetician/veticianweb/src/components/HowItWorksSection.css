@@ -1,0 +1,128 @@
+.how-it-works-section {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+}
+
+.steps-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 3rem;
+  margin-bottom: 4rem;
+  position: relative;
+}
+
+.step-item {
+  text-align: center;
+  position: relative;
+}
+
+.step-number {
+  width: 80px;
+  height: 80px;
+  background: linear-gradient(135deg, #2563eb, #0ea5e9);
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  font-weight: bold;
+  margin: 0 auto 1.5rem;
+  box-shadow: 0 8px 25px rgba(37, 99, 235, 0.3);
+  position: relative;
+  z-index: 2;
+}
+
+.step-content {
+  position: relative;
+  z-index: 2;
+}
+
+.step-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  display: block;
+}
+
+.step-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 1rem;
+}
+
+.step-description {
+  color: #64748b;
+  line-height: 1.6;
+  max-width: 280px;
+  margin: 0 auto;
+}
+
+.step-connector {
+  position: absolute;
+  top: 40px;
+  right: -1.5rem;
+  width: 3rem;
+  height: 2px;
+  z-index: 1;
+}
+
+.connector-line {
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(90deg, #2563eb, #0ea5e9);
+  position: relative;
+}
+
+.connector-arrow {
+  position: absolute;
+  top: -8px;
+  right: -5px;
+  color: #2563eb;
+  font-size: 1.2rem;
+  font-weight: bold;
+}
+
+.cta-section {
+  text-align: center;
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 968px) {
+  .steps-container {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 2rem;
+  }
+  
+  .step-connector {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .steps-container {
+    grid-template-columns: 1fr;
+    gap: 3rem;
+  }
+  
+  .step-number {
+    width: 60px;
+    height: 60px;
+    font-size: 1.5rem;
+  }
+  
+  .step-icon {
+    font-size: 2.5rem;
+  }
+  
+  .step-title {
+    font-size: 1.25rem;
+  }
+  
+  .cta-section {
+    flex-direction: column;
+    align-items: center;
+  }
+}
