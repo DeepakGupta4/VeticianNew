@@ -24,7 +24,7 @@ export default function OTPScreen() {
     setLoading(true);
     
     try {
-      const BASE_URL = 'http://localhost:3000/api';
+      const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://vetician-backend-kovk.onrender.com/api';
       console.log('🔵 Verifying OTP:', enteredOtp);
       console.log('🔵 Phone:', phoneNumber);
       console.log('🔵 Email:', email);
@@ -148,7 +148,7 @@ export default function OTPScreen() {
     setResendLoading(true);
     
     try {
-      const BASE_URL = 'http://localhost:3000/api';
+      const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://vetician-backend-kovk.onrender.com/api';
       const requestBody = otpMethod === 'phone' 
         ? { phoneNumber }
         : { email };
@@ -197,13 +197,6 @@ export default function OTPScreen() {
           </Text>
         </Text>
       </View>
-      
-      {testOtp && process.env.NODE_ENV === 'development' && (
-        <View style={styles.otpDisplay}>
-          <Text style={styles.otpLabel}>Dev OTP: </Text>
-          <Text style={styles.otpValue}>{testOtp}</Text>
-        </View>
-      )}
       
       <View style={styles.otpContainer}>
         <OTPInput onComplete={(otp) => setEnteredOtp(otp)} />

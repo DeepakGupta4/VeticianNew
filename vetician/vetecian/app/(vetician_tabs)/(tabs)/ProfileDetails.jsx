@@ -45,7 +45,7 @@ export default function ProfileDetails() {
             
             setFormData({
               name: parent.name || '',
-              phone: parent.phone || '',
+              phone: user?.phone || parent.phone || '',
               email: parent.email || user?.email || '',
               gender: parent.gender ? parent.gender.charAt(0).toUpperCase() + parent.gender.slice(1) : 'Male',
               dateOfBirth: dob,
@@ -115,10 +115,13 @@ export default function ProfileDetails() {
         }
       }
 
+      // Strip country code and any non-digit characters from phone number
+      const cleanPhone = newFormData.phone.replace(/\D/g, '');
+
       const result = await dispatch(updateParent({
         name: newFormData.name.trim(),
         email: newFormData.email.trim(),
-        phone: newFormData.phone,
+        phone: cleanPhone,
         gender: newFormData.gender.toLowerCase(),
         dateOfBirth: dateOfBirthISO,
         emergencyContact: newFormData.emergencyContact,
@@ -169,10 +172,13 @@ export default function ProfileDetails() {
         year: 'numeric' 
       });
 
+      // Strip country code and any non-digit characters from phone number
+      const cleanPhone = formData.phone.replace(/\D/g, '');
+
       const result = await dispatch(updateParent({
         name: formData.name,
         email: formData.email,
-        phone: formData.phone,
+        phone: cleanPhone,
         gender: formData.gender.toLowerCase(),
         dateOfBirth: date.toISOString(),
         emergencyContact: formData.emergencyContact,
@@ -196,14 +202,25 @@ export default function ProfileDetails() {
     try {
       setSaving(true);
       
+      let dateOfBirthISO = parentData?.dateOfBirth || '';
+      if (formData.dateOfBirth && !parentData?.dateOfBirth) {
+        const parsedDate = new Date(formData.dateOfBirth);
+        if (!isNaN(parsedDate.getTime())) {
+          dateOfBirthISO = parsedDate.toISOString();
+        }
+      }
+      
+      // Strip country code and any non-digit characters from phone number
+      const cleanPhone = formData.phone.replace(/\D/g, '');
+      
       const result = await dispatch(updateParent({
         name: formData.name,
         email: formData.email,
-        phone: formData.phone,
+        phone: cleanPhone,
         gender: gender.toLowerCase(),
-        dateOfBirth: parentData?.dateOfBirth || '',
-        emergencyContact: formData.emergencyContact,
-        address: parentData?.address || '',
+        dateOfBirth: dateOfBirthISO,
+        emergencyContact: formData.emergencyContact || '',
+        address: parentData?.address || 'Not provided',
         image: parentData?.image || null
       })).unwrap();
 
@@ -244,11 +261,11 @@ export default function ProfileDetails() {
           style={styles.backButton}
           onPress={() => router.back()}
         >
-          <ChevronLeft size={28} color="#000" />
+          <ChevronLeft size={28} color="#FFFFFF" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Profile</Text>
         <TouchableOpacity style={styles.helpButton}>
-          <HelpCircle size={24} color="#666" />
+          <HelpCircle size={24} color="#FFFFFF" />
           <Text style={styles.helpText}>Help</Text>
         </TouchableOpacity>
       </View>
@@ -485,14 +502,21 @@ export default function ProfileDetails() {
                   </Text>
                 </TouchableOpacity>
               </View>
-              <DateTimePicker
-                value={tempDate}
-                mode="date"
-                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                onChange={handleDateChange}
-                maximumDate={new Date()}
-                style={styles.datePicker}
-              />
+              <View style={styles.datePickerContainer}>
+                <TextInput
+                  style={styles.dateInput}
+                  value={tempDate.toISOString().split('T')[0]}
+                  onChangeText={(text) => {
+                    const newDate = new Date(text);
+                    if (!isNaN(newDate.getTime())) {
+                      setTempDate(newDate);
+                    }
+                  }}
+                  placeholder="YYYY-MM-DD"
+                  placeholderTextColor="#999"
+                />
+                <Text style={styles.dateHelperText}>Format: YYYY-MM-DD (e.g., 1990-01-15)</Text>
+              </View>
             </View>
           </View>
         </Modal>
@@ -511,7 +535,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   header: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#4E8D7C',
     paddingTop: 60,
     paddingBottom: 16,
     paddingHorizontal: 16,
@@ -530,7 +554,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#000',
+    color: '#FFFFFF',
     flex: 1,
     marginLeft: 8,
   },
@@ -540,13 +564,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderWidth: 1,
-    borderColor: '#E5E5E5',
+    borderColor: 'rgba(255, 255, 255, 0.3)',
     borderRadius: 20,
     gap: 6,
   },
   helpText: {
     fontSize: 16,
-    color: '#666',
+    color: '#FFFFFF',
     fontWeight: '500',
   },
   scrollContainer: {
@@ -613,6 +637,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingBottom: 40,
+    minHeight: 400,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -671,6 +696,24 @@ const styles = StyleSheet.create({
   },
   datePicker: {
     width: '100%',
-    height: 200,
+    height: 260,
+  },
+  datePickerContainer: {
+    padding: 20,
+  },
+  dateInput: {
+    borderWidth: 1,
+    borderColor: '#E5E5E5',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 16,
+    backgroundColor: '#F9F9F9',
+    marginBottom: 8,
+  },
+  dateHelperText: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 8,
   },
 });

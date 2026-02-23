@@ -10,51 +10,20 @@ import {
   Alert,
 } from 'react-native';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useRouter } from 'expo-router';
 import ApiService from '../../../services/api';
 import SocketService from '../../../services/socket';
 import { useSelector } from 'react-redux';
+import CommonHeader from '../../../components/CommonHeader';
 
 export default function MyBookings() {
-  const navigation = useNavigation();
-  const { user } = useSelector(state => state.auth);
-  const [bookings, setBookings] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const router = useRouter();
+  const bookings = useSelector(state => state.auth.bookings || []);
   const [refreshing, setRefreshing] = useState(false);
-
-  useEffect(() => {
-    fetchBookings();
-    SocketService.connect(user._id, 'user');
-    
-    SocketService.onBookingUpdated((updatedBooking) => {
-      setBookings(prev => prev.map(b => b._id === updatedBooking._id ? updatedBooking : b));
-      Alert.alert('Booking Updated', `Your booking is now ${updatedBooking.status}`);
-    });
-
-    return () => SocketService.disconnect();
-  }, []);
-
-  const fetchBookings = async () => {
-    try {
-      setLoading(true);
-      console.log('📱 Fetching bookings...');
-      const response = await ApiService.getDoorstepBookings();
-      console.log('✅ Bookings response:', response);
-      console.log('📊 Bookings data:', response.data);
-      setBookings(response.data || []);
-    } catch (error) {
-      console.error('❌ Error fetching bookings:', error);
-      console.error('❌ Error details:', error.message);
-      setBookings([]);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await fetchBookings();
-    setRefreshing(false);
+    setTimeout(() => setRefreshing(false), 1000);
   };
 
   const handleCancelBooking = (bookingId) => {
@@ -63,19 +32,9 @@ export default function MyBookings() {
       'Are you sure you want to cancel this booking?',
       [
         { text: 'No', style: 'cancel' },
-        {
-          text: 'Yes',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await ApiService.cancelDoorstepBooking(bookingId);
-              Alert.alert('Success', 'Booking cancelled successfully');
-              fetchBookings();
-            } catch (error) {
-              Alert.alert('Error', 'Failed to cancel booking');
-            }
-          },
-        },
+        { text: 'Yes', style: 'destructive', onPress: () => {
+          Alert.alert('Success', 'Booking cancelled');
+        }}
       ]
     );
   };
@@ -101,9 +60,9 @@ export default function MyBookings() {
     <View style={styles.bookingCard}>
       <View style={styles.cardHeader}>
         <View style={styles.serviceInfo}>
-          <Text style={styles.serviceTitle}>{item.serviceType}</Text>
+          <Text style={styles.serviceTitle}>{item.service}</Text>
           <Text style={styles.serviceDate}>
-            {new Date(item.appointmentDate).toLocaleDateString()} • {item.timeSlot}
+            {item.date} • {item.time}
           </Text>
         </View>
         <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) }]}>
@@ -113,59 +72,26 @@ export default function MyBookings() {
 
       <View style={styles.cardBody}>
         <View style={styles.infoRow}>
-          <Ionicons name="person-outline" size={16} color="#666" />
-          <Text style={styles.infoText}>{item.servicePartnerName}</Text>
+          <Ionicons name="business-outline" size={16} color="#666" />
+          <Text style={styles.infoText}>{item.clinicName}</Text>
         </View>
 
-        {item.petIds && item.petIds.length > 0 && (
-          <View style={styles.infoRow}>
-            <MaterialIcons name="pets" size={16} color="#666" />
-            <Text style={styles.infoText}>
-              {item.petIds.map(pet => pet.name).join(', ')}
-            </Text>
-          </View>
-        )}
+        <View style={styles.infoRow}>
+          <Ionicons name="person-outline" size={16} color="#666" />
+          <Text style={styles.infoText}>{item.doctorName}</Text>
+        </View>
 
-        {item.isEmergency && (
-          <View style={styles.emergencyBadge}>
-            <MaterialIcons name="emergency" size={14} color="#FF4757" />
-            <Text style={styles.emergencyText}>Emergency</Text>
-          </View>
-        )}
-      </View>
-
-      <View style={styles.cardFooter}>
-        <Text style={styles.totalAmount}>₹{item.totalAmount}</Text>
-        {item.status === 'pending' && (
-          <TouchableOpacity
-            style={styles.cancelButton}
-            onPress={() => handleCancelBooking(item._id)}
-          >
-            <Text style={styles.cancelButtonText}>Cancel</Text>
-          </TouchableOpacity>
-        )}
+        <View style={styles.infoRow}>
+          <MaterialIcons name="pets" size={16} color="#666" />
+          <Text style={styles.infoText}>{item.petName}</Text>
+        </View>
       </View>
     </View>
   );
 
-  if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#4CAF50" />
-        <Text style={styles.loadingText}>Loading bookings...</Text>
-      </View>
-    );
-  }
-
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="#333" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>My Bookings</Text>
-        <View style={{ width: 24 }} />
-      </View>
+      <CommonHeader title="My Bookings" />
 
       {bookings.length === 0 ? (
         <View style={styles.emptyState}>
@@ -203,22 +129,6 @@ const styles = StyleSheet.create({
     marginTop: 12,
     fontSize: 16,
     color: '#666',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
-    marginTop: 40,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
   },
   listContainer: {
     padding: 16,

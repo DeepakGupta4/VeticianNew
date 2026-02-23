@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // ✅ EXPO SAFE ENV
-const API_BASE_URL = 'http://localhost:3000/api';
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://vetician-backend-kovk.onrender.com/api';
 
 console.log('API_BASE_URL:', API_BASE_URL);
 
@@ -131,6 +131,14 @@ class ApiService {
   }
 
   /* =========================
+     PARENTS
+  ========================= */
+
+  getParentById(userId) {
+    return this.get(`/parents/${userId}`);
+  }
+
+  /* =========================
      DOORSTEP SERVICE
   ========================= */
 
@@ -213,6 +221,10 @@ class ApiService {
 
   verifyClinic(clinicId) {
     return this.post(`/admin/clinic/verify/${clinicId}`);
+  }
+
+  getAllVerifiedClinics() {
+    return this.get('/clinics/verified');
   }
 
   getVerifiedPetResorts(filters = {}) {

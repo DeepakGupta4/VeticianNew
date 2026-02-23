@@ -78,7 +78,8 @@ const loginValidation = [
     .withMessage('Password is required'),
 
   body('loginType')
-    .isIn(['veterinarian', 'vetician', 'paravet', 'pet_resort'])
+    .optional()
+    .isIn(['veterinarian', 'vetician', 'paravet', 'pet_resort', 'admin'])
     .withMessage('Invalid login type')
 ];
 

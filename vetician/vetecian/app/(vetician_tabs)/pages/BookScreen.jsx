@@ -7,12 +7,11 @@ import {
   Alert,
   ActivityIndicator,
 } from "react-native";
-import { getDatabase, ref, onValue } from "firebase/database";
-import { auth } from "../../../firebase.config";
 import { useSelector, useDispatch } from "react-redux";
-import { getPetsByUserId } from "../../../store/slices/authSlice";
+import { getPetsByUserId, getAllVerifiedClinics, addBooking } from "../../../store/slices/authSlice";
 import { useFocusEffect } from "expo-router";
 import { router } from "expo-router";
+import CommonHeader from "../../../components/CommonHeader";
 
 const services = [
   "Video Consultation",
@@ -44,6 +43,7 @@ const clinics = [
 export default function BookScreen() {
   const dispatch = useDispatch();
   const reduxPets = useSelector(state => state.auth?.userPets?.data || []);
+  const verifiedClinics = useSelector(state => state.auth?.verifiedClinics?.data || []);
   const [loading, setLoading] = useState(false);
   const [selectedPet, setSelectedPet] = useState(null);
   const [selectedService, setSelectedService] = useState(null);
@@ -54,34 +54,37 @@ export default function BookScreen() {
   useFocusEffect(
     React.useCallback(() => {
       setLoading(true);
-      dispatch(getPetsByUserId()).finally(() => setLoading(false));
+      Promise.all([
+        dispatch(getPetsByUserId()),
+        dispatch(getAllVerifiedClinics())
+      ]).finally(() => setLoading(false));
     }, [])
   );
 
   const confirmBooking = () => {
     const booking = {
-      pet: selectedPet.name,
+      _id: Date.now().toString(),
+      petId: selectedPet._id,
+      petName: selectedPet.name,
       service: selectedService,
-      clinic: selectedClinic.name,
-      doctor: selectedClinic.doctor,
+      clinicId: selectedClinic?.clinicId || null,
+      clinicName: selectedClinic?.clinicName || "Home Service",
+      doctorName: selectedClinic?.doctor || "Service Provider",
       date: selectedDate,
       time: selectedSlot,
-      status: "Confirmed",
+      status: "pending",
+      createdAt: new Date().toISOString(),
     };
 
+    dispatch(addBooking(booking));
     console.log("BOOKING DATA:", booking);
 
     Alert.alert(
       "Appointment Booked ✅",
-      `${booking.pet} | ${booking.service}\n${booking.clinic}\n${booking.date} at ${booking.time}`
+      `${booking.petName} | ${booking.service}\n${booking.clinicName}\n${booking.date} at ${booking.time}`
     );
 
-    // reset (optional)
-    setSelectedPet(null);
-    setSelectedService(null);
-    setSelectedClinic(null);
-    setSelectedDate(null);
-    setSelectedSlot(null);
+    router.push('pages/MyBookings');
   };
 
   if (loading) {
@@ -93,10 +96,9 @@ export default function BookScreen() {
   }
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: "#F6F7FB", padding: 16 }}>
-      <Text style={{ fontSize: 22, fontWeight: "bold", marginBottom: 20 }}>
-        Book Appointment
-      </Text>
+    <View style={{ flex: 1, backgroundColor: "#F6F7FB" }}>
+      <CommonHeader title="Book Appointment" />
+      <ScrollView style={{ flex: 1, padding: 16 }}>
 
       {/* PET */}
       <Section title="Select Pet">
@@ -124,31 +126,62 @@ export default function BookScreen() {
               key={service}
               label={service}
               active={selectedService === service}
-              onPress={() => setSelectedService(service)}
-            />
-          ))}
-        </Section>
-      )}
-
-      {/* CLINIC */}
-      {selectedService && (
-        <Section title="Select Clinic">
-          {clinics.map((clinic) => (
-            <Option
-              key={clinic.id}
-              label={`${clinic.name} • ${clinic.doctor}`}
-              active={selectedClinic?.id === clinic.id}
               onPress={() => {
-                setSelectedClinic(clinic);
-                router.push('/pages/ClinicListScreen');
+                setSelectedService(service);
+                setSelectedClinic(null);
+                setSelectedDate(null);
+                setSelectedSlot(null);
               }}
             />
           ))}
         </Section>
       )}
 
+      {/* CLINIC - Only for Video Consultation */}
+      {selectedService === "Video Consultation" && (
+        <Section title="Select Clinic">
+          {verifiedClinics.length === 0 ? (
+            <Text style={{ color: "#666", textAlign: "center", padding: 20 }}>
+              No clinics available. Please try again later.
+            </Text>
+          ) : (
+            verifiedClinics.map((item) => {
+              const clinic = item.clinicDetails;
+              const vet = item.veterinarianDetails;
+              const slots = clinic.timings?.split(',').map(t => t.trim()) || ["10:00 AM", "2:00 PM", "5:00 PM"];
+              
+              return (
+                <Option
+                  key={clinic.clinicId}
+                  label={`${clinic.clinicName} • ${vet?.name || 'Doctor'}`}
+                  active={selectedClinic?.clinicId === clinic.clinicId}
+                  onPress={() => {
+                    setSelectedClinic({ ...clinic, doctor: vet?.name, slots });
+                  }}
+                />
+              );
+            })
+          )}
+        </Section>
+      )}
+
+      {/* OTHER SERVICES - Direct to date/time */}
+      {selectedService && selectedService !== "Video Consultation" && selectedService !== "Find Clinics" && (
+        <View style={{ backgroundColor: "#E3F2FD", padding: 16, borderRadius: 12, marginBottom: 20 }}>
+          <Text style={{ color: "#1976D2", fontSize: 14, fontWeight: "600" }}>
+            ℹ️ {selectedService === "Doorstep Service" ? "Our vet will visit your home" : 
+               selectedService === "Book a Hostel" ? "Select boarding facility for overnight stay" :
+               selectedService === "Day/Play School" ? "Select daycare center for daily activities" :
+               selectedService === "Pet Watching" ? "Pet sitter will come to your home" :
+               selectedService === "Pet Training" ? "Professional trainer will visit" :
+               selectedService === "Pet Grooming" ? "Grooming service at your location" :
+               "Service will be provided at your location"}
+          </Text>
+        </View>
+      )}
+
       {/* DATE */}
-      {selectedClinic && (
+      {(selectedClinic || (selectedService && selectedService !== "Video Consultation" && selectedService !== "Find Clinics")) && (
         <Section title="Select Date">
           <Option
             label="Today"
@@ -166,7 +199,7 @@ export default function BookScreen() {
       {/* TIME SLOT */}
       {selectedDate && (
         <Section title="Select Time Slot">
-          {selectedClinic.slots.map((slot) => (
+          {(selectedClinic?.slots || ["9:00 AM", "11:00 AM", "2:00 PM", "4:00 PM", "6:00 PM"]).map((slot) => (
             <Option
               key={slot}
               label={slot}
@@ -201,6 +234,7 @@ export default function BookScreen() {
         </TouchableOpacity>
       )}
     </ScrollView>
+    </View>
   );
 }
 

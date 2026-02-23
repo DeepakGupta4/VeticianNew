@@ -4,9 +4,33 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 /* =========================
     Helper Functions
 ========================= */
+// Helper to extract error message from HTML or JSON response
+const parseErrorMessage = (responseText) => {
+  // Try to parse as JSON first
+  try {
+    const json = JSON.parse(responseText);
+    return json.message || json.error || 'An error occurred';
+  } catch (e) {
+    // If HTML, extract error message
+    if (responseText.includes('<pre>')) {
+      const match = responseText.match(/<pre>([^<]+)<\/pre>/);
+      if (match && match[1]) {
+        // Extract just the error message, not the stack trace
+        const errorLine = match[1].split('<br>')[0].replace('Error: ', '');
+        return errorLine.trim();
+      }
+    }
+    // Return original text if can't parse
+    return responseText.substring(0, 100);
+  }
+};
+
 const getApiBaseUrl = () => {
-  // ✅ Use local backend for faster response
-  return process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api';
+  // Priority: app.json extra config > .env > fallback
+  const apiUrl = process.env.EXPO_PUBLIC_API_URL || 'https://vetician-backend-kovk.onrender.com/api';
+  console.log('🚀 API URL:', apiUrl);
+  console.log('🔧 __DEV__:', __DEV__);
+  return apiUrl;
 };
 
 // Debug helper function
@@ -86,36 +110,23 @@ function isValidDate(dateString) {
 export const signOutUser = createAsyncThunk(
   'auth/signOut',
   async (_, { rejectWithValue }) => {
-    console.log('🔴 signOutUser thunk called');
     try {
       const token = await AsyncStorage.getItem('token');
-      console.log('🔍 Token before logout:', token ? 'Found' : 'Not found');
-      
       const BASE_URL = getApiBaseUrl();
       
       if (token) {
-        console.log('🔍 Calling backend logout API...');
-        // Call backend logout API
         const headers = await getCommonHeaders(true);
-        const response = await fetch(`${BASE_URL}/auth/logout`, {
+        await fetch(`${BASE_URL}/auth/logout`, {
           method: 'POST',
           headers,
           body: JSON.stringify({ refreshToken: token })
         });
-        console.log('🔍 Backend logout response:', response.status);
       }
       
-      // Clear AsyncStorage
-      console.log('🔍 Clearing AsyncStorage...');
       await AsyncStorage.multiRemove(['userId', 'token']);
-      console.log('✅ AsyncStorage cleared');
-      
       return true;
     } catch (error) {
-      console.log('❌ Logout API error:', error);
-      // Even if API fails, clear local storage
       await AsyncStorage.multiRemove(['userId', 'token']);
-      console.log('✅ AsyncStorage cleared (fallback)');
       return true;
     }
   }
@@ -126,66 +137,77 @@ export const signInUser = createAsyncThunk(
   async ({ email, password, loginType }, { rejectWithValue }) => {
     try {
       const BASE_URL = getApiBaseUrl();
-      const headers = await getCommonHeaders(false); // No auth needed for login
+      const headers = await getCommonHeaders(false);
       
-      console.log('🔍 Making request to:', `${BASE_URL}/auth/login`);
-      console.log('🔍 Request headers:', headers);
+      const requestBody = { email, password, loginType };
+      console.log('🔍 SignIn Request:', { BASE_URL, requestBody });
       
       const res = await fetch(`${BASE_URL}/auth/login`, {
         method: 'POST',
         mode: 'cors',
         headers,
-        body: JSON.stringify({ email, password, loginType }),
+        body: JSON.stringify(requestBody),
       });
       
-      console.log('🔍 Response status:', res.status);
-      console.log('🔍 Response headers:', Object.fromEntries(res.headers.entries()));
-      
       const responseText = await res.text();
-      console.log('🔍 Raw response:', responseText.substring(0, 200));
+      console.log('📥 SignIn Response:', { status: res.status, responseText: responseText.substring(0, 200) });
       
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}: ${responseText}`);
+      // Check if response is HTML (error page)
+      if (responseText.includes('<!DOCTYPE') || responseText.includes('<html')) {
+        console.error('❌ Received HTML instead of JSON - Backend might be down');
+        return rejectWithValue('Server error. Please check your internet connection and try again.');
       }
       
-      // Try to parse as JSON
+      if (!res.ok) {
+        const errorMessage = parseErrorMessage(responseText);
+        return rejectWithValue(errorMessage);
+      }
+      
       let data;
       try {
         data = JSON.parse(responseText);
       } catch (parseError) {
-        console.log('❌ JSON parse error:', parseError);
-        throw new Error(`Server returned non-JSON response: ${responseText.substring(0, 100)}`);
+        return rejectWithValue('Unable to process server response');
       }
       
       if (data.user?._id) await AsyncStorage.setItem('userId', data.user._id);
       return data;
     } catch (error) {
-      console.log('❌ Full error:', error);
-      return rejectWithValue(error.message || 'Sign in failed');
+      return rejectWithValue(error.message || 'Network error. Please check your connection.');
     }
   }
 );
 
 export const signUpUser = createAsyncThunk(
   'auth/signUp',
-  async ({ name, email, password, role = 'vetician' }, { rejectWithValue }) => {
+  async ({ name, email, phone, password, loginType }, { rejectWithValue }) => {
     try {
       const BASE_URL = getApiBaseUrl();
-      const headers = await getCommonHeaders(false); // No auth needed for signup
+      const headers = await getCommonHeaders(false);
       const res = await fetch(`${BASE_URL}/auth/register`, {
         method: 'POST',
         headers,
-        body: JSON.stringify({ name, email, password, role }),
+        body: JSON.stringify({ name, email, phone, password, loginType }),
       });
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(`HTTP ${res.status}: ${text}`);
+      
+      const responseText = await res.text();
+      
+      // Check if response is HTML (error page)
+      if (responseText.includes('<!DOCTYPE') || responseText.includes('<html')) {
+        console.error('❌ Received HTML instead of JSON - Backend might be down');
+        return rejectWithValue('Server error. Please try again later.');
       }
-      const data = await res.json();
+      
+      if (!res.ok) {
+        const errorMessage = parseErrorMessage(responseText);
+        return rejectWithValue(errorMessage);
+      }
+      
+      const data = JSON.parse(responseText);
       if (data.user?._id) await AsyncStorage.setItem('userId', data.user._id);
       return data;
     } catch (error) {
-      return rejectWithValue(error.message || 'Sign up failed');
+      return rejectWithValue(error.message || 'Network error. Please check your connection.');
     }
   }
 );
@@ -278,6 +300,36 @@ export const updateParent = createAsyncThunk(
 );
 
 /* =========================
+    Veterinarian Thunks
+========================= */
+export const veterinarianUser = createAsyncThunk(
+  'auth/veterinarianUser',
+  async (vetData, { rejectWithValue }) => {
+    try {
+      const userId = await AsyncStorage.getItem('userId');
+      if (!userId) throw new Error('User not authenticated');
+      
+      const BASE_URL = getApiBaseUrl();
+      const headers = await getCommonHeaders(true);
+      const res = await fetch(`${BASE_URL}/auth/veterinarian-register`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ ...vetData, userId }),
+      });
+      
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`HTTP ${res.status}: ${errorText}`);
+      }
+      
+      return await res.json();
+    } catch (error) {
+      return rejectWithValue(error.message || 'Failed to save veterinarian data');
+    }
+  }
+);
+
+/* =========================
     Clinic Thunks
 ========================= */
 export const getAllVerifiedClinics = createAsyncThunk(
@@ -291,8 +343,10 @@ export const getAllVerifiedClinics = createAsyncThunk(
         headers,
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      return data.data || [];
+      const response = await res.json();
+      console.log('✅ Clinics API Response:', response);
+      console.log('✅ Clinics Data Array:', response.data);
+      return response.data || [];
     } catch (error) {
       return rejectWithValue(error.message || 'Failed to load clinics');
     }
@@ -310,21 +364,8 @@ export const registerPet = createAsyncThunk(
         throw new Error('Missing required information');
       
       const userId = await AsyncStorage.getItem('userId');
-      console.log('🔍 registerPet - userId:', userId);
-      
-      // Debug: Check current auth state
-      const state = getState();
-      console.log('🔍 registerPet - Auth state:', {
-        isAuthenticated: state.auth.isAuthenticated,
-        hasUser: !!state.auth.user,
-        hasToken: !!state.auth.token
-      });
-      
       const BASE_URL = getApiBaseUrl();
-      const headers = await getCommonHeaders(true); // ✅ Include auth token
-      
-      console.log('🔍 registerPet - Request headers:', Object.keys(headers));
-      console.log('🔍 registerPet - Has Authorization header:', !!headers.Authorization);
+      const headers = await getCommonHeaders(true);
       
       const res = await fetch(`${BASE_URL}/parents/pets`, {
         method: 'POST',
@@ -332,19 +373,14 @@ export const registerPet = createAsyncThunk(
         body: JSON.stringify({ ...petData, userId }),
       });
       
-      console.log('🔍 registerPet - Response status:', res.status);
-      
       if (!res.ok) {
         const errorText = await res.text();
-        console.log('❌ registerPet - Error response:', errorText);
         throw new Error(`HTTP ${res.status}: ${errorText}`);
       }
       
       const result = await res.json();
-      console.log('✅ registerPet - Success:', result);
       return result;
     } catch (error) {
-      console.log('❌ registerPet - Error:', error.message);
       return rejectWithValue(error.message || 'Pet registration failed');
     }
   }
@@ -352,7 +388,7 @@ export const registerPet = createAsyncThunk(
 
 export const getPetsByUserId = createAsyncThunk(
   'auth/getPetsByUserId',
-  async (_, { rejectWithValue }) => {
+  async (_, { rejectWithValue, dispatch }) => {
     try {
       const userId = await AsyncStorage.getItem('userId');
       const BASE_URL = getApiBaseUrl();
@@ -360,10 +396,19 @@ export const getPetsByUserId = createAsyncThunk(
       const res = await fetch(`${BASE_URL}/parents/pets/${userId}`, {
         headers,
       });
+      
+      if (res.status === 401) {
+        console.log('❌ Token expired - clearing auth');
+        await AsyncStorage.multiRemove(['token', 'userId']);
+        dispatch({ type: 'auth/signOut' });
+        return [];
+      }
+      
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       return data.pets || [];
     } catch (error) {
+      console.log('❌ getPetsByUserId error:', error.message);
       return rejectWithValue(error.message || 'Failed to load pets');
     }
   }
@@ -397,13 +442,14 @@ const initialState = {
   token: null,
   refreshToken: null,
   isAuthenticated: false,
-  isLoading: false, // Make sure this starts as false
+  isLoading: false,
   error: null,
   signUpSuccess: false,
   userPets: { loading: false, error: null, data: [] },
   parentData: { loading: false, error: null, data: null },
   clinics: { loading: false, error: null, data: [] },
   verifiedClinics: { loading: false, error: null, data: [] },
+  bookings: [],
 };
 
 const authSlice = createSlice({
@@ -411,7 +457,6 @@ const authSlice = createSlice({
   initialState,
   reducers: {
     signOut: (state) => {
-      // Clear all auth state immediately
       state.user = null;
       state.token = null;
       state.refreshToken = null;
@@ -421,12 +466,19 @@ const authSlice = createSlice({
       state.parentData = initialState.parentData;
       state.clinics = initialState.clinics;
       state.verifiedClinics = initialState.verifiedClinics;
-      console.log('✅ Redux state cleared by synchronous signOut');
     },
     clearError: state => { state.error = null; },
     clearLoading: state => { 
-      state.isLoading = false; 
-      console.log('✅ Loading state cleared');
+      state.isLoading = false;
+    },
+    clearUserPets: state => {
+      state.userPets = initialState.userPets;
+    },
+    addBooking: (state, action) => {
+      if (!state.bookings) {
+        state.bookings = [];
+      }
+      state.bookings.push(action.payload);
     },
     setCredentials: (state, action) => {
       state.user = action.payload.user;
@@ -434,7 +486,6 @@ const authSlice = createSlice({
       state.refreshToken = action.payload.refreshToken;
       state.isAuthenticated = true;
       state.error = null;
-      console.log('✅ Credentials set in Redux state');
     },
   },
   extraReducers: builder => {
@@ -446,43 +497,32 @@ const authSlice = createSlice({
         state.token = action.payload.token;
         state.refreshToken = action.payload.refreshToken;
         state.isAuthenticated = true;
-        // ✅ Store token in AsyncStorage for API calls
-        console.log('🔍 Login response token:', action.payload.token ? 'Present' : 'Missing');
         if (action.payload.token) {
-          // Store token immediately and synchronously
-          AsyncStorage.setItem('token', action.payload.token).then(() => {
-            console.log('✅ Token stored in AsyncStorage successfully');
-          }).catch(err => {
-            console.log('❌ Failed to store token:', err);
-          });
-        } else {
-          console.log('❌ No token in login response');
+          AsyncStorage.setItem('token', action.payload.token);
         }
       })
       .addCase(signInUser.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload;
       })
+      .addCase(signUpUser.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
       .addCase(signUpUser.fulfilled, (state, action) => {
         state.isLoading = false;
         state.user = action.payload.user;
         state.token = action.payload.token;
         state.isAuthenticated = true;
-        // ✅ Store token in AsyncStorage for API calls
-        console.log('🔍 Signup response token:', action.payload.token ? 'Present' : 'Missing');
         if (action.payload.token) {
-          // Store token immediately and synchronously
-          AsyncStorage.setItem('token', action.payload.token).then(() => {
-            console.log('✅ Token stored in AsyncStorage successfully');
-          }).catch(err => {
-            console.log('❌ Failed to store token:', err);
-          });
-        } else {
-          console.log('❌ No token in signup response');
+          AsyncStorage.setItem('token', action.payload.token);
         }
       })
+      .addCase(signUpUser.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload;
+      })
       .addCase(signOutUser.fulfilled, (state) => {
-        // Clear all auth state
         state.user = null;
         state.token = null;
         state.refreshToken = null;
@@ -492,11 +532,19 @@ const authSlice = createSlice({
         state.parentData = initialState.parentData;
         state.clinics = initialState.clinics;
         state.verifiedClinics = initialState.verifiedClinics;
-        console.log('✅ User signed out and backend notified');
+      })
+      .addCase(getPetsByUserId.pending, (state) => {
+        state.userPets.loading = true;
+        state.userPets.error = null;
       })
       .addCase(getPetsByUserId.fulfilled, (state, action) => {
         state.userPets.loading = false;
         state.userPets.data = action.payload;
+      })
+      .addCase(getPetsByUserId.rejected, (state, action) => {
+        state.userPets.loading = false;
+        state.userPets.error = action.payload;
+        state.userPets.data = [];
       })
       .addCase(updatePet.pending, (state) => {
         state.userPets.loading = true;
@@ -553,6 +601,6 @@ const authSlice = createSlice({
   },
 });
 
-export const { clearError, clearLoading, setCredentials } = authSlice.actions;
+export const { clearError, clearLoading, setCredentials, clearUserPets, addBooking } = authSlice.actions;
 export { signOutUser as signOut }; // Export signOutUser as signOut for backend integration
 export default authSlice.reducer;

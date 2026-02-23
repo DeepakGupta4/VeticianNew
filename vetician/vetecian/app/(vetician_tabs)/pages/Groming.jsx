@@ -4,6 +4,7 @@ import {
   Image, SafeAreaView, FlatList
 } from 'react-native';
 import { MaterialIcons, FontAwesome5, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import CommonHeader from '../../../components/CommonHeader';
 
 export default function PetGroomingScreen() {
   const [selectedType, setSelectedType] = useState('Salon');
@@ -31,6 +32,7 @@ export default function PetGroomingScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <CommonHeader title="Pet Grooming" />
       <ScrollView showsVerticalScrollIndicator={false}>
         
         {/* --- Hero Banner --- */}

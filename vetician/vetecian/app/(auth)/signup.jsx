@@ -70,7 +70,7 @@ export default function SignUp() {
         email: formData.email.trim(),
         phone: `+91${formData.phone.trim()}`,
         password: formData.password,
-        role: loginType, // ✅ Backend usually expects 'role'
+        loginType: loginType, // Backend expects 'loginType' not 'role'
       };
 
       // ✅ FIX: Response ko 'result' variable mein store karein
@@ -83,40 +83,26 @@ export default function SignUp() {
       if (result) {
         console.log('🎉 SIGNUP COMPONENT - Signup successful');
         
-        Alert.alert(
-          'Account Created',
-          'Your account has been created successfully!',
-          [
-            {
-              text: 'OK',
-              onPress: () => {
-                // Route to appropriate onboarding based on login type
-                switch (loginType) {
-                  case 'veterinarian':
-                    router.replace('/(doc_tabs)/onboarding/onboarding_conf');
-                    break;
-                  case 'pet_resort':
-                    router.replace('/(pet_resort_tabs)/(tabs)');
-                    break;
-                  case 'peravet':
-                    router.replace('/(peravet_tabs)/(tabs)');
-                    break;
-                  default: // vetician / pet parent
-                    router.replace('/(vetician_tabs)/onboarding/onboarding_conf');
-                }
-              },
-            },
-          ],
-        );
+        // Route to appropriate onboarding based on login type
+        switch (loginType) {
+          case 'veterinarian':
+            router.replace('/(doc_tabs)/onboarding/onboarding_conf');
+            break;
+          case 'pet_resort':
+            router.replace('/(pet_resort_tabs)/(tabs)');
+            break;
+          case 'paravet':
+            router.replace('/(peravet_tabs)/(tabs)');
+            break;
+          default: // vetician / pet parent
+            router.replace('/(vetician_tabs)/onboarding/onboarding_conf');
+        }
       }
     } catch (error) {
       console.log('❌ SIGNUP COMPONENT - Caught error:', error);
       
-      // Error handling for existing users or server issues
-      Alert.alert(
-        'Sign Up Failed',
-        typeof error === 'string' ? error : (error.message || 'An error occurred')
-      );
+      // Set error in state instead of Alert
+      setErrors({ general: typeof error === 'string' ? error : (error.message || 'An error occurred') });
     }
   };
 
@@ -259,9 +245,9 @@ export default function SignUp() {
               )}
             </View>
 
-            {error && (
+            {errors.general && (
               <View style={styles.errorContainer}>
-                <Text style={styles.errorText}>{error}</Text>
+                <Text style={styles.errorText}>{errors.general}</Text>
               </View>
             )}
 
@@ -527,8 +513,9 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   buttonDisabled: {
-    backgroundColor: '#a0a0a0',
-    shadowColor: '#a0a0a0',
+    backgroundColor: '#ccc',
+    shadowOpacity: 0,
+    elevation: 0,
   },
   signUpButtonText: {
     color: '#fff',

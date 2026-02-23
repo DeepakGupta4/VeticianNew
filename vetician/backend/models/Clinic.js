@@ -30,6 +30,14 @@ const clinicSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
+  latitude: {
+    type: Number,
+    required: false
+  },
+  longitude: {
+    type: Number,
+    required: false
+  },
   clinicNumber: {
     type: String,
     trim: true

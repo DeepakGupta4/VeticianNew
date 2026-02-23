@@ -9,6 +9,7 @@ const { AppError } = require('../utils/appError');
 const { catchAsync } = require('../utils/catchAsync');
 const PetResort = require('../models/PetResort');
 const Appointment = require('../models/Appointment');
+const { getCoordinatesFromAddress } = require('../utils/geocoding');
 
 
 // Generate JWT tokens
@@ -30,55 +31,29 @@ const generateTokens = (userId) => {
 
 // Register new user
 const register = catchAsync(async (req, res, next) => {
-  console.log('🔍 REGISTER API - Request started');
-  console.log('📝 REGISTER API - Request body:', req.body);
-  
   const { name, email, phone, password, role = 'vetician' } = req.body;
   
-  console.log('📋 REGISTER API - Extracted data:', {
-    name: name ? name.trim() : name,
-    email: email ? email.toLowerCase().trim() : email,
-    phone: phone ? phone.trim() : phone,
-    password: password ? '***PROVIDED***' : 'MISSING',
-    role
-  });
-
-  // Validate required fields
   if (!name || !email || !password) {
-    console.log('❌ REGISTER API - Missing required fields');
     return next(new AppError('Name, email, and password are required', 400));
   }
 
   if (!phone) {
-    console.log('❌ REGISTER API - Phone number is required for new registrations');
     return next(new AppError('Phone number is required', 400));
   }
 
-  // Updated role validation
   if (role && !['veterinarian', 'vetician', 'paravet', 'pet_resort'].includes(role)) {
-    console.log('❌ REGISTER API - Invalid role specified:', role);
     return next(new AppError('Invalid role specified', 400));
   }
-  console.log('✅ REGISTER API - Valid role:', role);
 
-  // Check if user already exists
-  console.log('🔍 REGISTER API - Checking for existing user with email:', email?.toLowerCase().trim(), 'and role:', role);
   const existingUser = await User.findOne({
     email: email.toLowerCase().trim(),
     role
   });
 
   if (existingUser) {
-    console.log('❌ REGISTER API - User already exists:', {
-      id: existingUser._id,
-      email: existingUser.email,
-      role: existingUser.role
-    });
     return next(new AppError(`User with this email already exists as a ${role}`, 400));
   }
-  console.log('✅ REGISTER API - No existing user found, proceeding with registration');
 
-  // Create new user
   const user = new User({
     name: name.trim(),
     email: email.toLowerCase().trim(),
@@ -86,22 +61,11 @@ const register = catchAsync(async (req, res, next) => {
     password,
     role
   });
-  
-  console.log('👤 REGISTER API - Created user object:', {
-    name: user.name,
-    email: user.email,
-    role: user.role,
-    hasPassword: !!user.password
-  });
 
-  console.log('💾 REGISTER API - Saving user to database...');
   await user.save();
-  console.log('✅ REGISTER API - User saved successfully with ID:', user._id);
 
-  // Create role-specific entry
   try {
     if (role === 'vetician') {
-      console.log('➕ REGISTER API - Creating parent entry for vetician...');
       const parent = new Parent({
         name: user.name,
         email: user.email,
@@ -109,7 +73,6 @@ const register = catchAsync(async (req, res, next) => {
         gender: 'other'
       });
       await parent.save();
-      console.log('✅ REGISTER API - Parent entry created:', parent._id);
     } else if (role === 'paravet') {
       const paravet = new Paravet({
         userId: user._id.toString(),
@@ -121,35 +84,21 @@ const register = catchAsync(async (req, res, next) => {
           currentStep: 1,
           completionPercentage: 10,
           submitted: false,
-          approvalStatus: 'approved', // Auto-approve for testing
+          approvalStatus: 'approved',
           approvedAt: new Date()
         },
         isActive: true
       });
       await paravet.save();
-      console.log('✅ REGISTER API - Paravet entry created and auto-approved:', paravet._id);
     }
-    // Note: pet_resort and veterinarian entries created during onboarding
   } catch (roleError) {
-    console.error('❌ REGISTER API - Error creating role-specific entry:', roleError.message);
     // Continue with registration even if role-specific entry fails
   }
 
-  // Generate tokens
-  console.log('🎫 REGISTER API - Generating tokens...');
   const { accessToken, refreshToken } = generateTokens(user._id);
-  console.log('✅ REGISTER API - Tokens generated successfully');
-
-  // Save refresh token to user
-  console.log('💾 REGISTER API - Saving refresh token to user...');
   user.refreshTokens.push({ token: refreshToken });
   await user.save();
-  console.log('✅ REGISTER API - Refresh token saved');
-
-  // Update last login
-  console.log('📅 REGISTER API - Updating last login...');
   await user.updateLastLogin();
-  console.log('✅ REGISTER API - Last login updated');
 
   const response = {
     success: true,
@@ -161,14 +110,6 @@ const register = catchAsync(async (req, res, next) => {
     token: accessToken,
     refreshToken,
   };
-  
-  console.log('🎉 REGISTER API - Registration successful, sending response:', {
-    success: response.success,
-    message: response.message,
-    userId: response.user.id,
-    userRole: response.user.role,
-    hasToken: !!response.token
-  });
 
   res.status(201).json(response);
 });
@@ -254,80 +195,36 @@ const deleteAccount = catchAsync(async (req, res, next) => {
 
 // Login user
 const login = catchAsync(async (req, res, next) => {
-  console.log('🔍 LOGIN API - Request started');
-  console.log('📝 LOGIN API - Request body:', req.body);
-  
   const { email, password, loginType } = req.body;
-  
-  console.log('🔑 LOGIN API - Extracted credentials:', {
-    email: email ? email.toLowerCase().trim() : email,
-    password: password ? '***PROVIDED***' : 'MISSING',
-    loginType
-  });
 
-  // Updated to accept new roles
-  if (!['veterinarian', 'vetician', 'paravet', 'pet_resort'].includes(loginType)) {
-    console.log('❌ LOGIN API - Invalid login type:', loginType);
+  if (!['veterinarian', 'vetician', 'paravet', 'pet_resort', 'admin'].includes(loginType)) {
     return next(new AppError('Invalid login type specified', 400));
   }
-  console.log('✅ LOGIN API - Valid login type:', loginType);
 
-  // Find user and include password for comparison
-  console.log('🔍 LOGIN API - Searching for user with email:', email?.toLowerCase().trim(), 'and role:', loginType);
   const user = await User.findByEmailAndRole(email, loginType).select('+password');
   
   if (!user) {
-    console.log('❌ LOGIN API - User not found with email:', email, 'and role:', loginType);
     return next(new AppError('Invalid email or password', 401));
   }
-  console.log('✅ LOGIN API - User found:', {
-    id: user._id,
-    email: user.email,
-    role: user.role,
-    isActive: user.isActive,
-    hasPassword: !!user.password
-  });
 
-  // Verify role matches login type
   if (user.role !== loginType) {
-    console.log('❌ LOGIN API - Role mismatch. User role:', user.role, 'Login type:', loginType);
     return next(new AppError(`Please login as ${user.role}`, 401));
   }
-  console.log('✅ LOGIN API - Role matches login type');
 
-  // Check if user is active
   if (!user.isActive) {
-    console.log('❌ LOGIN API - User account is inactive');
     return next(new AppError('Account has been deactivated', 401));
   }
-  console.log('✅ LOGIN API - User account is active');
 
-  // Verify password
-  console.log('🔑 LOGIN API - Verifying password...');
   const isPasswordValid = await user.comparePassword(password);
-  console.log('🔑 LOGIN API - Password verification result:', isPasswordValid);
   
   if (!isPasswordValid) {
-    console.log('❌ LOGIN API - Invalid password');
     return next(new AppError('Invalid email or password', 401));
   }
-  console.log('✅ LOGIN API - Password is valid');
 
-  // Generate tokens
-  console.log('🎫 LOGIN API - Generating tokens...');
   const { accessToken, refreshToken } = generateTokens(user._id);
-  console.log('✅ LOGIN API - Tokens generated successfully');
-
-  // Save refresh token to user
-  console.log('💾 LOGIN API - Saving refresh token to user...');
   user.refreshTokens.push({ token: refreshToken });
   await user.save();
-  console.log('✅ LOGIN API - Refresh token saved');
-
-  // Update last login
-  console.log('📅 LOGIN API - Updating last login...');
   await user.updateLastLogin();
-  console.log('✅ LOGIN API - Last login updated');
 
   const response = {
     success: true,
@@ -339,14 +236,6 @@ const login = catchAsync(async (req, res, next) => {
     token: accessToken,
     refreshToken,
   };
-  
-  console.log('🎉 LOGIN API - Login successful, sending response:', {
-    success: response.success,
-    message: response.message,
-    userId: response.user.id,
-    userRole: response.user.role,
-    hasToken: !!response.token
-  });
 
   res.json(response);
 });
@@ -445,32 +334,28 @@ const getParentById = catchAsync(async (req, res, next) => {
 
 // update parent detail
 const updateParent = catchAsync(async (req, res, next) => {
-  const { id } = req.params;
-  const { name, email, phone, address, gender, image } = req.body;
+  const { userId } = req.params;
+  const { name, email, phone, address, gender, image, dateOfBirth, emergencyContact } = req.body;
 
-  // Find parent by user ID
-  const parent = await Parent.findOne({ user: id });
+  const parent = await Parent.findOne({ user: userId });
 
   if (!parent) {
+    console.log(userId);
     return next(new AppError('Parent profile not found', 404));
   }
 
-  // Validate required fields
-  if (!name || !email || !phone || !address) {
-    return next(new AppError('Name, email, phone and address are required', 400));
+  if (!name || !email || !phone) {
+    return next(new AppError('Name, email and phone are required', 400));
   }
 
-  // Basic email validation
   if (email && !email.includes('@')) {
     return next(new AppError('Please provide a valid email address', 400));
   }
 
-  // Basic phone validation (10-15 digits)
   if (phone && (phone.length < 10 || phone.length > 15 || !/^\d+$/.test(phone))) {
     return next(new AppError('Please provide a valid phone number (10-15 digits)', 400));
   }
 
-  // Check if email is being changed and already exists
   if (email && email !== parent.email) {
     const existingParent = await Parent.findOne({ email });
     if (existingParent && existingParent._id.toString() !== parent._id.toString()) {
@@ -478,18 +363,17 @@ const updateParent = catchAsync(async (req, res, next) => {
     }
   }
 
-  // Update parent fields
   parent.name = name;
   parent.email = email;
   parent.phone = phone;
-  parent.address = address;
+  if (address) parent.address = address;
   if (gender) parent.gender = gender;
   if (image) parent.image = image;
+  if (dateOfBirth) parent.dateOfBirth = dateOfBirth;
+  if (emergencyContact) parent.emergencyContact = emergencyContact;
 
-  // Save updated parent
   await parent.save();
 
-  // Return updated parent data
   res.status(200).json({
     success: true,
     message: 'Parent profile updated successfully',
@@ -503,6 +387,8 @@ const updateParent = catchAsync(async (req, res, next) => {
         address: parent.address,
         gender: parent.gender,
         image: parent.image,
+        dateOfBirth: parent.dateOfBirth,
+        emergencyContact: parent.emergencyContact,
         createdAt: parent.createdAt
       }
     }
@@ -778,9 +664,16 @@ const registerClinic = catchAsync(async (req, res, next) => {
     });
   }
 
-  // Create and save clinic
+  // Get coordinates from address
+  const fullAddress = `${clinicData.streetAddress}, ${clinicData.locality}, ${clinicData.city}`;
+  const coordinates = await getCoordinatesFromAddress(fullAddress);
+  console.log('📍 Clinic coordinates:', coordinates);
+
+  // Create and save clinic with coordinates
   const clinic = await Clinic.create({
     ...clinicData,
+    latitude: coordinates.latitude,
+    longitude: coordinates.longitude,
     verified: false,
     isActive: false
   });
@@ -789,7 +682,11 @@ const registerClinic = catchAsync(async (req, res, next) => {
     success: true,
     data: {
       clinicId: clinic._id,
-      status: clinic.status
+      status: clinic.status,
+      location: {
+        latitude: clinic.latitude,
+        longitude: clinic.longitude
+      }
     }
   });
 });
@@ -1595,131 +1492,88 @@ const generateOTP = () => {
   return Math.floor(100000 + Math.random() * 900000).toString();
 };
 
-// Send OTP using Fast2SMS (for Indian numbers)
 const sendOTP = catchAsync(async (req, res, next) => {
   const { phoneNumber, email } = req.body;
-  
-  console.log('📞 Received OTP request for:', phoneNumber || email);
   
   if (!phoneNumber && !email) {
     return next(new AppError('Phone number or email is required', 400));
   }
   
-  // Check if user exists
   let user;
   if (phoneNumber) {
-    // For phone numbers, check both phone field and email field
     user = await User.findOne({
       $or: [
         { phone: phoneNumber },
-        { phone: phoneNumber.replace('+91', '') }, // Try without country code
-        { phone: phoneNumber.replace('+', '') }    // Try without + sign
+        { phone: phoneNumber.replace('+91', '') },
+        { phone: phoneNumber.replace('+', '') }
       ]
     });
     
     if (!user) {
-      console.log(`📞 No user found with phone: ${phoneNumber}`);
-      console.log('💡 Available phone numbers in database:');
-      const allUsers = await User.find({ phone: { $exists: true, $ne: null } }).select('phone email');
-      allUsers.forEach(u => console.log(`  - ${u.phone} (${u.email})`));
+      return next(new AppError('User not found. Please sign up first.', 404));
     }
   } else {
     user = await User.findOne({ email: email.toLowerCase() });
-  }
-  
-  if (!user) {
-    return next(new AppError('User not found. Please sign up first.', 404));
+    if (!user) {
+      return next(new AppError('User not found. Please sign up first.', 404));
+    }
   }
   
   const otp = generateOTP();
   const verificationId = 'verify_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
   
-  console.log('🔢 Generated OTP:', otp);
-  
-  // Store OTP with 5 minute expiry
   otpStorage.set(verificationId, {
     phoneNumber,
     email,
     otp,
-    expiresAt: Date.now() + 5 * 60 * 1000
+    userId: user?._id,
+    expiresAt: Date.now() + 10 * 60 * 1000
   });
   
   if (phoneNumber) {
     try {
-      const axios = require('axios');
+      const twilio = require('twilio');
+      const client = twilio(
+        process.env.TWILIO_ACCOUNT_SID,
+        process.env.TWILIO_AUTH_TOKEN
+      );
       
-      // Clean phone number (remove +91)
-      const cleanPhone = phoneNumber.replace('+91', '').replace('+', '');
-      console.log('📤 Sending SMS to:', cleanPhone);
-      console.log('🔑 API Key:', process.env.FAST2SMS_API_KEY ? 'Found' : 'Missing');
-      
-      const response = await axios.post('https://www.fast2sms.com/dev/bulkV2', {
-        route: 'v3',
-        sender_id: 'FSTSMS',
-        message: `Your Vetician OTP is ${otp}. Valid for 5 minutes.`,
-        language: 'english',
-        flash: 0,
-        numbers: cleanPhone
-      }, {
-        headers: {
-          'authorization': process.env.FAST2SMS_API_KEY,
-          'Content-Type': 'application/json'
-        }
+      await client.messages.create({
+        body: `Your Vetician OTP is: ${otp}. Valid for 10 minutes.`,
+        from: process.env.TWILIO_PHONE_NUMBER,
+        to: phoneNumber
       });
-      
-      console.log('✅ Fast2SMS response:', response.data);
       
       res.status(200).json({
         success: true,
         message: 'OTP sent successfully',
-        verificationId
+        verificationId,
+        otp
       });
     } catch (error) {
-      console.error('❌ SMS Error:', error.message);
-      if (error.response) {
-        console.error('❌ Response data:', error.response.data);
-        console.error('❌ Response status:', error.response.status);
-      }
-      
-      // Check if it's the payment requirement error
-      if (error.response?.data?.message?.includes('complete one transaction')) {
-        return res.status(402).json({
-          success: false,
-          message: 'SMS service requires payment activation. Please use email OTP instead.',
-          errorCode: 'SMS_PAYMENT_REQUIRED',
-          suggestedAction: 'USE_EMAIL_OTP'
-        });
-      }
-      
-      // For other SMS errors
       return res.status(500).json({
         success: false,
-        message: 'SMS service temporarily unavailable. Please use email OTP instead.',
+        message: 'Failed to send SMS. Please try email OTP instead.',
         errorCode: 'SMS_SERVICE_ERROR',
         suggestedAction: 'USE_EMAIL_OTP'
       });
     }
   } else {
-    // Email OTP using nodemailer with Gmail
     try {
       const nodemailer = require('nodemailer');
       
-      // Create transporter using Gmail (free service)
       const transporter = nodemailer.createTransport({
         service: 'gmail',
         auth: {
           user: process.env.EMAIL_USER,
           pass: process.env.EMAIL_PASS
         },
-        // Add these options for better compatibility
         tls: {
           rejectUnauthorized: false
         }
       });
       
-      // Test the connection first
       await transporter.verify();
-      console.log('✅ Email server connection verified');
       
       const mailOptions = {
         from: `"Vetician App" <${process.env.EMAIL_USER}>`,
@@ -1732,7 +1586,7 @@ const sendOTP = catchAsync(async (req, res, next) => {
             <div style="background-color: #f0f7ff; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0;">
               <h1 style="color: #4A90E2; font-size: 32px; margin: 0; letter-spacing: 5px;">${otp}</h1>
             </div>
-            <p>This code will expire in 5 minutes.</p>
+            <p>This code will expire in 10 minutes.</p>
             <p>If you didn't request this code, please ignore this email.</p>
             <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
             <p style="color: #666; font-size: 12px;">This is an automated message from Vetician. Please do not reply.</p>
@@ -1740,20 +1594,16 @@ const sendOTP = catchAsync(async (req, res, next) => {
         `
       };
       
-      const info = await transporter.sendMail(mailOptions);
-      console.log(`✅ Email OTP sent to ${email}:`, info.messageId);
+      await transporter.sendMail(mailOptions);
       
       res.status(200).json({
         success: true,
         message: 'OTP sent successfully to your email',
-        verificationId
+        verificationId,
+        otp
       });
     } catch (emailError) {
-      console.error('❌ Email Error:', emailError.message);
-      console.log(`📧 OTP for ${email}: ${otp}`);
-      
-      // Return error - don't show test OTP in frontend
-      return next(new AppError('Failed to send email OTP. Please check your email settings or try phone OTP.', 500));
+      return next(new AppError('Failed to send email OTP. Please try again.', 500));
     }
   }
 });

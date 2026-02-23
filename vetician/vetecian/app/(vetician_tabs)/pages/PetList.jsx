@@ -480,160 +480,70 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   FlatList,
-  Dimensions,
   Image,
-  Animated
+  SafeAreaView
 } from 'react-native';
-import { MaterialIcons, FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
+import { MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
 import { useDispatch, useSelector } from 'react-redux';
 import { getPetsByUserId, clearUserPets } from '../../../store/slices/authSlice';
 import { router } from 'expo-router';
-import { ChevronLeft } from 'lucide-react-native';
+import CommonHeader from '../../../components/CommonHeader';
 import PetDetailsModal from '../../../components/petparent/home/PetDetailModal';
 import { LinearGradient } from 'expo-linear-gradient';
 
-const { width } = Dimensions.get('window');
 const PET_TYPES = {
   Dog: 'dog',
   Cat: 'cat',
   default: 'paw'
 };
 
-const PetCard = ({ pet, onPress, onEdit, index }) => {
-  const [scaleAnim] = useState(new Animated.Value(0));
-
-  useEffect(() => {
-    Animated.spring(scaleAnim, {
-      toValue: 1,
-      delay: index * 100,
-      useNativeDriver: true,
-      friction: 8,
-      tension: 40
-    }).start();
-  }, []);
-
+const PetCard = ({ pet, onPress, onEdit }) => {
   if (!pet) return null;
 
   const getPetIcon = () => {
     return PET_TYPES[pet.species] || PET_TYPES.default;
   };
 
-  const getGradientColors = () => {
-    const gradients = {
-      Dog: ['#FF6B6B', '#FF8E53'],
-      Cat: ['#4ECDC4', '#44A08D'],
-      default: ['#A8E6CF', '#7EC8A3']
-    };
-    return gradients[pet.species] || gradients.default;
-  };
-
   return (
-    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
-      <TouchableOpacity 
-        style={styles.card} 
-        onPress={onPress}
-        activeOpacity={0.7}
-      >
-        <LinearGradient
-          colors={['rgba(78, 141, 124, 0.03)', 'rgba(78, 141, 124, 0.08)']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.cardGradient}
+    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.9}>
+      <View style={styles.cardTop}>
+        {pet?.petPhoto ? (
+          <Image source={{ uri: pet.petPhoto }} style={styles.petImage} />
+        ) : (
+          <LinearGradient colors={['#4E8D7C', '#5FA893']} style={styles.petImage}>
+            <FontAwesome5 name={getPetIcon()} size={40} color="white" />
+          </LinearGradient>
+        )}
+        <TouchableOpacity 
+          onPress={(e) => { e.stopPropagation(); onEdit(); }}
+          style={styles.editBtn}
         >
-          <View style={styles.cardImageContainer}>
-            {pet?.petPhoto ? (
-              <Image source={{ uri: pet.petPhoto }} style={styles.profileImage} />
-            ) : (
-              <LinearGradient
-                colors={getGradientColors()}
-                style={styles.profilePlaceholder}
-              >
-                <FontAwesome5
-                  name={getPetIcon()}
-                  size={36}
-                  color="white"
-                />
-              </LinearGradient>
-            )}
-            <View style={styles.onlineIndicator} />
+          <MaterialIcons name="edit" size={18} color="#4E8D7C" />
+        </TouchableOpacity>
+      </View>
+      
+      <View style={styles.cardBottom}>
+        <Text style={styles.petName} numberOfLines={1}>{pet.name}</Text>
+        <View style={styles.badge}>
+          <Text style={styles.badgeText}>{pet.species}</Text>
+        </View>
+        
+        <View style={styles.infoRow}>
+          <View style={styles.infoItem}>
+            <MaterialIcons name="pets" size={14} color="#7D7D7D" />
+            <Text style={styles.infoText}>{pet.breed || 'Mixed'}</Text>
           </View>
-
-          <View style={styles.cardContent}>
-            <View style={styles.cardHeader}>
-              <View style={styles.petNameContainer}>
-                <Text style={styles.petName} numberOfLines={1}>{pet.name}</Text>
-                <View style={styles.typeBadge}>
-                  <FontAwesome5 
-                    name={getPetIcon()} 
-                    size={10} 
-                    color="#4E8D7C" 
-                    style={styles.badgeIcon}
-                  />
-                  <Text style={styles.typeText}>{pet.species}</Text>
-                </View>
-              </View>
-              <TouchableOpacity 
-                onPress={(e) => {
-                  e.stopPropagation();
-                  onEdit();
-                }}
-                style={styles.editButton}
-              >
-                <MaterialIcons name="edit" size={18} color="#4E8D7C" />
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.detailsRow}>
-              <View style={styles.detailItem}>
-                <View style={styles.iconWrapper}>
-                  <MaterialCommunityIcons name="gender-male-female" size={14} color="#4E8D7C" />
-                </View>
-                <Text style={styles.detailText}>{pet.gender}</Text>
-              </View>
-              {pet.breed && (
-                <View style={styles.detailItem}>
-                  <View style={styles.iconWrapper}>
-                    <FontAwesome5 name="dna" size={12} color="#4E8D7C" />
-                  </View>
-                  <Text style={styles.detailText} numberOfLines={1}>{pet.breed}</Text>
-                </View>
-              )}
-            </View>
-
-            {pet.dob && (
-              <View style={styles.detailsRow}>
-                <View style={styles.detailItem}>
-                  <View style={styles.iconWrapper}>
-                    <MaterialIcons name="cake" size={14} color="#4E8D7C" />
-                  </View>
-                  <Text style={styles.detailText}>
-                    {new Date(pet.dob).toLocaleDateString()}
-                  </Text>
-                </View>
-              </View>
-            )}
-
-            <View style={styles.statsContainer}>
-              {pet.weight && <StatItem value={`${pet.weight}`} unit="kg" label="Weight" />}
-              {pet.height && <StatItem value={`${pet.height}`} unit="cm" label="Height" />}
-              {pet.age && <StatItem value={pet.age} unit="" label="Age" />}
-            </View>
+          <View style={styles.infoItem}>
+            <MaterialIcons name="cake" size={14} color="#7D7D7D" />
+            <Text style={styles.infoText}>{pet.age || 'N/A'}</Text>
           </View>
-        </LinearGradient>
-      </TouchableOpacity>
-    </Animated.View>
+        </View>
+      </View>
+    </TouchableOpacity>
   );
 };
 
-const StatItem = ({ value, unit, label }) => (
-  <View style={styles.statItem}>
-    <View style={styles.statValueContainer}>
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statUnit}>{unit}</Text>
-    </View>
-    <Text style={styles.statLabel}>{label}</Text>
-  </View>
-);
+
 
 const PetListScreen = () => {
   const dispatch = useDispatch();
@@ -642,17 +552,11 @@ const PetListScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [selectedPet, setSelectedPet] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
-  const [fadeAnim] = useState(new Animated.Value(0));
 
   const pets = useSelector(state => state.auth?.userPets?.data || []);
 
   useEffect(() => {
     fetchPets();
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 500,
-      useNativeDriver: true
-    }).start();
     return () => dispatch(clearUserPets());
   }, [dispatch]);
 
@@ -691,56 +595,32 @@ const PetListScreen = () => {
     });
   };
 
-  const Header = () => (
-    <View style={styles.header}>
-      <TouchableOpacity 
-        onPress={() => router.push('/(vetician_tabs)/(tabs)')} 
-        style={styles.menuButton}
-      >
-        <View style={styles.backButtonCircle}>
-          <ChevronLeft size={22} color="#2C3E50" />
-        </View>
-      </TouchableOpacity>
-      <View style={styles.headerTextContainer}>
-        <Text style={styles.headerTitle}>My Pets</Text>
-        <Text style={styles.headerSubtitle}>Your registered companions</Text>
-      </View>
-    </View>
-  );
+
 
   const LoadingView = () => (
-    <View style={styles.loadingContainer}>
+    <View style={styles.centerContainer}>
       <ActivityIndicator size="large" color="#4E8D7C" />
-      <Text style={styles.loadingText}>Loading your pets...</Text>
+      <Text style={styles.centerText}>Loading...</Text>
     </View>
   );
 
   const ErrorView = ({ error, onRetry }) => (
-    <View style={styles.errorContainer}>
-      <View style={styles.errorIconCircle}>
-        <MaterialIcons name="error-outline" size={40} color="#E74C3C" />
-      </View>
-      <Text style={styles.errorTitle}>Oops!</Text>
-      <Text style={styles.errorText}>{error}</Text>
-      <TouchableOpacity style={styles.retryButton} onPress={onRetry}>
-        <Text style={styles.retryButtonText}>Try Again</Text>
+    <View style={styles.centerContainer}>
+      <MaterialIcons name="error-outline" size={50} color="#E74C3C" />
+      <Text style={styles.centerText}>{error}</Text>
+      <TouchableOpacity style={styles.retryBtn} onPress={onRetry}>
+        <Text style={styles.retryText}>Retry</Text>
       </TouchableOpacity>
     </View>
   );
 
   const EmptyState = ({ onAddPet }) => (
-    <View style={styles.emptyContainer}>
-      <LinearGradient
-        colors={['#F0F7F4', '#E8F5E9']}
-        style={styles.emptyIconCircle}
-      >
-        <FontAwesome5 name="paw" size={50} color="#4E8D7C" />
-      </LinearGradient>
-      <Text style={styles.emptyTitle}>No Pets Found</Text>
-      <Text style={styles.emptyText}>Start building your pet family by{'\n'}registering your first companion</Text>
-      <TouchableOpacity style={styles.addPetButton} onPress={onAddPet}>
-        <MaterialIcons name="add" size={20} color="white" style={styles.addIcon} />
-        <Text style={styles.addPetButtonText}>Register a Pet</Text>
+    <View style={styles.centerContainer}>
+      <FontAwesome5 name="paw" size={60} color="#E0E0E0" />
+      <Text style={styles.emptyTitle}>No Pets Yet</Text>
+      <Text style={styles.emptyText}>Add your first pet</Text>
+      <TouchableOpacity style={styles.addBtn} onPress={onAddPet}>
+        <Text style={styles.addBtnText}>Add Pet</Text>
       </TouchableOpacity>
     </View>
   );
@@ -752,442 +632,216 @@ const PetListScreen = () => {
   }} />;
 
   return (
-    <View style={styles.container}>
-      <Animated.View style={{ opacity: fadeAnim, flex: 1 }}>
-        <Header />
-
-        <View style={styles.resultsContainer}>
-          <View style={styles.resultsInfo}>
-            <View style={styles.countBadge}>
-              <Text style={styles.countNumber}>{pets.length}</Text>
-            </View>
-            <Text style={styles.resultsText}>
-              {pets.length === 1 ? 'Pet' : 'Pets'} Registered
-            </Text>
-          </View>
-          <TouchableOpacity 
-            onPress={handleRefresh}
-            style={styles.refreshButton}
-          >
-            <MaterialIcons name="refresh" size={22} color="#4E8D7C" />
+    <SafeAreaView style={styles.container}>
+      <CommonHeader title="Pets" />
+      
+      {pets.length > 0 && (
+        <View style={styles.header}>
+          <Text style={styles.count}>{pets.length} {pets.length === 1 ? 'Pet' : 'Pets'}</Text>
+          <TouchableOpacity onPress={handleRefresh}>
+            <MaterialIcons name="refresh" size={24} color="#4E8D7C" />
           </TouchableOpacity>
         </View>
+      )}
 
-        {pets.length === 0 ? (
-          <EmptyState onAddPet={() => router.navigate('/pages/PetDetail')} />
-        ) : (
-          <>
-            <FlatList
-              data={pets}
-              renderItem={({ item, index }) => (
-                <PetCard 
-                  pet={item} 
-                  index={index}
-                  onPress={() => handlePetPress(item)} 
-                  onEdit={() => handleEditPress(item)}
-                />
-              )}
-              keyExtractor={(item) => item._id || String(Math.random())}
-              contentContainerStyle={styles.listContainer}
-              showsVerticalScrollIndicator={false}
-              refreshing={refreshing}
-              onRefresh={handleRefresh}
-            />
-            <TouchableOpacity
-              style={styles.addButtonFloating}
-              onPress={() => router.navigate('/pages/PetDetail')}
-              activeOpacity={0.8}
-            >
-              <LinearGradient
-                colors={['#5FA893', '#4E8D7C']}
-                style={styles.fabGradient}
-              >
-                <MaterialIcons name="add" size={28} color="white" />
-              </LinearGradient>
-            </TouchableOpacity>
-            
-            <PetDetailsModal
-              pet={selectedPet}
-              visible={modalVisible}
-              onClose={() => setModalVisible(false)}
-            />
-          </>
-        )}
-      </Animated.View>
-    </View>
+      {pets.length === 0 ? (
+        <EmptyState onAddPet={() => router.navigate('/pages/PetDetail')} />
+      ) : (
+        <>
+          <FlatList
+            data={pets}
+            numColumns={2}
+            renderItem={({ item }) => (
+              <PetCard 
+                pet={item}
+                onPress={() => handlePetPress(item)} 
+                onEdit={() => handleEditPress(item)}
+              />
+            )}
+            keyExtractor={(item) => item._id}
+            contentContainerStyle={styles.list}
+            columnWrapperStyle={styles.row}
+            showsVerticalScrollIndicator={false}
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+          />
+          <TouchableOpacity
+            style={styles.fab}
+            onPress={() => router.navigate('/pages/PetDetail')}
+          >
+            <LinearGradient colors={['#5FA893', '#4E8D7C']} style={styles.fabGradient}>
+              <MaterialIcons name="add" size={28} color="white" />
+            </LinearGradient>
+          </TouchableOpacity>
+          
+          <PetDetailsModal
+            pet={selectedPet}
+            visible={modalVisible}
+            onClose={() => setModalVisible(false)}
+          />
+        </>
+      )}
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
-    paddingHorizontal: 16,
-    paddingTop: 50
+    backgroundColor: '#F8F9FA'
   },
   header: {
-    marginBottom: 24,
-    paddingHorizontal: 4,
     flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16
+  },
+  count: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#2C3E50'
+  },
+  list: {
+    paddingHorizontal: 12,
+    paddingBottom: 100
+  },
+  row: {
+    justifyContent: 'space-between'
+  },
+  card: {
+    width: '48%',
+    backgroundColor: 'white',
+    borderRadius: 20,
+    marginBottom: 16,
+    overflow: 'hidden',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8
+  },
+  cardTop: {
+    position: 'relative'
+  },
+  petImage: {
+    width: '100%',
+    height: 160,
+    justifyContent: 'center',
     alignItems: 'center'
   },
-  menuButton: {
-    marginRight: 12,
-    justifyContent: 'center'
-  },
-  backButtonCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+  editBtn: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: 'white',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
     elevation: 2
   },
-  headerTextContainer: {
-    flex: 1
+  cardBottom: {
+    padding: 16
   },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#2C3E50',
-    marginBottom: 2
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    color: '#95A5A6',
-    fontWeight: '500'
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#F8F9FA'
-  },
-  loadingText: {
-    marginTop: 16,
-    color: '#4E8D7C',
-    fontSize: 16,
-    fontWeight: '500'
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-    backgroundColor: '#F8F9FA'
-  },
-  errorIconCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#FADBD8',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 16
-  },
-  errorTitle: {
-    fontSize: 24,
+  petName: {
+    fontSize: 18,
     fontWeight: '700',
     color: '#2C3E50',
     marginBottom: 8
   },
-  errorText: {
-    fontSize: 15,
-    color: '#7D7D7D',
-    marginBottom: 24,
-    textAlign: 'center',
-    lineHeight: 22
-  },
-  retryButton: {
-    backgroundColor: '#4E8D7C',
-    paddingHorizontal: 32,
-    paddingVertical: 14,
+  badge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
     borderRadius: 12,
-    shadowColor: '#4E8D7C',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4
+    backgroundColor: '#E8F5E9',
+    marginBottom: 12
   },
-  retryButtonText: {
-    color: 'white',
+  badgeText: {
+    fontSize: 12,
     fontWeight: '600',
-    fontSize: 16
+    color: '#4E8D7C'
   },
-  resultsContainer: {
+  infoRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-    paddingHorizontal: 4
+    justifyContent: 'space-between'
   },
-  resultsInfo: {
+  infoItem: {
     flexDirection: 'row',
-    alignItems: 'center'
-  },
-  countBadge: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#4E8D7C',
-    justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 10
+    gap: 4
   },
-  countNumber: {
-    color: 'white',
-    fontWeight: '700',
-    fontSize: 16
+  infoText: {
+    fontSize: 12,
+    color: '#7D7D7D'
   },
-  resultsText: {
-    color: '#2C3E50',
-    fontSize: 16,
-    fontWeight: '600'
-  },
-  refreshButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: 'white',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2
-  },
-  emptyContainer: {
+  centerContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 40
   },
-  emptyIconCircle: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 24
+  centerText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#7D7D7D',
+    textAlign: 'center'
+  },
+  retryBtn: {
+    marginTop: 20,
+    paddingHorizontal: 32,
+    paddingVertical: 12,
+    backgroundColor: '#4E8D7C',
+    borderRadius: 12
+  },
+  retryText: {
+    color: 'white',
+    fontWeight: '600',
+    fontSize: 16
   },
   emptyTitle: {
     fontSize: 24,
     fontWeight: '700',
     color: '#2C3E50',
+    marginTop: 20,
     marginBottom: 8
   },
   emptyText: {
-    fontSize: 15,
-    color: '#95A5A6',
-    textAlign: 'center',
-    marginBottom: 32,
-    lineHeight: 22
+    fontSize: 16,
+    color: '#7D7D7D',
+    marginBottom: 32
   },
-  addPetButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 28,
+  addBtn: {
+    paddingHorizontal: 32,
     paddingVertical: 14,
     backgroundColor: '#4E8D7C',
     borderRadius: 12,
-    shadowColor: '#4E8D7C',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
     elevation: 4
   },
-  addIcon: {
-    marginRight: 6
-  },
-  addPetButtonText: {
+  addBtnText: {
     color: 'white',
     fontWeight: '600',
     fontSize: 16
   },
-  listContainer: {
-    paddingBottom: 100
-  },
-  card: {
-    marginBottom: 16,
-    borderRadius: 20,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 5
-  },
-  cardGradient: {
-    backgroundColor: 'white',
-    flexDirection: 'row',
-    padding: 16,
-    borderRadius: 20
-  },
-  cardImageContainer: {
-    position: 'relative'
-  },
-  profileImage: {
-    width: 100,
-    height: 100,
-    borderRadius: 16,
-    marginRight: 16,
-    borderWidth: 3,
-    borderColor: 'white'
-  },
-  profilePlaceholder: {
-    width: 100,
-    height: 100,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-    borderWidth: 3,
-    borderColor: 'white'
-  },
-  onlineIndicator: {
-    position: 'absolute',
-    bottom: 18,
-    right: 20,
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: '#2ECC71',
-    borderWidth: 3,
-    borderColor: 'white'
-  },
-  cardContent: {
-    flex: 1,
-    justifyContent: 'space-between'
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 8
-  },
-  petNameContainer: {
-    flex: 1,
-    marginRight: 8
-  },
-  petName: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#2C3E50',
-    marginBottom: 6
-  },
-  typeBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 10,
-    backgroundColor: '#E8F5E9',
-    borderColor: '#4E8D7C',
-    borderWidth: 1,
-    alignSelf: 'flex-start'
-  },
-  badgeIcon: {
-    marginRight: 4
-  },
-  typeText: {
-    fontSize: 11,
-    color: '#4E8D7C',
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5
-  },
-  editButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#F0F7F4',
-    justifyContent: 'center',
-    alignItems: 'center'
-  },
-  detailsRow: {
-    flexDirection: 'row',
-    marginBottom: 6,
-    flexWrap: 'wrap'
-  },
-  detailItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginRight: 16,
-    marginBottom: 4
-  },
-  iconWrapper: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#F0F7F4',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 6
-  },
-  detailText: {
-    fontSize: 13,
-    color: '#5D6D7E',
-    fontWeight: '500',
-    maxWidth: 100
-  },
-  statsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#ECF0F1'
-  },
-  statItem: {
-    alignItems: 'center',
-    flex: 1
-  },
-  statValueContainer: {
-    flexDirection: 'row',
-    alignItems: 'baseline'
-  },
-  statValue: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#4E8D7C'
-  },
-  statUnit: {
-    fontSize: 11,
-    color: '#95A5A6',
-    fontWeight: '600',
-    marginLeft: 2
-  },
-  statLabel: {
-    fontSize: 11,
-    color: '#95A5A6',
-    marginTop: 2,
-    fontWeight: '500',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5
-  },
-  addButtonFloating: {
+  fab: {
     position: 'absolute',
     bottom: 30,
     right: 30,
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    elevation: 8,
     shadowColor: '#4E8D7C',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    elevation: 8
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8
   },
   fabGradient: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     justifyContent: 'center',
     alignItems: 'center'
   }

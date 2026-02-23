@@ -4,8 +4,7 @@ import {
   TextInput, SafeAreaView, Switch, Alert
 } from 'react-native';
 import { MaterialIcons, FontAwesome5, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-// Note: DatePicker ke liye 'react-native-modal-datetime-picker' ya 'expo-date-picker' use karein
-// Abhi ke liye maine placeholder logic diya hai
+import CommonHeader from '../../../components/CommonHeader';
 
 export default function BoardingFormScreen() {
   const [petName, setPetName] = useState('');
@@ -25,14 +24,7 @@ export default function BoardingFormScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => {}}>
-          <Ionicons name="arrow-back" size={24} color="#333" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Boarding Details Form</Text>
-      </View>
-
+      <CommonHeader title="Book a Hostel" />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         
         {/* SECTION 1: DATES SELECTION */}
@@ -144,11 +136,6 @@ export default function BoardingFormScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F5F7FB' },
-  header: { 
-    flexDirection: 'row', alignItems: 'center', padding: 20, 
-    backgroundColor: '#fff', elevation: 2 
-  },
-  headerTitle: { fontSize: 18, fontWeight: 'bold', marginLeft: 20, color: '#333' },
   scrollContent: { padding: 16 },
   
   section: { backgroundColor: '#fff', borderRadius: 12, padding: 16, marginBottom: 16, elevation: 1 },

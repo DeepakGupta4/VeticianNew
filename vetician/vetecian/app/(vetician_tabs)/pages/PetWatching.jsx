@@ -4,6 +4,7 @@ import {
   Image, Dimensions, SafeAreaView, Switch
 } from 'react-native';
 import { MaterialIcons, Ionicons, FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
+import CommonHeader from '../../../components/CommonHeader';
 
 const { width } = Dimensions.get('window');
 
@@ -13,20 +14,9 @@ export default function PetWatchingScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <CommonHeader title="Pet Watching" />
       <ScrollView showsVerticalScrollIndicator={false}>
         
-        {/* --- Header Section --- */}
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.title}>Live Monitoring</Text>
-            <Text style={styles.subtitle}>Camera: Living Room - Indoor</Text>
-          </View>
-          <View style={styles.liveBadge}>
-            <View style={styles.redDot} />
-            <Text style={styles.liveText}>LIVE</Text>
-          </View>
-        </View>
-
         {/* --- Live Video Feed (Placeholder) --- */}
         <View style={styles.videoContainer}>
           <Image 
@@ -111,12 +101,6 @@ export default function PetWatchingScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f7fa' },
-  header: { padding: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#fff' },
-  title: { fontSize: 22, fontWeight: 'bold', color: '#333' },
-  subtitle: { fontSize: 13, color: '#888' },
-  liveBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFEBEE', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
-  redDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#D32F2F', marginRight: 6 },
-  liveText: { color: '#D32F2F', fontWeight: 'bold', fontSize: 12 },
 
   videoContainer: { width: width - 32, height: 220, alignSelf: 'center', backgroundColor: '#000', borderRadius: 15, marginTop: 10, overflow: 'hidden' },
   liveVideo: { width: '100%', height: '100%', opacity: 0.9 },

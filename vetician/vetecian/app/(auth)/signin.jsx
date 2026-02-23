@@ -509,7 +509,7 @@ export default function SignIn() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({});
-  const [category, setCategory] = useState('consumer'); // consumer or provider
+  const [category, setCategory] = useState('consumer'); // consumer, provider, or admin
   const [loginType, setLoginType] = useState('vetician');
 
   const router = useRouter();
@@ -522,157 +522,93 @@ export default function SignIn() {
   }, [dispatch]);
 
   const handleSignIn = async () => {
-    console.log('📱 LOGIN COMPONENT - handleSignIn started');
-    console.log('📱 LOGIN COMPONENT - Input values:', {
-      email: email,
-      password: password ? '***PROVIDED***' : 'MISSING',
-      category: category,
-      loginType: loginType
-    });
-
-    // Reset errors
     setErrors({});
-    console.log('📱 LOGIN COMPONENT - Errors reset');
 
-    // Validation
-    console.log('📱 LOGIN COMPONENT - Starting validation...');
     const newErrors = {};
     if (!email.trim()) {
       newErrors.email = 'Email is required';
-      console.log('❌ LOGIN COMPONENT - Email validation failed: empty');
     } else if (!validateEmail(email)) {
       newErrors.email = 'Please enter a valid email';
-      console.log('❌ LOGIN COMPONENT - Email validation failed: invalid format');
-    } else {
-      console.log('✅ LOGIN COMPONENT - Email validation passed');
     }
 
     if (!password.trim()) {
       newErrors.password = 'Password is required';
-      console.log('❌ LOGIN COMPONENT - Password validation failed: empty');
     } else if (password.length < 6) {
       newErrors.password = 'Password must be at least 6 characters';
-      console.log('❌ LOGIN COMPONENT - Password validation failed: too short');
-    } else {
-      console.log('✅ LOGIN COMPONENT - Password validation passed');
     }
 
     if (Object.keys(newErrors).length > 0) {
-      console.log('❌ LOGIN COMPONENT - Validation failed, errors:', newErrors);
       setErrors(newErrors);
       return;
     }
-    console.log('✅ LOGIN COMPONENT - All validations passed');
 
     try {
-      console.log('🚀 LOGIN COMPONENT - Dispatching signInUser action...');
-      console.log('📋 LOGIN COMPONENT - Dispatch params:', {
-        email: email,
-        password: password ? '***HIDDEN***' : 'MISSING',
-        loginType: loginType
-      });
-      
       const result = await dispatch(signInUser({ email, password, loginType })).unwrap();
       
-      console.log('✅ LOGIN COMPONENT - signInUser dispatch successful');
-      console.log('📄 LOGIN COMPONENT - Result:', {
-        success: result.success,
-        message: result.message,
-        hasUser: !!result.user,
-        hasToken: !!result.token,
-        userRole: result.user?.role
-      });
-      
       if (result.success) {
-        console.log('🎉 LOGIN COMPONENT - Login successful, routing based on loginType:', loginType);
-        
-        // Route based on login type with separated logic
         await handlePostLoginRouting(loginType);
-      } else {
-        console.log('❌ LOGIN COMPONENT - Login failed, result.success is false');
       }
     } catch (error) {
-      console.log('❌ LOGIN COMPONENT - Caught error in handleSignIn:', error);
-      console.log('❌ LOGIN COMPONENT - Error type:', typeof error);
-      console.log('❌ LOGIN COMPONENT - Error message:', error.message || error);
-      console.log('❌ LOGIN COMPONENT - Full error object:', JSON.stringify(error, null, 2));
-      
-      Alert.alert('Sign In Failed', error || 'An error occurred during sign in');
+      Alert.alert('Login Failed', error || 'Invalid credentials');
     }
   };
 
-  // Separated routing logic for different user types
   const handlePostLoginRouting = async (type) => {
-    switch(type) {
-      case 'vetician':
-        await handleUserLogin();
-        break;
-      case 'veterinarian':
-        await handleDoctorLogin();
-        break;
-      case 'paravet':
-        await handleParavetLogin();
-        break;
-      case 'pet_resort':
-        await handlePetResortLogin();
-        break;
-      default:
-        console.log('⚠️ Unknown login type:', type);
-        router.replace('/(vetician_tabs)');
+    try {
+      console.log('🔄 Routing for type:', type);
+      
+      switch(type) {
+        case 'vetician':
+          await handleUserLogin();
+          break;
+        case 'veterinarian':
+          router.replace('/(doc_tabs)');
+          break;
+        case 'paravet':
+          router.replace('/(peravet_tabs)/(tabs)');
+          break;
+        case 'pet_resort':
+          router.replace('/(pet_resort_tabs)');
+          break;
+        case 'admin':
+          router.replace('/(admin_tabs)');
+          break;
+        default:
+          console.log('⚠️ Unknown login type:', type);
+          router.replace('/(vetician_tabs)');
+      }
+    } catch (error) {
+      console.error('❌ Routing error:', error);
+      Alert.alert('Error', 'Navigation failed. Please restart the app.');
     }
   };
 
-  // User (Pet Parent) login flow
   const handleUserLogin = async () => {
-    console.log('👤 USER LOGIN - Starting pet parent login flow');
-    
-    // Check if tour has been completed
-    const tourCompleted = await AsyncStorage.getItem('tourCompleted');
-    console.log('🔍 USER LOGIN - Tour completed status:', tourCompleted);
-    
-    if (!tourCompleted) {
-      console.log('📚 USER LOGIN - Routing to QuickTour');
-      router.replace('/(vetician_tabs)/pages/QuickTour');
-    } else {
-      console.log('🏠 USER LOGIN - Routing to main vetician tabs');
+    try {
+      const tourCompleted = await AsyncStorage.getItem('tourCompleted');
+      
+      if (!tourCompleted) {
+        router.replace('/(vetician_tabs)/pages/QuickTour');
+      } else {
+        router.replace('/(vetician_tabs)');
+      }
+    } catch (error) {
+      console.error('❌ User login routing error:', error);
       router.replace('/(vetician_tabs)');
     }
   };
 
-  // Doctor (Veterinarian) login flow
-  const handleDoctorLogin = async () => {
-    console.log('🏥 DOCTOR LOGIN - Starting veterinarian login flow');
-    
-    // Doctors go directly to their dashboard, no tour needed
-    console.log('📊 DOCTOR LOGIN - Routing to doctor tabs');
-    router.replace('/(doc_tabs)');
-  };
 
-  // Paravet login flow
-  const handleParavetLogin = async () => {
-    console.log('🐕 PARAVET LOGIN - Starting paravet login flow');
-    
-    // Paravets go to their specific tabs
-    console.log('🏃 PARAVET LOGIN - Routing to paravet tabs');
-    router.replace('/(peravet_tabs)/(tabs)');
-  };
-
-  // Pet Resort login flow
-  const handlePetResortLogin = async () => {
-    console.log('🏨 PET RESORT LOGIN - Starting pet resort login flow');
-    
-    // Pet resorts go to their dashboard
-    console.log('🏨 PET RESORT LOGIN - Routing to pet resort tabs');
-    router.replace('/(pet_resort_tabs)');
-  };
 
   const handleCategoryChange = (newCategory) => {
     setCategory(newCategory);
     // Auto-select first option of the new category
     if (newCategory === 'consumer') {
       setLoginType('vetician');
-    } else {
+    } else if (newCategory === 'provider') {
       setLoginType('veterinarian');
+    } else if (newCategory === 'admin') {
+      setLoginType('admin');
     }
   };
 
@@ -745,7 +681,7 @@ export default function SignIn() {
             </View>
           )}
 
-          {/* Category Selection: Consumer or Provider */}
+          {/* Category Selection: Consumer, Provider, or Admin */}
           <Text style={styles.categoryLabel}>I am a:</Text>
           <View style={styles.categoryContainer}>
             <TouchableOpacity
@@ -778,10 +714,25 @@ export default function SignIn() {
                 Provider
               </Text>
             </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.categoryButtonSmall,
+                category === 'admin' && styles.categoryButtonActive
+              ]}
+              onPress={() => handleCategoryChange('admin')}
+            >
+              <Lock size={18} color={category === 'admin' ? '#fff' : '#666'} />
+              <Text style={[
+                styles.categoryText,
+                category === 'admin' && styles.categoryTextActive
+              ]}>
+                Admin
+              </Text>
+            </TouchableOpacity>
           </View>
 
           {/* Role Selection based on Category */}
-          {category === 'consumer' ? (
+          {category === 'admin' ? null : category === 'consumer' ? (
             <>
               <Text style={styles.loginTypeLabel}>Select your role:</Text>
               <View style={styles.loginTypeContainer}>
@@ -994,11 +945,13 @@ const styles = StyleSheet.create({
   },
   categoryContainer: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 12,
     marginBottom: 20,
   },
   categoryButton: {
     flex: 1,
+    minWidth: '30%',
     paddingVertical: 16,
     borderRadius: 12,
     borderWidth: 2,
@@ -1008,6 +961,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     gap: 8,
+  },
+  categoryButtonSmall: {
+    flex: 1,
+    minWidth: '30%',
+    paddingVertical: 16,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#eaeaea',
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 6,
   },
   categoryButtonActive: {
     backgroundColor: '#4A90E2',

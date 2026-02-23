@@ -1280,7 +1280,7 @@
 //   },
 // });
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -1295,6 +1295,7 @@ import {
   Linking,
   Modal,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import {
   MaterialIcons,
@@ -1303,6 +1304,10 @@ import {
   MaterialCommunityIcons,
 } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import CommonHeader from '../../../components/CommonHeader';
+import { useSelector, useDispatch } from 'react-redux';
+import { getAllVerifiedClinics } from '../../../store/slices/authSlice';
+import { useFocusEffect } from 'expo-router';
 
 const { width } = Dimensions.get('window');
 
@@ -1801,6 +1806,10 @@ const BookingModal = ({ visible, onClose, clinic }) => {
 const ClinicCard = ({ clinic, onPress, onBookPress }) => {
   const { clinicDetails, veterinarianDetails: vet } = clinic;
 
+  if (!clinicDetails) {
+    return null;
+  }
+
   const handleCall = () => {
     Linking.openURL(`tel:${clinicDetails.phoneNumber}`);
   };
@@ -1832,12 +1841,12 @@ const ClinicCard = ({ clinic, onPress, onBookPress }) => {
           style={styles.profileImage}
         />
         <View style={styles.doctorInfo}>
-          <Text style={styles.drName}>Dr. {vet.name}</Text>
+          <Text style={styles.drName}>Dr. {vet?.name || 'Veterinarian'}</Text>
           <Text style={styles.specializationText}>
-            {vet.specialization} • {vet.experience} yrs exp
+            {vet?.specialization || 'General'} • {vet?.experience || '0'} yrs exp
           </Text>
           <Text style={styles.qualificationText} numberOfLines={1}>
-            {vet.qualifications}
+            {vet?.qualifications || 'BVSc'}
           </Text>
         </View>
       </View>
@@ -1847,27 +1856,27 @@ const ClinicCard = ({ clinic, onPress, onBookPress }) => {
         <View style={styles.locationContainer}>
           <MaterialIcons name="location-on" size={16} color="#24A1DE" />
           <Text style={styles.locationText} numberOfLines={1}>
-            {clinicDetails.locality}
+            {clinicDetails?.locality || clinicDetails?.city || 'Location'}
           </Text>
         </View>
         <View style={styles.ratingContainer}>
           <MaterialIcons name="star" size={16} color="#FFA500" />
-          <Text style={styles.ratingText}>{clinicDetails.rating}</Text>
-          <Text style={styles.reviewsText}>({clinicDetails.totalReviews})</Text>
+          <Text style={styles.ratingText}>{clinicDetails?.rating || '4.5'}</Text>
+          <Text style={styles.reviewsText}>({clinicDetails?.totalReviews || '0'})</Text>
         </View>
       </View>
 
       {/* Amenities Section */}
       <View style={styles.amenitiesSection}>
         <View style={styles.amenitiesRow}>
-          {clinicDetails.amenities.slice(0, 3).map((amenity, idx) => (
+          {(clinicDetails?.amenities || []).slice(0, 3).map((amenity, idx) => (
             <View key={idx} style={styles.amenityChip}>
               <Ionicons name="checkmark-circle" size={14} color="#10B981" />
               <Text style={styles.amenityText}>{amenity}</Text>
             </View>
           ))}
         </View>
-        {clinicDetails.amenities.length > 3 && (
+        {(clinicDetails?.amenities?.length || 0) > 3 && (
           <Text style={styles.moreAmenities}>
             +{clinicDetails.amenities.length - 3} more facilities
           </Text>
@@ -1879,7 +1888,7 @@ const ClinicCard = ({ clinic, onPress, onBookPress }) => {
         <View style={styles.feeContainer}>
           <Text style={styles.feeLabel}>Consultation</Text>
           <View style={styles.feeRow}>
-            <Text style={styles.feeAmount}>₹{clinicDetails.fees}</Text>
+            <Text style={styles.feeAmount}>₹{clinicDetails?.fees || '500'}</Text>
             <View style={styles.noBookingFeeBadge}>
               <Text style={styles.noFeeText}>No Booking Fee</Text>
             </View>
@@ -1921,31 +1930,50 @@ const ClinicCard = ({ clinic, onPress, onBookPress }) => {
 
 // Main Component
 export default function ClinicListScreen() {
+  const dispatch = useDispatch();
+  const verifiedClinics = useSelector(state => state.auth?.verifiedClinics?.data || []);
+  const loading = useSelector(state => state.auth?.verifiedClinics?.loading || false);
+  
   const [searchQuery, setSearchQuery] = useState('');
   const [location, setLocation] = useState('Bangalore');
   const [selectedClinic, setSelectedClinic] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [filterType, setFilterType] = useState('All');
 
-  const filteredData = MOCK_CLINICS.filter((item) => {
-    const matchesSearch =
-      item.clinicDetails.clinicName
-        .toLowerCase()
-        .includes(searchQuery.toLowerCase()) ||
-      item.veterinarianDetails.name
-        .toLowerCase()
-        .includes(searchQuery.toLowerCase()) ||
-      item.veterinarianDetails.specialization
-        .toLowerCase()
-        .includes(searchQuery.toLowerCase());
+  useFocusEffect(
+    React.useCallback(() => {
+      dispatch(getAllVerifiedClinics());
+    }, [])
+  );
+
+  const filteredData = verifiedClinics.filter((item) => {
+    if (!item.clinicDetails) return false;
+    
+    const clinicName = item.clinicDetails.clinicName?.toLowerCase() || '';
+    const vetName = item.veterinarianDetails?.name?.toLowerCase() || '';
+    const vetSpec = item.veterinarianDetails?.specialization?.toLowerCase() || '';
+    const clinicCity = item.clinicDetails.city?.toLowerCase() || '';
+    const clinicLocality = item.clinicDetails.locality?.toLowerCase() || '';
+    
+    const search = searchQuery.toLowerCase();
+    const loc = location.toLowerCase();
+    
+    const matchesSearch = !searchQuery || 
+      clinicName.includes(search) ||
+      vetName.includes(search) ||
+      vetSpec.includes(search);
+    
+    const matchesLocation = !location || location === 'All' ||
+      clinicCity.includes(loc) ||
+      clinicLocality.includes(loc);
 
     const matchesFilter =
       filterType === 'All' ||
       (filterType === 'Verified' && item.clinicDetails.verified) ||
       (filterType === 'Emergency' &&
-        item.clinicDetails.amenities.some((a) => a.includes('Emergency')));
+        item.clinicDetails.amenities?.some((a) => a.includes('Emergency')));
 
-    return matchesSearch && matchesFilter;
+    return matchesSearch && matchesLocation && matchesFilter;
   });
 
   const handleBookPress = (clinic) => {
@@ -1955,6 +1983,15 @@ export default function ClinicListScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <CommonHeader title="Find Clinics" />
+      
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#24A1DE" />
+          <Text style={styles.loadingText}>Loading clinics...</Text>
+        </View>
+      ) : (
+        <>
       {/* Search Header */}
       <View style={styles.searchHeader}>
         <View style={styles.searchBox}>
@@ -1966,6 +2003,8 @@ export default function ClinicListScreen() {
               onChangeText={setLocation}
               placeholder="Location"
               placeholderTextColor="#999"
+              underlineColorAndroid="transparent"
+              selectionColor="#24A1DE"
             />
           </View>
           <View style={styles.divider} />
@@ -1977,6 +2016,8 @@ export default function ClinicListScreen() {
               value={searchQuery}
               onChangeText={setSearchQuery}
               placeholderTextColor="#999"
+              underlineColorAndroid="transparent"
+              selectionColor="#24A1DE"
             />
           </View>
         </View>
@@ -2060,6 +2101,8 @@ export default function ClinicListScreen() {
           clinic={selectedClinic}
         />
       )}
+        </>
+      )}
     </SafeAreaView>
   );
 }
@@ -2072,44 +2115,43 @@ const styles = StyleSheet.create({
 
   // Search Header Styles
   searchHeader: {
-    backgroundColor: '#28328c',
+    backgroundColor: 'white',
     paddingBottom: 16,
-    paddingTop: 12,
-    elevation: 4,
+    paddingTop: 16,
+    elevation: 3,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.08,
     shadowRadius: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
   },
   searchBox: {
     flexDirection: 'row',
-    backgroundColor: 'white',
+    backgroundColor: '#F8F9FA',
     borderRadius: 12,
     marginHorizontal: 16,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
   },
   locationInput: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
   },
   serviceInput: {
     flex: 2,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
   },
   divider: {
     width: 1,
-    height: '60%',
-    backgroundColor: '#E0E0E0',
+    height: 24,
+    backgroundColor: '#D0D0D0',
     alignSelf: 'center',
   },
   input: {
@@ -2118,6 +2160,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#333',
     fontWeight: '500',
+    outlineStyle: 'none',
   },
 
   // Filter Chips
@@ -2129,16 +2172,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: '#F0F0F0',
     marginRight: 10,
     flexDirection: 'row',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
   },
   filterChipActive: {
-    backgroundColor: 'white',
+    backgroundColor: '#E3F2FD',
+    borderColor: '#24A1DE',
   },
   filterText: {
-    color: 'white',
+    color: '#666',
     fontSize: 13,
     fontWeight: '600',
   },
@@ -2428,6 +2474,16 @@ const styles = StyleSheet.create({
   },
 
   // Empty State
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 12,
+  },
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',

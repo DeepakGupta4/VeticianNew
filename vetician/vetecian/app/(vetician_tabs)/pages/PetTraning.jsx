@@ -4,6 +4,7 @@ import {
   Image, SafeAreaView, FlatList
 } from 'react-native';
 import { MaterialIcons, FontAwesome5, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import CommonHeader from '../../../components/CommonHeader';
 
 export default function PetTrainingScreen() {
   const [selectedCategory, setSelectedCategory] = useState('Behavior');
@@ -31,6 +32,7 @@ export default function PetTrainingScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <CommonHeader title="Pet Training" />
       <ScrollView showsVerticalScrollIndicator={false}>
         
         {/* --- Training Banner --- */}

@@ -4,6 +4,7 @@ import {
   Image, SafeAreaView, Switch, Alert, Dimensions
 } from 'react-native';
 import { MaterialIcons, FontAwesome5, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import CommonHeader from '../../../components/CommonHeader';
 
 const { width } = Dimensions.get('window');
 
@@ -20,6 +21,7 @@ export default function PetDaySchoolScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <CommonHeader title="Day/Play School" />
       <ScrollView showsVerticalScrollIndicator={false}>
         
         {/* --- Hero Banner --- */}

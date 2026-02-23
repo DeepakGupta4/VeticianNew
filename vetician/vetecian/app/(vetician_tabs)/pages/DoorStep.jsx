@@ -26,6 +26,7 @@ import ApiService from '../../../services/api';
 import SocketService from '../../../services/socket';
 import { isProfileComplete, getMissingFields } from '../../../utils/profileValidation';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import CommonHeader from '../../../components/CommonHeader';
 
 const { width } = Dimensions.get('window');
 
@@ -787,6 +788,7 @@ const ParavetModule = () => {
 
   return (
     <SafeAreaView style={styles.container}>
+      <CommonHeader title="Doorstep Service" />
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Hero Section */}
         <View style={styles.heroSection}>

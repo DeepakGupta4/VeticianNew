@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform, ScrollView, Pressable, Image, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ChevronLeft, Calendar, Camera, X } from 'lucide-react-native';
-import { registerPet } from '../../../store/slices/authSlice';
+import { registerPet, getPetsByUserId } from '../../../store/slices/authSlice';
 import { useDispatch, useSelector } from 'react-redux';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -98,24 +98,16 @@ export default function PetDetail() {
   };
 
   const uploadToCloudinary = async (file) => {
-    console.log('[Cloudinary] Starting upload:', {
-      name: file.name || 'unnamed',
-      uri: file.uri
-    });
-
     try {
-      // Handle base64 data URIs (web) vs file URIs (mobile)
       const isDataUri = file.uri.startsWith('data:');
       
       const formData = new FormData();
       
       if (isDataUri) {
-        // For web - convert base64 to blob
         const response = await fetch(file.uri);
         const blob = await response.blob();
         formData.append('file', blob, file.name || `pet_upload_${Date.now()}.jpg`);
       } else {
-        // For mobile - use file URI directly
         const fileExtension = file.uri.split('.').pop().toLowerCase();
         formData.append('file', {
           uri: file.uri,
@@ -140,15 +132,8 @@ export default function PetDetail() {
       }
 
       const data = await response.json();
-      console.log('[Cloudinary] Upload success!', {
-        public_id: data.public_id
-      });
       return data;
     } catch (error) {
-      console.error('[Cloudinary] UPLOAD FAILED:', {
-        error: error.message,
-        uri: file.uri
-      });
       throw error;
     }
   };
@@ -203,15 +188,8 @@ export default function PetDetail() {
   const handleSubmit = async () => {
     if (!validateStep(step)) return;
 
-    // 🔍 DEBUG: Check authentication state before submitting
     const storedUserId = await AsyncStorage.getItem('userId');
     const token = await AsyncStorage.getItem('token');
-    console.log('🔍 PetDetail - Auth check:', {
-      userId: storedUserId || 'Not found',
-      token: token ? 'Found' : 'Not found',
-      isAuthenticated,
-      hasUser: !!user
-    });
     
     if (!token) {
       Alert.alert('Authentication Error', 'Please log in again to continue.');
@@ -220,7 +198,6 @@ export default function PetDetail() {
 
     setIsUploading(true);
     try {
-      // Upload pet photo first
       let petPhotoUrl = '';
       if (formData.petPhoto) {
         const uploadResult = await uploadToCloudinary(formData.petPhoto);
@@ -233,25 +210,15 @@ export default function PetDetail() {
         petPhoto: petPhotoUrl,
         userId: storedUserId
       };
-
-      console.log("submissionData =>", submissionData);
       
       const result = await dispatch(registerPet(submissionData)).unwrap();
-      console.log(result);
 
       if (result.success) {
-        Alert.alert(
-          'Success',
-          'Pet information has been saved successfully!',
-          [{ text: 'OK', onPress: () => router.replace('/(vetician_tabs)/(tabs)') }]
-        );
+        await dispatch(getPetsByUserId()).unwrap();
+        router.replace('pages/PetList');
       }
     } catch (error) {
-      console.error('Submission error:', error);
-      Alert.alert(
-        'Error',
-        error.message || 'An error occurred while saving pet information'
-      );
+      Alert.alert('Error', error.message || 'Failed to register pet');
     } finally {
       setIsUploading(false);
     }

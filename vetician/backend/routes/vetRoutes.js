@@ -21,7 +21,8 @@ router.post('/register', auth, registerVeterinarian);
 router.get('/verification-status', auth,checkVeterinarianVerification);
 router.post('/clinics', auth, registerClinic);
 router.get('/profile', auth, getProfileDetails);
-router.get('/clinics', getAllClinicsWithVets);
+router.get('/all', getAllClinicsWithVets);
+router.get('/verified', getVerifiedClinics);
 
 // Admin routes
 router.get('/admin/unverified', getUnverifiedVeterinarians);

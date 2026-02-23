@@ -35,7 +35,7 @@ export default function PhoneScreen() {
     setLoading(true);
     
     try {
-      const BASE_URL = 'http://localhost:3000/api';
+      const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://vetician-backend-kovk.onrender.com/api';
       console.log('🔵 API URL:', BASE_URL);
       console.log('🔵 OTP Method:', otpMethod);
       console.log('🔵 Sending OTP to:', otpMethod === 'phone' ? formattedPhone : email);
@@ -71,10 +71,10 @@ export default function PhoneScreen() {
       if (response.ok) {
         setLoading(false);
         
-        // Show success notification
+        // Show success notification with OTP for testing
         Alert.alert(
           'OTP Sent Successfully!', 
-          `We've sent a 6-digit OTP to your ${otpMethod === 'phone' ? 'phone number' : 'email address'}. Please check and enter it on the next screen.`,
+          data.otp ? `OTP: ${data.otp}\n\nWe've sent a 6-digit OTP to your ${otpMethod === 'phone' ? 'phone number' : 'email address'}.` : `We've sent a 6-digit OTP to your ${otpMethod === 'phone' ? 'phone number' : 'email address'}. Please check and enter it on the next screen.`,
           [{ text: 'OK' }]
         );
         
@@ -104,30 +104,26 @@ export default function PhoneScreen() {
               }
             ]
           );
-        } else if (response.status === 402 && data.errorCode === 'SMS_PAYMENT_REQUIRED') {
-          // Handle SMS payment requirement specifically
+        } else if (response.status === 500 && data.errorCode === 'SMS_SERVICE_ERROR') {
+          // Twilio trial account - show OTP in alert for testing
           Alert.alert(
             'SMS Service Unavailable',
-            'Phone OTP service requires payment activation. Please use Email OTP instead for free verification.',
+            data.otp ? `Twilio trial account limitation.\n\nTest OTP: ${data.otp}\n\nPlease use Email OTP for production or verify your number at twilio.com` : 'Phone OTP requires verified number in Twilio trial. Please use Email OTP instead.',
             [
-              { text: 'Cancel', style: 'cancel' },
-              { 
-                text: 'Use Email OTP', 
-                onPress: () => setOtpMethod('email')
-              }
-            ]
-          );
-        } else if (data.errorCode === 'SMS_SERVICE_ERROR') {
-          // Handle other SMS errors
-          Alert.alert(
-            'SMS Service Error',
-            'Phone OTP service is temporarily unavailable. Please use Email OTP instead.',
-            [
-              { text: 'Cancel', style: 'cancel' },
-              { 
-                text: 'Use Email OTP', 
-                onPress: () => setOtpMethod('email')
-              }
+              { text: 'OK', onPress: () => {
+                if (data.otp && data.verificationId) {
+                  router.push({
+                    pathname: '/(auth)/otp',
+                    params: { 
+                      phoneNumber: otpMethod === 'phone' ? formattedPhone : '',
+                      email: otpMethod === 'email' ? email.trim().toLowerCase() : '',
+                      verificationId: data.verificationId,
+                      otp: data.otp,
+                      otpMethod: otpMethod
+                    }
+                  });
+                }
+              }}
             ]
           );
         } else {

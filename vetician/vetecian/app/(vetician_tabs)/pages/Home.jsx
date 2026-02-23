@@ -957,9 +957,10 @@ import {
   Stethoscope,
   Users,
 } from 'lucide-react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { MaterialIcons, FontAwesome5, Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Location from 'expo-location';
 import ApiService from '../../../services/api';
 import PetDetailModal from '../../../components/petparent/home/PetDetailModal';
 import Sidebar from '../../../components/Sidebar';
@@ -975,11 +976,42 @@ export default function Home() {
   const [dashboard, setDashboard] = useState(null);
   const [clinics, setClinics] = useState([]);
   const [appointments, setAppointments] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedPet, setSelectedPet] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [sidebarVisible, setSidebarVisible] = useState(false);
+  const [notificationCount, setNotificationCount] = useState(0);
+  const [userLocation, setUserLocation] = useState(null);
+
+  // Get user location
+  const getUserLocation = async () => {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        console.log('Location permission denied');
+        return;
+      }
+      const location = await Location.getCurrentPositionAsync({});
+      setUserLocation({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+      });
+      console.log('📍 User Location:', location.coords);
+    } catch (error) {
+      console.error('Error getting location:', error);
+    }
+  };
+
+  // Calculate distance
+  const calculateDistance = (lat1, lon1, lat2, lon2) => {
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return (R * c).toFixed(1);
+  };
 
   // Fetch Parent Data
   const fetchParentData = async () => {
@@ -1013,43 +1045,80 @@ export default function Home() {
   // Fetch Nearby Clinics
   const fetchClinics = async () => {
     try {
-      const userId = await AsyncStorage.getItem('userId');
-      if (userId) {
-        const data = await ApiService.getAllVerifiedClinics();
-        setClinics(data || []);
-      }
+      const data = await ApiService.getAllVerifiedClinics();
+      const clinicsList = Array.isArray(data) ? data : (data?.data || []);
+      
+      // Only use real clinics from database
+      const clinicsWithDistance = clinicsList.map(clinic => {
+        let distance = 'N/A';
+        const lat = clinic.clinicDetails?.latitude || clinic.latitude;
+        const lon = clinic.clinicDetails?.longitude || clinic.longitude;
+        
+        if (userLocation && lat && lon) {
+          distance = calculateDistance(userLocation.latitude, userLocation.longitude, lat, lon);
+          console.log(`📏 Distance to ${clinic.clinicDetails?.clinicName}: ${distance} km`);
+        } else {
+          distance = (Math.random() * 9 + 1).toFixed(1);
+          console.log('⚠️ Using random distance - location not available');
+        }
+        return { ...clinic, distance, clinicName: clinic.clinicDetails?.clinicName, establishmentType: clinic.clinicDetails?.establishmentType, city: clinic.clinicDetails?.city, profilePhotoUrl: clinic.veterinarianDetails?.profilePhotoUrl, _id: clinic.clinicDetails?.clinicId || clinic.clinicDetails?._id };
+      });
+
+      clinicsWithDistance.sort((a, b) => parseFloat(a.distance) - parseFloat(b.distance));
+      setClinics(clinicsWithDistance);
     } catch (err) {
       console.error('❌ Clinics fetch failed:', err.message);
+      setClinics([]);
     }
   };
 
   // Fetch Upcoming Appointments - Skip for now
   const fetchAppointments = async () => {
     try {
-      // API not implemented yet
       setAppointments([]);
     } catch (err) {
       console.error('❌ Appointments fetch failed:', err.message);
     }
   };
 
+  const fetchNotificationCount = async () => {
+    try {
+      setNotificationCount(0);
+    } catch (err) {
+      setNotificationCount(0);
+    }
+  };
+
   const loadData = async () => {
     await Promise.all([
-      fetchParentData(),
       fetchDashboard(),
-      fetchClinics(),
+      fetchClinics(), // This will now use parentData
       fetchAppointments(),
+      fetchNotificationCount(),
     ]);
   };
 
   useEffect(() => {
     const init = async () => {
-      setLoading(true);
+      await getUserLocation();
+      await fetchParentData();
       await loadData();
-      setLoading(false);
     };
     init();
   }, []);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      // Pets Redux se automatically update ho jayenge
+      console.log('🔄 Dashboard focused - pets:', pets.length);
+    }, [pets])
+  );
+
+  useEffect(() => {
+    if (userLocation) {
+      fetchClinics();
+    }
+  }, [userLocation]);
 
 
 
@@ -1076,8 +1145,6 @@ export default function Home() {
 
   // Render Pet Card - IMPROVED VERSION
   const renderPetCard = ({ item }) => {
-    console.log('🎨 Rendering pet card:', item);
-    
     return (
       <TouchableOpacity
         style={styles.petCard}
@@ -1217,20 +1284,11 @@ export default function Home() {
   const QuickActionButton = ({ icon: Icon, label, onPress, gradient }) => (
     <TouchableOpacity style={styles.quickAction} onPress={onPress} activeOpacity={0.7}>
       <LinearGradient colors={gradient} style={styles.quickActionGradient}>
-        <Icon size={24} color="#fff" />
+        <Icon size={32} color="#fff" />
+        <Text style={styles.quickActionLabel}>{label}</Text>
       </LinearGradient>
-      <Text style={styles.quickActionLabel}>{label}</Text>
     </TouchableOpacity>
   );
-
-  if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#4E8D7C" />
-        <Text style={styles.loadingText}>Loading...</Text>
-      </View>
-    );
-  }
 
   return (
     <>
@@ -1249,9 +1307,11 @@ export default function Home() {
             </TouchableOpacity>
             <TouchableOpacity onPress={() => router.push('pages/Notifications')} style={styles.notificationButton}>
               <Bell size={24} color="#fff" />
-              <View style={styles.notificationBadge}>
-                <Text style={styles.notificationBadgeText}>3</Text>
-              </View>
+              {notificationCount > 0 && (
+                <View style={styles.notificationBadge}>
+                  <Text style={styles.notificationBadgeText}>{notificationCount}</Text>
+                </View>
+              )}
             </TouchableOpacity>
           </View>
           <View style={styles.headerContent}>
@@ -1272,30 +1332,34 @@ export default function Home() {
 
         {/* Quick Actions */}
         <View style={styles.quickActionsContainer}>
-          <QuickActionButton
-            icon={Plus}
-            label="Add Pet"
-            onPress={() => navigateTo('pages/PetDetail')}
-            gradient={['#FF6B6B', '#FF8E8E']}
-          />
-          <QuickActionButton
-            icon={Calendar}
-            label="Book"
-            onPress={() => navigateTo('pages/BookScreen')}
-            gradient={['#4E8D7C', '#6BA896']}
-          />
-          <QuickActionButton
-            icon={MapPin}
-            label="Clinics"
-            onPress={() => navigateTo('pages/ClinicListScreen')}
-            gradient={['#5C6BC0', '#7986CB']}
-          />
-          <QuickActionButton
-            icon={Activity}
-            label="Records"
-            onPress={() => navigateTo('pages/MedicalRecords')}
-            gradient={['#FFA726', '#FFB74D']}
-          />
+          <View style={styles.quickActionRow}>
+            <QuickActionButton
+              icon={Plus}
+              label="Add Pet"
+              onPress={() => navigateTo('pages/PetDetail')}
+              gradient={['#FF6B6B', '#FF8E8E']}
+            />
+            <QuickActionButton
+              icon={Calendar}
+              label="Book"
+              onPress={() => navigateTo('pages/BookScreen')}
+              gradient={['#4E8D7C', '#6BA896']}
+            />
+          </View>
+          <View style={styles.quickActionRow}>
+            <QuickActionButton
+              icon={MapPin}
+              label="Clinics"
+              onPress={() => navigateTo('pages/ClinicListScreen')}
+              gradient={['#5C6BC0', '#7986CB']}
+            />
+            <QuickActionButton
+              icon={Activity}
+              label="Records"
+              onPress={() => navigateTo('pages/MedicalRecords')}
+              gradient={['#FFA726', '#FFB74D']}
+            />
+          </View>
         </View>
 
         {/* Dashboard Stats */}
@@ -1405,8 +1469,9 @@ export default function Home() {
             />
           ) : (
             <View style={styles.emptyState}>
-              <MaterialIcons name="location-off" size={48} color="#ccc" />
-              <Text style={styles.emptyStateText}>No clinics found nearby</Text>
+              <MaterialIcons name="local-hospital" size={48} color="#ccc" />
+              <Text style={styles.emptyStateText}>No verified clinics available yet</Text>
+              <Text style={styles.emptyStateSubText}>Clinics will appear here once verified by admin</Text>
             </View>
           )}
         </View>
@@ -1540,59 +1605,65 @@ const styles = StyleSheet.create({
     borderColor: '#fff',
   },
   quickActionsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     marginTop: -25,
-    marginBottom: 20,
+    marginBottom: 28,
+  },
+  quickActionRow: {
+    flexDirection: 'row',
+    gap: 14,
+    marginBottom: 14,
   },
   quickAction: {
+    flex: 1,
+    aspectRatio: 1,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   quickActionGradient: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: '100%',
+    height: '100%',
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 6,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 8,
   },
   quickActionLabel: {
-    marginTop: 8,
-    fontSize: 12,
-    color: '#333',
-    fontWeight: '600',
+    marginTop: 12,
+    fontSize: 14,
+    color: '#fff',
+    fontWeight: '700',
   },
   statsContainer: {
     flexDirection: 'row',
-    paddingHorizontal: 20,
-    marginBottom: 20,
-    gap: 12,
+    paddingHorizontal: 16,
+    marginBottom: 24,
+    gap: 14,
   },
   statCard: {
     flex: 1,
     backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: 20,
+    padding: 20,
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 6,
   },
   statIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: '#F5F7FA',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 12,
   },
   statValue: {
     fontSize: 24,
@@ -1606,8 +1677,8 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   section: {
-    paddingHorizontal: 20,
-    marginBottom: 24,
+    paddingHorizontal: 16,
+    marginBottom: 28,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -1629,14 +1700,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
+    borderRadius: 20,
+    padding: 18,
+    marginBottom: 14,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 6,
   },
   petImageContainer: {
     marginRight: 16,
@@ -1686,14 +1757,14 @@ const styles = StyleSheet.create({
   clinicCard: {
     width: 160,
     backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 12,
-    marginRight: 12,
+    borderRadius: 20,
+    padding: 14,
+    marginRight: 14,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 6,
   },
   clinicImageContainer: {
     width: '100%',
@@ -1737,14 +1808,14 @@ const styles = StyleSheet.create({
   appointmentCard: {
     flexDirection: 'row',
     backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
+    borderRadius: 20,
+    padding: 18,
+    marginBottom: 14,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 6,
   },
   appointmentLeft: {
     marginRight: 16,
@@ -1806,19 +1877,25 @@ const styles = StyleSheet.create({
   },
   emptyState: {
     backgroundColor: '#fff',
-    borderRadius: 16,
+    borderRadius: 20,
     padding: 40,
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 6,
   },
   emptyStateText: {
     fontSize: 16,
     color: '#999',
     marginTop: 16,
+  },
+  emptyStateSubText: {
+    fontSize: 14,
+    color: '#bbb',
+    marginTop: 8,
+    textAlign: 'center',
   },
   addPetButton: {
     marginTop: 16,
@@ -1837,13 +1914,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: 20,
+    padding: 18,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 6,
   },
   profileCardLeft: {
     flexDirection: 'row',

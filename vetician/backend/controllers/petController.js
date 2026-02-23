@@ -6,9 +6,7 @@ const AppError = require('../utils/appError');
 // Register pet
 const createPet = catchAsync(async (req, res, next) => {
   const { name, species, gender, userId } = req.body;
-  console.log('Creating pet with data:', req.body);
 
-  // Validate required fields
   if (!name || !species || !gender) {
     return next(new AppError('Name, species and gender are required', 400));
   }
@@ -17,7 +15,6 @@ const createPet = catchAsync(async (req, res, next) => {
     return next(new AppError('User ID is required', 400));
   }
 
-  // Create new pet with all provided data
   const pet = new Pet({
     ...req.body,
     userId
@@ -34,8 +31,7 @@ const createPet = catchAsync(async (req, res, next) => {
 
 // registered pet info
 const getPetsByUserId = catchAsync(async (req, res, next) => {
-  const { userId } = req.params; 
-  console.log("getPetsByUserId =>",userId)
+  const { userId } = req.params;
 
   if (!userId) {
     return next(new AppError('User ID is required', 400));

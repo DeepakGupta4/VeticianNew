@@ -7,7 +7,6 @@
     "icon": "./assets/images/icon.png",
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true
     },
@@ -19,25 +18,45 @@
     "plugins": [
       "expo-router",
       "expo-font",
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-dev-client",
+      "@react-native-community/datetimepicker"
     ],
+    "splash": {
+      "image": "./assets/images/icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
     "experiments": {
       "typedRoutes": true
     },
     "extra": {
-      "router": {},
+      "router": {
+        "origin": false
+      },
       "eas": {
-        "projectId": "42ec33e5-b85d-4a1e-a631-53adec7be140"
-      }
+        "projectId": "09403171-2cf1-4352-9481-88b169484e02"
+      },
+      "EXPO_PUBLIC_API_URL": "https://vetician-backend-kovk.onrender.com/api"
     },
     "android": {
-      "package": "com.aaditri1001.vetician",
+      "package": "com.dkg12.vetician",
+      "versionCode": 10,
+      "compileSdkVersion": 35,
+      "targetSdkVersion": 35,
+      "buildToolsVersion": "35.0.0",
       "permissions": [
         "CAMERA",
+        "RECORD_AUDIO",
+        "MODIFY_AUDIO_SETTINGS",
         "READ_EXTERNAL_STORAGE",
         "WRITE_EXTERNAL_STORAGE"
-      ]
+      ],
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/icon.png",
+        "backgroundColor": "#ffffff"
+      }
     },
-    "owner": "dk_gupta"
+    "owner": "dkg12"
   }
 }

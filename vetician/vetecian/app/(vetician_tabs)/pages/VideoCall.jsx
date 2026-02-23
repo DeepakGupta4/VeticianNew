@@ -167,7 +167,7 @@
 
 // export default VideoConsultTab;
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -178,8 +178,13 @@ import {
   TextInput,
   Modal,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { useSelector } from 'react-redux';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import CommonHeader from '../../../components/CommonHeader';
+import SimpleVideoCall from '../../../components/SimpleVideoCall';
 
 const VideoCallPage = ({ route }) => {
   // Mock data - replace with actual props
@@ -199,7 +204,10 @@ const VideoCallPage = ({ route }) => {
     },
   };
 
+  const user = useSelector(state => state.auth.user);
   const [callActive, setCallActive] = useState(false);
+  const [videoToken, setVideoToken] = useState(null);
+  const [loadingToken, setLoadingToken] = useState(false);
   const [uploadedPhotos, setUploadedPhotos] = useState([]);
   const [showPrescription, setShowPrescription] = useState(false);
   const [showFollowUp, setShowFollowUp] = useState(false);
@@ -244,6 +252,43 @@ const VideoCallPage = ({ route }) => {
     setShowPrescription(false);
   };
 
+  const startVideoCall = async () => {
+    setLoadingToken(true);
+    try {
+      const apiUrl = process.env.EXPO_PUBLIC_API_URL || 'https://vetician-backend-kovk.onrender.com/api';
+      const userId = await AsyncStorage.getItem('userId');
+      const roomName = `room-${userId}-${Date.now()}`;
+      
+      const response = await fetch(`${apiUrl}/video/token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          identity: user?.name || userId || 'user',
+          roomName: roomName
+        })
+      });
+
+      const data = await response.json();
+      
+      if (data.token) {
+        setVideoToken(data);
+        setCallActive(true);
+      } else {
+        Alert.alert('Error', 'Failed to get video token');
+      }
+    } catch (error) {
+      console.error('Error starting call:', error);
+      Alert.alert('Error', 'Failed to start video call');
+    } finally {
+      setLoadingToken(false);
+    }
+  };
+
+  const endVideoCall = () => {
+    setCallActive(false);
+    setVideoToken(null);
+  };
+
   const bookFollowUp = (timeframe) => {
     Alert.alert('Follow-up Booked', `Follow-up consultation scheduled for ${timeframe}`);
     setShowFollowUp(false);
@@ -251,16 +296,7 @@ const VideoCallPage = ({ route }) => {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity>
-          <Text style={styles.backBtn}>←</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Video Consultation</Text>
-        <TouchableOpacity>
-          <Text style={styles.menuBtn}>⋮</Text>
-        </TouchableOpacity>
-      </View>
+      <CommonHeader title="Video Consultation" />
 
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* 1. PET SUMMARY CARD */}
@@ -313,34 +349,28 @@ const VideoCallPage = ({ route }) => {
                 <Text style={styles.doctorRole}>{doctor.role}</Text>
                 <TouchableOpacity
                   style={styles.startCallBtn}
-                  onPress={() => setCallActive(true)}
+                  onPress={startVideoCall}
+                  disabled={loadingToken}
                 >
-                  <Text style={styles.startCallText}>📹 Start Video Call</Text>
+                  {loadingToken ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <Text style={styles.startCallText}>📹 Start Video Call</Text>
+                  )}
                 </TouchableOpacity>
               </View>
             ) : (
-              <View style={styles.activeCallScreen}>
-                <Image source={{ uri: doctor.img }} style={styles.fullscreenDoctor} />
-                <View style={styles.selfViewContainer}>
-                  <View style={styles.selfView}>
-                    <Text style={styles.selfViewText}>You</Text>
-                  </View>
+              callActive && videoToken ? (
+                <SimpleVideoCall
+                  token={videoToken.token}
+                  roomName={videoToken.roomName}
+                  onCallEnd={endVideoCall}
+                />
+              ) : (
+                <View style={styles.activeCallScreen}>
+                  <Text style={styles.loadingText}>Loading video call...</Text>
                 </View>
-                <View style={styles.callControls}>
-                  <TouchableOpacity style={styles.controlBtn}>
-                    <Text style={styles.controlIcon}>🎤</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.controlBtn}>
-                    <Text style={styles.controlIcon}>📹</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.controlBtn, styles.endCallBtn]}
-                    onPress={() => setCallActive(false)}
-                  >
-                    <Text style={styles.controlIcon}>📞</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
+              )
             )}
           </View>
         </View>
@@ -541,28 +571,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 15,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-  },
-  backBtn: {
-    fontSize: 24,
-    color: '#333',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  menuBtn: {
-    fontSize: 24,
-    color: '#333',
   },
 
   // Pet Summary Card Styles

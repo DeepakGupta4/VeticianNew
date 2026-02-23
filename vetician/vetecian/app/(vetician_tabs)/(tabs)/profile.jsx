@@ -311,7 +311,7 @@ export default function Profile() {
       id: 'settings',
       icon: Settings,
       title: 'Settings',
-      onPress: () => router.push('/settings'),
+      onPress: () => router.push('/(vetician_tabs)/settings'),
       color: '#64748B'
     },
   ];
