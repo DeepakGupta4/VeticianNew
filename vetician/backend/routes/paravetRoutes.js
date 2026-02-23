@@ -23,6 +23,11 @@ router.get('/test', (req, res) => {
   res.json({ message: 'Paravet routes working!' });
 });
 
+// Test onboarding endpoint
+router.get('/onboarding/test', (req, res) => {
+  res.json({ message: 'Onboarding endpoint is accessible', timestamp: new Date() });
+});
+
 // User routes
 router.post('/initialize', auth, initializeParavetOnboarding);
 router.get('/profile/:userId', auth, getParavetProfile);
@@ -36,6 +41,75 @@ router.patch(
   uploadDocuments
 );
 router.post('/submit/:userId', auth, submitApplication);
+
+// Complete onboarding submission by document ID (MUST BE BEFORE /onboarding/user/:userId)
+router.post('/onboarding/:id', async (req, res) => {
+  try {
+    console.log('📝 Onboarding submission received for ID:', req.params.id);
+    console.log('📦 Request body keys:', Object.keys(req.body));
+    
+    const Paravet = require('../models/Paravet');
+    const mongoose = require('mongoose');
+    
+    // Validate MongoDB ObjectId
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ success: false, message: 'Invalid paravet ID format' });
+    }
+    
+    const paravet = await Paravet.findByIdAndUpdate(
+      req.params.id,
+      { $set: req.body },
+      { new: true, runValidators: true }
+    );
+    
+    if (!paravet) {
+      console.log('❌ Paravet not found with ID:', req.params.id);
+      return res.status(404).json({ success: false, message: 'Paravet not found' });
+    }
+    
+    console.log('✅ Paravet updated successfully');
+    res.json({ success: true, data: paravet });
+  } catch (error) {
+    console.error('❌ Onboarding submission error:', error.message);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Complete onboarding submission by userId (legacy)
+router.post('/onboarding/user/:userId', auth, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const data = req.body;
+    const Paravet = require('../models/Paravet');
+    
+    const updateData = {
+      userId,
+      personalInfo: data.personalInfo || {},
+      documents: data.documents || {},
+      experience: data.experience || {},
+      paymentInfo: data.paymentInfo || {},
+      compliance: data.compliance || {},
+      training: data.training || {},
+      applicationStatus: {
+        ...data.applicationStatus,
+        submitted: true,
+        submittedAt: new Date(),
+        approvalStatus: 'pending'
+      },
+      lastUpdated: new Date()
+    };
+    
+    const paravet = await Paravet.findOneAndUpdate(
+      { userId },
+      { $set: updateData },
+      { new: true, upsert: true, runValidators: true }
+    );
+    
+    res.json({ success: true, data: paravet });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
 
 // Admin routes
 router.get('/admin/unverified', getUnverifiedParavets);
