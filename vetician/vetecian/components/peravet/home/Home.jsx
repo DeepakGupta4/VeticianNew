@@ -1,29 +1,103 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, ActivityIndicator } from 'react-native';
 import { useSelector } from 'react-redux';
-import { Activity, HeartPulse, Stethoscope, ClipboardList, Syringe, Menu, CheckCircle } from 'lucide-react-native';
+import { Activity, HeartPulse, Stethoscope, ClipboardList, Syringe, Menu, CheckCircle, Calendar, DollarSign } from 'lucide-react-native';
 import { DrawerActions } from '@react-navigation/native';
 import { useNavigation } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
+import { useState, useEffect } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function Home() {
     const { user } = useSelector(state => state.auth);
     const navigation = useNavigation();
     const router = useRouter();
+    
+    const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
+    const [dashboardData, setDashboardData] = useState({
+        stats: {
+            totalPatients: 0,
+            upcomingAppointments: 0,
+            completedVaccinations: 0,
+            totalEarnings: 0
+        },
+        recentActivities: [],
+        onboardingStatus: 'pending' // pending, approved, rejected
+    });
 
-    // Paravet-specific stats
+    const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://vetician-backend-kovk.onrender.com/api';
+
+    const fetchDashboardData = async () => {
+        try {
+            const userId = await AsyncStorage.getItem('userId');
+            const token = await AsyncStorage.getItem('token');
+            
+            if (!userId || !token) return;
+
+            const response = await fetch(`${API_URL}/paravet/dashboard/${userId}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                setDashboardData({
+                    stats: {
+                        totalPatients: data.totalPatients || 0,
+                        upcomingAppointments: data.upcomingAppointments || 0,
+                        completedVaccinations: data.completedVaccinations || 0,
+                        totalEarnings: data.totalEarnings || 0
+                    },
+                    recentActivities: data.recentActivities || [],
+                    onboardingStatus: data.onboardingStatus || 'pending'
+                });
+            }
+        } catch (error) {
+            console.error('Error fetching dashboard:', error);
+        } finally {
+            setLoading(false);
+            setRefreshing(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchDashboardData();
+    }, []);
+
+    const onRefresh = () => {
+        setRefreshing(true);
+        fetchDashboardData();
+    };
+
     const stats = [
-        { icon: HeartPulse, label: 'Patients', value: '24', color: '#FF3B30' },
-        { icon: Stethoscope, label: 'Appointments', value: '8', color: '#5856D6' },
-        { icon: Syringe, label: 'Vaccinations', value: '12', color: '#34C759' },
+        { icon: HeartPulse, label: 'Patients', value: dashboardData.stats.totalPatients.toString(), color: '#FF3B30' },
+        { icon: Calendar, label: 'Appointments', value: dashboardData.stats.upcomingAppointments.toString(), color: '#5856D6' },
+        { icon: Syringe, label: 'Vaccinations', value: dashboardData.stats.completedVaccinations.toString(), color: '#34C759' },
     ];
 
     const openDrawer = () => {
         navigation.dispatch(DrawerActions.openDrawer());
     };
 
+    if (loading) {
+        return (
+            <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+                <ActivityIndicator size="large" color="#5856D6" />
+            </View>
+        );
+    }
+
     return (
-        <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-            {/* Header with medical-themed colors */}
+        <ScrollView 
+            style={styles.container} 
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#5856D6']} />
+            }
+        >
+            {/* Header */}
             <View style={styles.header}>
                 <TouchableOpacity onPress={openDrawer} style={styles.menuButton}>
                     <Menu size={24} color="#fff" />
@@ -35,20 +109,22 @@ export default function Home() {
             </View>
 
             {/* Onboarding Banner */}
-            <TouchableOpacity 
-                style={styles.onboardingBanner}
-                onPress={() => router.push('/(peravet_tabs)/onboarding')}
-            >
-                <View style={styles.bannerContent}>
-                    <CheckCircle size={24} color="#00B0FF" />
-                    <View style={styles.bannerText}>
-                        <Text style={styles.bannerTitle}>Complete Your Onboarding</Text>
-                        <Text style={styles.bannerDescription}>Set up your profile to start accepting requests</Text>
+            {dashboardData.onboardingStatus === 'pending' && (
+                <TouchableOpacity 
+                    style={styles.onboardingBanner}
+                    onPress={() => router.push('/(peravet_tabs)/onboarding/step1_welcome')}
+                >
+                    <View style={styles.bannerContent}>
+                        <CheckCircle size={24} color="#00B0FF" />
+                        <View style={styles.bannerText}>
+                            <Text style={styles.bannerTitle}>Complete Your Onboarding</Text>
+                            <Text style={styles.bannerDescription}>Set up your profile to start accepting requests</Text>
+                        </View>
                     </View>
-                </View>
-            </TouchableOpacity>
+                </TouchableOpacity>
+            )}
 
-            {/* Medical stats cards */}
+            {/* Stats cards */}
             <View style={styles.statsContainer}>
                 {stats.map((stat, index) => (
                     <View key={index} style={[styles.statCard, { borderLeftColor: stat.color }]}>
@@ -61,7 +137,17 @@ export default function Home() {
                 ))}
             </View>
 
-            {/* Quick actions for medical tasks */}
+            {/* Earnings Card */}
+            <View style={styles.earningsCard}>
+                <View style={styles.earningsHeader}>
+                    <DollarSign size={24} color="#34C759" />
+                    <Text style={styles.earningsTitle}>Total Earnings</Text>
+                </View>
+                <Text style={styles.earningsAmount}>₹{dashboardData.stats.totalEarnings.toLocaleString()}</Text>
+                <Text style={styles.earningsSubtext}>This month</Text>
+            </View>
+
+            {/* Quick actions */}
             <View style={styles.quickActions}>
                 <Text style={styles.sectionTitle}>Quick Tasks</Text>
                 <View style={styles.actionsGrid}>
@@ -83,31 +169,25 @@ export default function Home() {
                 </View>
             </View>
 
-            {/* Recent medical activities */}
+            {/* Recent activities */}
             <View style={styles.recentActivity}>
                 <Text style={styles.sectionTitle}>Recent Cases</Text>
                 <View style={styles.activityList}>
-                    <View style={styles.activityItem}>
-                        <View style={[styles.activityDot, { backgroundColor: '#FF3B30' }]} />
-                        <View style={styles.activityContent}>
-                            <Text style={styles.activityTitle}>Emergency Case</Text>
-                            <Text style={styles.activityTime}>Golden Retriever - 30 mins ago</Text>
+                    {dashboardData.recentActivities.length > 0 ? (
+                        dashboardData.recentActivities.map((activity, index) => (
+                            <View key={index} style={styles.activityItem}>
+                                <View style={[styles.activityDot, { backgroundColor: activity.color || '#5856D6' }]} />
+                                <View style={styles.activityContent}>
+                                    <Text style={styles.activityTitle}>{activity.title}</Text>
+                                    <Text style={styles.activityTime}>{activity.description} - {activity.time}</Text>
+                                </View>
+                            </View>
+                        ))
+                    ) : (
+                        <View style={styles.emptyState}>
+                            <Text style={styles.emptyText}>No recent activities</Text>
                         </View>
-                    </View>
-                    <View style={styles.activityItem}>
-                        <View style={[styles.activityDot, { backgroundColor: '#34C759' }]} />
-                        <View style={styles.activityContent}>
-                            <Text style={styles.activityTitle}>Vaccination Completed</Text>
-                            <Text style={styles.activityTime}>Siamese Cat - 2 hours ago</Text>
-                        </View>
-                    </View>
-                    <View style={styles.activityItem}>
-                        <View style={[styles.activityDot, { backgroundColor: '#5856D6' }]} />
-                        <View style={styles.activityContent}>
-                            <Text style={styles.activityTitle}>Post-Op Checkup</Text>
-                            <Text style={styles.activityTime}>German Shepherd - Yesterday</Text>
-                        </View>
-                    </View>
+                    )}
                 </View>
             </View>
         </ScrollView>
@@ -205,6 +285,45 @@ const styles = StyleSheet.create({
         fontSize: 12,
         color: '#666',
         fontWeight: '500',
+    },
+    earningsCard: {
+        marginHorizontal: 20,
+        marginBottom: 20,
+        backgroundColor: '#E8F5E9',
+        borderRadius: 12,
+        padding: 20,
+        borderLeftWidth: 4,
+        borderLeftColor: '#34C759',
+        elevation: 2,
+    },
+    earningsHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 12,
+    },
+    earningsTitle: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#1a1a1a',
+        marginLeft: 8,
+    },
+    earningsAmount: {
+        fontSize: 32,
+        fontWeight: '700',
+        color: '#34C759',
+        marginBottom: 4,
+    },
+    earningsSubtext: {
+        fontSize: 13,
+        color: '#666',
+    },
+    emptyState: {
+        padding: 40,
+        alignItems: 'center',
+    },
+    emptyText: {
+        fontSize: 14,
+        color: '#999',
     },
     quickActions: {
         padding: 20,

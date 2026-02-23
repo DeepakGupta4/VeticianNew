@@ -417,7 +417,6 @@ import {
 import { useRouter } from 'expo-router';
 import { Upload, FileText, Check } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useParavetOnboarding } from '../../../contexts/ParavetOnboardingContext';
 
 export default function Step4Documents() {
@@ -468,41 +467,14 @@ export default function Step4Documents() {
   setIsUploading(docId);
 
   try {
-    const userId = await AsyncStorage.getItem('userId');
-    const token = await AsyncStorage.getItem('token');
-
-    if (!userId) {
-      Alert.alert('Error', 'User not found. Please restart onboarding.');
-      return;
-    }
-
     // Simulate upload delay
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    await new Promise(resolve => setTimeout(resolve, 1000));
     
-    const mockUrl = `https://example.com/uploads/${docId}_${Date.now()}.jpg`;
+    // Use local URI instead of uploading to server
+    const localUrl = asset.uri;
 
-    // Save to database
-    const response = await fetch(
-      `https://usually-imposturous-sharri.ngrok-free.dev/api/paravet/upload-documents/${userId}`,
-      {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'ngrok-skip-browser-warning': 'true',
-          ...(token && { Authorization: `Bearer ${token}` })
-        },
-        body: JSON.stringify({
-          documentType: docId,
-          url: mockUrl
-        })
-      }
-    );
-
-    if (!response.ok) {
-      throw new Error('Failed to save to database');
-    }
-
-    updateFormData(`${docId}Url`, mockUrl);
+    // Store in context
+    updateFormData(`${docId}Url`, localUrl);
     Alert.alert('Success', 'Document uploaded successfully!');
   } catch (err) {
     console.error('Upload error:', err);

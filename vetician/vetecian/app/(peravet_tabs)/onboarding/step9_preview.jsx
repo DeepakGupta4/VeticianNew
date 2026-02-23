@@ -12,6 +12,9 @@ import { useRouter } from 'expo-router';
 import { CheckCircle, Clock, FileText, Award } from 'lucide-react-native';
 import { useParavetOnboarding } from '../../../contexts/ParavetOnboardingContext';
 import { useSelector } from 'react-redux';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { submitParavetOnboarding } from '../../../services/paravetApi';
+
 
 export default function Step9Preview() {
   const router = useRouter();
@@ -52,8 +55,22 @@ export default function Step9Preview() {
   const handleSubmit = async () => {
     setIsLoading(true);
     try {
-      // Simulate API call to submit application
-      setTimeout(() => {
+      const userId = await AsyncStorage.getItem('userId');
+      
+      if (!userId) {
+        Alert.alert('Error', 'User ID not found. Please login again.');
+        setIsLoading(false);
+        return;
+      }
+      
+      console.log('Submitting onboarding data:', formData);
+      
+      // Submit onboarding data with nested format transformation
+      const result = await submitParavetOnboarding(userId, formData);
+      
+      console.log('Submission result:', result);
+      
+      if (result.success) {
         setSubmitted(true);
         Alert.alert(
           'Application Submitted! 🎉',
@@ -69,10 +86,13 @@ export default function Step9Preview() {
             },
           ]
         );
-      }, 1500);
+      } else {
+        throw new Error(result.message || 'Submission failed');
+      }
     } catch (error) {
+      console.error('Submission error:', error);
       setIsLoading(false);
-      Alert.alert('Error', 'Failed to submit application. Please try again.');
+      Alert.alert('Error', error.message || 'Failed to submit application. Please try again.');
     }
   };
 
