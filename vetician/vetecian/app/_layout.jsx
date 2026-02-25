@@ -1,3 +1,4 @@
+import '../global.css';
 import { Slot, useRouter, useSegments, useRootNavigationState } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Provider, useSelector } from 'react-redux';

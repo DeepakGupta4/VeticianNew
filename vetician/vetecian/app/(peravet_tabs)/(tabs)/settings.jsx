@@ -1,10 +1,12 @@
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Switch } from 'react-native';
 import { useState } from 'react';
 import { useSelector } from 'react-redux';
+import { useRouter } from 'expo-router';
 import { Bell, Shield, Palette, Globe, CircleHelp as HelpCircle, ChevronRight } from 'lucide-react-native';
 
 export default function Settings() {
   const { user } = useSelector(state => state.auth);
+  const router = useRouter();
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [darkModeEnabled, setDarkModeEnabled] = useState(false);
 
@@ -55,13 +57,18 @@ export default function Settings() {
           title: 'Help & Support',
           subtitle: 'Get help and contact support',
           type: 'navigate',
+          onPress: () => router.push('/(peravet_tabs)/(tabs)/help'),
         },
       ],
     },
   ];
 
   const renderSettingItem = (item, index) => (
-    <TouchableOpacity key={index} style={styles.settingItem}>
+    <TouchableOpacity 
+      key={index} 
+      style={styles.settingItem}
+      onPress={item.onPress}
+    >
       <View style={styles.settingIcon}>
         <item.icon size={20} color="#007AFF" />
       </View>
