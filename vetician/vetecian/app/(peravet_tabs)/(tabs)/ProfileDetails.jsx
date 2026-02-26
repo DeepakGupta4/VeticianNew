@@ -11,15 +11,20 @@ import {
   SafeAreaView,
   Platform,
   StatusBar,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
 import { useSelector } from 'react-redux';
 import { LinearGradient } from 'expo-linear-gradient';
+import api from '../../../services/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width } = Dimensions.get('window');
 
 const ParavetProfileRN = () => {
   const [editingSection, setEditingSection] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [expandedSections, setExpandedSections] = useState({
     personal: true,
     professional: true,
@@ -27,9 +32,9 @@ const ParavetProfileRN = () => {
     bank: true,
   });
 
-  // Get user data from Redux (Mocked fallback if Redux is not set up)
   const auth = useSelector(state => state.auth) || { user: {} };
   const user = auth.user;
+  const userId = user?._id || user?.id;
 
   const [profileData, setProfileData] = useState({
     personal: { name: '', phone: '', email: '', gender: '', dateOfBirth: '', address: '', pinCode: '', serviceArea: '', emergencyContact: { name: '', relation: '', phone: '' } },
@@ -38,53 +43,56 @@ const ParavetProfileRN = () => {
     bank: { accountHolder: '', accountNumber: '', ifscCode: '', bankName: '', accountType: '', upiId: '', pan: '' },
   });
 
+  // Load paravet data from database
   useEffect(() => {
-    if (user) {
-      setProfileData({
-        personal: {
-          name: user.name || user.fullName || '',
-          phone: user.phone || user.mobileNumber || '',
-          email: user.email || '',
-          gender: user.gender || '',
-          dateOfBirth: user.dateOfBirth || '',
-          address: user.address || user.city || '',
-          pinCode: user.pinCode || '',
-          serviceArea: user.serviceArea || '',
-          emergencyContact: {
-            name: user.emergencyContactName || '',
-            relation: user.emergencyContactRelation || '',
-            phone: user.emergencyContactNumber || '',
+    const loadParavetData = async () => {
+      if (!userId) return;
+      
+      try {
+        setIsLoading(true);
+        const response = await api.get(`/paravet/profile/${userId}`);
+        const paravet = response.data;
+        
+        setProfileData({
+          personal: {
+            name: paravet.personalInfo?.fullName?.value || '',
+            phone: paravet.personalInfo?.mobileNumber?.value || '',
+            email: paravet.personalInfo?.email?.value || '',
+            address: paravet.personalInfo?.city?.value || '',
+            serviceArea: paravet.personalInfo?.serviceArea?.value || '',
+            emergencyContact: {
+              name: paravet.personalInfo?.emergencyContact?.name || '',
+              phone: paravet.personalInfo?.emergencyContact?.number || '',
+            },
           },
-        },
-        professional: {
-          licenseNumber: user.licenseNumber || '',
-          licenseExpiry: user.licenseExpiry || '',
-          qualification: user.qualification || '',
-          institution: user.institution || '',
-          yearsOfExperience: user.yearsOfExperience || 0,
-          specialization: user.specialization || user.areasOfExpertise || [],
-          verificationStatus: user.verificationStatus || 'Pending',
-        },
-        experience: {
-          clinics: user.clinics || [],
-          skills: user.skills || [],
-          languagesSpoken: user.languagesSpoken || [],
-          availabilityDays: user.availabilityDays || [],
-          availabilityStartTime: user.availabilityStartTime || '',
-          availabilityEndTime: user.availabilityEndTime || '',
-        },
-        bank: {
-          accountHolder: user.accountHolderName || user.name || '',
-          accountNumber: user.accountNumber || '',
-          ifscCode: user.ifscCode || '',
-          bankName: user.bankName || '',
-          accountType: user.accountType || '',
-          upiId: user.upiId || '',
-          pan: user.pan || '',
-        },
-      });
-    }
-  }, [user]);
+          professional: {
+            yearsOfExperience: paravet.experience?.yearsOfExperience?.value || 0,
+            specialization: paravet.experience?.areasOfExpertise?.value || [],
+            verificationStatus: paravet.applicationStatus?.approvalStatus === 'approved' ? 'Verified' : 'Pending',
+          },
+          experience: {
+            skills: paravet.experience?.areasOfExpertise?.value || [],
+            languagesSpoken: paravet.experience?.languagesSpoken?.value || [],
+            availabilityDays: paravet.experience?.availability?.days || [],
+            availabilityStartTime: paravet.experience?.availability?.startTime || '',
+            availabilityEndTime: paravet.experience?.availability?.endTime || '',
+          },
+          bank: {
+            accountHolder: paravet.paymentInfo?.accountHolderName?.value || '',
+            upiId: paravet.paymentInfo?.paymentMethod?.type === 'upi' ? paravet.paymentInfo?.paymentMethod?.value : '',
+            accountNumber: paravet.paymentInfo?.paymentMethod?.type === 'bank_account' ? paravet.paymentInfo?.paymentMethod?.value : '',
+            pan: paravet.paymentInfo?.pan?.value || '',
+          },
+        });
+      } catch (error) {
+        console.error('Error loading paravet data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    loadParavetData();
+  }, [userId]);
 
   const [formData, setFormData] = useState({});
 
@@ -97,10 +105,54 @@ const ParavetProfileRN = () => {
     setEditingSection(section);
   };
 
-  const handleSave = (section) => {
-    setProfileData((prev) => ({ ...prev, [section]: formData }));
-    setEditingSection(null);
-    Alert.alert('Success', 'Profile updated successfully');
+  const handleSave = async (section) => {
+    if (!userId) {
+      Alert.alert('Error', 'User ID not found. Please login again.');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      let payload = {};
+      
+      if (section === 'personal') {
+        payload = {
+          fullName: formData.name,
+          email: formData.email,
+          mobileNumber: formData.phone,
+          city: formData.address,
+          serviceArea: formData.serviceArea,
+          emergencyContact: {
+            name: formData.emergencyContact?.name,
+            number: formData.emergencyContact?.phone
+          }
+        };
+        await api.updateParavetProfile(userId, payload);
+      } else if (section === 'professional') {
+        payload = {
+          yearsOfExperience: formData.yearsOfExperience,
+          areasOfExpertise: formData.specialization,
+          languagesSpoken: formData.languagesSpoken
+        };
+        await api.patch(`/paravet/experience-skills/${userId}`, payload);
+      } else if (section === 'bank') {
+        payload = {
+          paymentMethod: { type: formData.upiId ? 'upi' : 'bank_account', value: formData.upiId || formData.accountNumber },
+          accountHolderName: formData.accountHolder,
+          pan: formData.pan
+        };
+        await api.patch(`/paravet/payment-info/${userId}`, payload);
+      }
+
+      setProfileData((prev) => ({ ...prev, [section]: formData }));
+      setEditingSection(null);
+      Alert.alert('Success', 'Profile updated successfully in database');
+    } catch (error) {
+      console.error('Error saving profile:', error);
+      Alert.alert('Error', error.message || 'Failed to save profile. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleCancel = () => {
@@ -148,7 +200,13 @@ const ParavetProfileRN = () => {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" />
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+      {isLoading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#2563EB" />
+          <Text style={styles.loadingText}>Loading profile...</Text>
+        </View>
+      ) : (
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         
         {/* --- PROFESSIONAL HEADER --- */}
         <View style={styles.heroSection}>
@@ -181,6 +239,7 @@ const ParavetProfileRN = () => {
             onEdit={() => handleEditClick('personal')}
             onSave={() => handleSave('personal')}
             onCancel={handleCancel}
+            isSaving={isSaving}
           >
             {editingSection === 'personal' ? (
               <View style={styles.editForm}>
@@ -207,6 +266,7 @@ const ParavetProfileRN = () => {
             onEdit={() => handleEditClick('professional')}
             onSave={() => handleSave('professional')}
             onCancel={handleCancel}
+            isSaving={isSaving}
           >
             <View style={styles.infoContent}>
                 <InfoRow icon="card-outline" label="License No." value={profileData.professional.licenseNumber} />
@@ -225,6 +285,7 @@ const ParavetProfileRN = () => {
             onEdit={() => handleEditClick('bank')}
             onSave={() => handleSave('bank')}
             onCancel={handleCancel}
+            isSaving={isSaving}
           >
             <View style={styles.bankPreviewCard}>
                 <View style={styles.bankCardHeader}>
@@ -247,6 +308,7 @@ const ParavetProfileRN = () => {
 
         <View style={{ height: 100 }} />
       </ScrollView>
+      )}
     </SafeAreaView>
   );
 };
@@ -268,7 +330,7 @@ const CustomInput = ({ label, value, onChangeText, icon }) => (
   </View>
 );
 
-const CollapsibleSection = ({ title, icon, isOpen, onToggle, isEditing, onEdit, onSave, onCancel, children }) => (
+const CollapsibleSection = ({ title, icon, isOpen, onToggle, isEditing, onEdit, onSave, onCancel, children, isSaving }) => (
   <View style={[styles.sectionCard, isOpen && styles.sectionCardExpanded]}>
     <TouchableOpacity style={styles.sectionHeader} onPress={onToggle} activeOpacity={0.7}>
       <View style={styles.headerTitleRow}>
@@ -287,11 +349,15 @@ const CollapsibleSection = ({ title, icon, isOpen, onToggle, isEditing, onEdit, 
         <View style={styles.sectionActions}>
           {isEditing ? (
             <View style={styles.editActions}>
-              <TouchableOpacity onPress={onCancel} style={styles.cancelBtn}>
+              <TouchableOpacity onPress={onCancel} style={styles.cancelBtn} disabled={isSaving}>
                 <Text style={styles.cancelBtnText}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={onSave} style={styles.saveBtn}>
-                <Text style={styles.saveBtnText}>Save Changes</Text>
+              <TouchableOpacity onPress={onSave} style={[styles.saveBtn, isSaving && styles.saveBtnDisabled]} disabled={isSaving}>
+                {isSaving ? (
+                  <ActivityIndicator size="small" color="#FFF" />
+                ) : (
+                  <Text style={styles.saveBtnText}>Save Changes</Text>
+                )}
               </TouchableOpacity>
             </View>
           ) : (
@@ -308,6 +374,8 @@ const CollapsibleSection = ({ title, icon, isOpen, onToggle, isEditing, onEdit, 
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F8FAFC' },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  loadingText: { marginTop: 12, fontSize: 14, color: '#64748B' },
   scrollContent: { flexGrow: 1 },
   heroSection: { marginBottom: -20, zIndex: 1 },
   heroGradient: { paddingTop: 40, paddingBottom: 60, alignItems: 'center', borderBottomLeftRadius: 30, borderBottomRightRadius: 30 },
@@ -347,6 +415,7 @@ const styles = StyleSheet.create({
   editBtnText: { color: '#2563EB', fontWeight: '600', marginLeft: 4 },
   editActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 12 },
   saveBtn: { backgroundColor: '#2563EB', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 },
+  saveBtnDisabled: { backgroundColor: '#94A3B8', opacity: 0.7 },
   saveBtnText: { color: '#FFF', fontWeight: 'bold' },
   cancelBtn: { paddingHorizontal: 16, paddingVertical: 8 },
   cancelBtnText: { color: '#64748B', fontWeight: '600' },

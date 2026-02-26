@@ -171,6 +171,18 @@ class ApiService {
   }
 
   /* =========================
+     PARAVET PROFILE
+  ========================= */
+
+  updateParavetProfile(userId, data) {
+    return this.patch(`/paravet/personal-info/${userId}`, data);
+  }
+
+  getParavetProfile(userId) {
+    return this.get(`/paravet/profile/${userId}`);
+  }
+
+  /* =========================
      APPOINTMENTS
   ========================= */
 

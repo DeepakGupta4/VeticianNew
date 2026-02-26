@@ -1,6 +1,6 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, ActivityIndicator, Modal } from 'react-native';
 import { useSelector } from 'react-redux';
-import { Activity, HeartPulse, Stethoscope, ClipboardList, Syringe, Menu, CheckCircle, Calendar, DollarSign } from 'lucide-react-native';
+import { Activity, HeartPulse, Stethoscope, ClipboardList, Syringe, Menu, CheckCircle, Calendar, DollarSign, X } from 'lucide-react-native';
 import { DrawerActions } from '@react-navigation/native';
 import { useNavigation } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
@@ -14,6 +14,7 @@ export default function Home() {
     
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+    const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [dashboardData, setDashboardData] = useState({
         stats: {
             totalPatients: 0,
@@ -27,6 +28,18 @@ export default function Home() {
 
     const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://vetician-backend-kovk.onrender.com/api';
 
+    useEffect(() => {
+        // Check if just completed onboarding
+        const checkOnboardingComplete = async () => {
+            const completed = await AsyncStorage.getItem('onboarding_completed');
+            if (completed === 'true') {
+                setShowSuccessModal(true);
+                await AsyncStorage.removeItem('onboarding_completed');
+            }
+        };
+        checkOnboardingComplete();
+        fetchDashboardData();
+    }, []);
     const fetchDashboardData = async () => {
         try {
             const userId = await AsyncStorage.getItem('userId');
@@ -62,10 +75,6 @@ export default function Home() {
         }
     };
 
-    useEffect(() => {
-        fetchDashboardData();
-    }, []);
-
     const onRefresh = () => {
         setRefreshing(true);
         fetchDashboardData();
@@ -90,6 +99,41 @@ export default function Home() {
     }
 
     return (
+        <>
+        <Modal
+            visible={showSuccessModal}
+            transparent
+            animationType="fade"
+            onRequestClose={() => setShowSuccessModal(false)}
+        >
+            <View style={styles.modalOverlay}>
+                <View style={styles.modalContent}>
+                    <TouchableOpacity 
+                        style={styles.closeButton}
+                        onPress={() => setShowSuccessModal(false)}
+                    >
+                        <X size={24} color="#666" />
+                    </TouchableOpacity>
+                    <View style={styles.successIcon}>
+                        <CheckCircle size={64} color="#34C759" />
+                    </View>
+                    <Text style={styles.modalTitle}>Onboarding Complete! 🎉</Text>
+                    <Text style={styles.modalMessage}>
+                        Your application has been submitted successfully.
+                        {"\n\n"}
+                        Our team will review your profile within 24-48 hours.
+                        {"\n\n"}
+                        You'll receive updates via email and SMS.
+                    </Text>
+                    <TouchableOpacity 
+                        style={styles.modalButton}
+                        onPress={() => setShowSuccessModal(false)}
+                    >
+                        <Text style={styles.modalButtonText}>Got it!</Text>
+                    </TouchableOpacity>
+                </View>
+            </View>
+        </Modal>
         <ScrollView 
             style={styles.container} 
             showsVerticalScrollIndicator={false}
@@ -191,6 +235,7 @@ export default function Home() {
                 </View>
             </View>
         </ScrollView>
+        </>
     );
 }
 
@@ -399,5 +444,57 @@ const styles = StyleSheet.create({
     activityTime: {
         fontSize: 12,
         color: '#8E8E93',
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 20,
+    },
+    modalContent: {
+        backgroundColor: '#fff',
+        borderRadius: 20,
+        padding: 30,
+        width: '100%',
+        maxWidth: 400,
+        alignItems: 'center',
+        elevation: 5,
+    },
+    closeButton: {
+        position: 'absolute',
+        top: 15,
+        right: 15,
+        zIndex: 1,
+    },
+    successIcon: {
+        marginBottom: 20,
+    },
+    modalTitle: {
+        fontSize: 24,
+        fontWeight: '700',
+        color: '#1a1a1a',
+        marginBottom: 16,
+        textAlign: 'center',
+    },
+    modalMessage: {
+        fontSize: 15,
+        color: '#666',
+        textAlign: 'center',
+        lineHeight: 22,
+        marginBottom: 24,
+    },
+    modalButton: {
+        backgroundColor: '#34C759',
+        paddingHorizontal: 40,
+        paddingVertical: 14,
+        borderRadius: 12,
+        width: '100%',
+    },
+    modalButtonText: {
+        color: '#fff',
+        fontSize: 16,
+        fontWeight: '600',
+        textAlign: 'center',
     },
 });
