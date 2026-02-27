@@ -235,8 +235,14 @@ class ApiService {
     return this.post(`/admin/clinic/verify/${clinicId}`);
   }
 
-  getAllVerifiedClinics() {
-    return this.get('/clinics/verified');
+  getAllVerifiedClinics(locationParams = {}) {
+    // Build query string for location parameters
+    let queryString = '';
+    if (locationParams.userLat && locationParams.userLon) {
+      queryString = `?userLat=${locationParams.userLat}&userLon=${locationParams.userLon}`;
+    }
+    
+    return this.get(`/clinics/all${queryString}`);
   }
 
   getVerifiedPetResorts(filters = {}) {

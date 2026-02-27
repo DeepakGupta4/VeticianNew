@@ -12,6 +12,7 @@ import { getPetsByUserId, getAllVerifiedClinics, addBooking } from "../../../sto
 import { useFocusEffect } from "expo-router";
 import { router } from "expo-router";
 import CommonHeader from "../../../components/CommonHeader";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const services = [
   "Video Consultation",
@@ -61,30 +62,88 @@ export default function BookScreen() {
     }, [])
   );
 
-  const confirmBooking = () => {
-    const booking = {
-      _id: Date.now().toString(),
-      petId: selectedPet._id,
-      petName: selectedPet.name,
-      service: selectedService,
-      clinicId: selectedClinic?.clinicId || null,
-      clinicName: selectedClinic?.clinicName || "Home Service",
-      doctorName: selectedClinic?.doctor || "Service Provider",
-      date: selectedDate,
-      time: selectedSlot,
-      status: "pending",
-      createdAt: new Date().toISOString(),
-    };
+  const confirmBooking = async () => {
+    try {
+      setLoading(true);
+      
+      // Map service to bookingType
+      const bookingTypeMap = {
+        'Video Consultation': 'video',
+        'Doorstep Service': 'in-clinic',
+        'Pet Watching': 'in-clinic',
+        'Book a Hostel': 'in-clinic',
+        'Day/Play School': 'in-clinic',
+        'Pet Training': 'in-clinic',
+        'Pet Grooming': 'in-clinic',
+        'Find Clinics': 'in-clinic',
+        'Health Tips': 'in-clinic'
+      };
+      
+      // Create appointment date with selected time
+      const appointmentDate = new Date();
+      if (selectedDate === 'Tomorrow') {
+        appointmentDate.setDate(appointmentDate.getDate() + 1);
+      }
+      
+      // Parse selected time slot (e.g., "10:00 AM" or "10:00 AM - 11:00 AM")
+      const timeStr = selectedSlot.split(' - ')[0]; // Get start time
+      const [time, period] = timeStr.split(' ');
+      const [hours, minutes] = time.split(':');
+      let hour = parseInt(hours);
+      
+      if (period === 'PM' && hour !== 12) hour += 12;
+      if (period === 'AM' && hour === 12) hour = 0;
+      
+      appointmentDate.setHours(hour, parseInt(minutes), 0, 0);
+      
+      const bookingData = {
+        clinicId: selectedClinic?.clinicId || null,
+        veterinarianId: selectedClinic?.vetId || null,
+        petName: selectedPet.name,
+        petType: selectedPet.species || 'Dog',
+        breed: selectedPet.breed || selectedPet.species || 'Mixed',
+        illness: 'General checkup',
+        date: appointmentDate.toISOString(),
+        bookingType: bookingTypeMap[selectedService] || 'in-clinic',
+        contactInfo: '1234567890',
+        petPic: selectedPet.petPhoto || selectedPet.image || '🐾',
+      };
 
-    dispatch(addBooking(booking));
-    console.log("BOOKING DATA:", booking);
+      const token = await AsyncStorage.getItem('token');
+      const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL || 'https://vetician-backend-kovk.onrender.com/api'}/auth/petparent/appointments/book`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(bookingData)
+      });
 
-    Alert.alert(
-      "Appointment Booked ✅",
-      `${booking.petName} | ${booking.service}\n${booking.clinicName}\n${booking.date} at ${booking.time}`
-    );
+      const result = await response.json();
 
-    router.push('pages/MyBookings');
+      if (response.ok) {
+        Alert.alert(
+          "Appointment Booked ✅",
+          `${selectedPet.name} | ${selectedService}\n${selectedClinic?.clinicName || 'Service'}\n${selectedDate} at ${selectedSlot}`,
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                router.replace('/(vetician_tabs)/pages/MyBookings');
+              }
+            }
+          ]
+        );
+      } else {
+        console.error('Booking error:', result);
+        Alert.alert('Error', result.message || 'Failed to book appointment');
+      }
+    } catch (error) {
+      console.error('Booking error:', error);
+      Alert.alert('Error', 'Failed to book appointment. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (loading) {
@@ -148,7 +207,19 @@ export default function BookScreen() {
             verifiedClinics.map((item) => {
               const clinic = item.clinicDetails;
               const vet = item.veterinarianDetails;
-              const slots = clinic.timings?.split(',').map(t => t.trim()) || ["10:00 AM", "2:00 PM", "5:00 PM"];
+              
+              // Handle timings - can be object or string
+              let slots = ["10:00 AM", "2:00 PM", "5:00 PM"]; // default
+              if (clinic.timings) {
+                if (typeof clinic.timings === 'string') {
+                  slots = clinic.timings.split(',').map(t => t.trim());
+                } else if (typeof clinic.timings === 'object') {
+                  // Extract time slots from object format
+                  slots = Object.values(clinic.timings)
+                    .filter(t => t && t.start && t.end)
+                    .map(t => `${t.start} - ${t.end}`);
+                }
+              }
               
               return (
                 <Option
@@ -156,7 +227,13 @@ export default function BookScreen() {
                   label={`${clinic.clinicName} • ${vet?.name || 'Doctor'}`}
                   active={selectedClinic?.clinicId === clinic.clinicId}
                   onPress={() => {
-                    setSelectedClinic({ ...clinic, doctor: vet?.name, slots });
+                    setSelectedClinic({ 
+                      ...clinic, 
+                      doctor: vet?.name, 
+                      slots,
+                      vetId: vet?.vetId,
+                      clinicId: clinic.clinicId
+                    });
                   }}
                 />
               );

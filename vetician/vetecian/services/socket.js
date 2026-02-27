@@ -1,7 +1,6 @@
-// Temporarily disabled socket.io-client due to React Native compatibility issues
-// import { io } from 'socket.io-client';
+import { io } from 'socket.io-client';
 
-const SOCKET_URL = 'http://localhost:3000';
+const SOCKET_URL = process.env.EXPO_PUBLIC_API_URL?.replace('/api', '') || 'https://vetician-backend-kovk.onrender.com';
 
 class SocketService {
   constructor() {
@@ -9,20 +8,69 @@ class SocketService {
   }
 
   connect(userId, userType) {
-    console.log('Socket service temporarily disabled');
-    // TODO: Implement React Native compatible socket connection
+    if (this.socket?.connected) {
+      console.log('✅ Socket already connected');
+      return;
+    }
+
+    console.log(`🔌 Connecting to socket server: ${SOCKET_URL}`);
+    console.log(`👤 User ID: ${userId}, Type: ${userType}`);
+
+    this.socket = io(SOCKET_URL, {
+      transports: ['websocket'],
+      reconnection: true
+    });
+
+    this.socket.on('connect', () => {
+      console.log('✅ Socket connected:', this.socket.id);
+      
+      if (userType === 'veterinarian') {
+        console.log(`📤 Emitting join-veterinarian with ID: ${userId}`);
+        this.socket.emit('join-veterinarian', userId);
+      } else if (userType === 'petparent') {
+        console.log(`📤 Emitting join-petparent with ID: ${userId}`);
+        this.socket.emit('join-petparent', userId);
+      }
+    });
+
+    this.socket.on('disconnect', () => {
+      console.log('❌ Socket disconnected');
+    });
+    
+    this.socket.on('connect_error', (error) => {
+      console.error('❌ Socket connection error:', error.message);
+    });
   }
 
-  onNewBooking(callback) {
-    console.log('Socket service temporarily disabled');
+  onNewAppointment(callback) {
+    if (!this.socket) {
+      console.log('⚠️ Socket not initialized for onNewAppointment');
+      return;
+    }
+    console.log('👂 Listening for new-appointment events');
+    this.socket.on('new-appointment', (data) => {
+      console.log('🔔 Received new-appointment event:', data);
+      callback(data);
+    });
   }
 
-  onBookingUpdated(callback) {
-    console.log('Socket service temporarily disabled');
+  onAppointmentStatusUpdate(callback) {
+    if (!this.socket) {
+      console.log('⚠️ Socket not initialized for onAppointmentStatusUpdate');
+      return;
+    }
+    console.log('👂 Listening for appointment-status-update events');
+    this.socket.on('appointment-status-update', (data) => {
+      console.log('🔔 Received appointment-status-update event:', data);
+      callback(data);
+    });
   }
 
   disconnect() {
-    console.log('Socket service temporarily disabled');
+    if (this.socket) {
+      this.socket.disconnect();
+      this.socket = null;
+    }
   }
 }
 

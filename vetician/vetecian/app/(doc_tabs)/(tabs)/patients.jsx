@@ -1,36 +1,42 @@
-import { View, Text, FlatList, Image, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, FlatList, Image, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
+import { ArrowLeft } from 'lucide-react-native';
+import { useState, useEffect } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
 
-const MOCK_PATIENTS = [
-  {
-    id: '1',
-    name: 'Bruno',
-    species: 'Dog',
-    breed: 'Labrador',
-    gender: 'Male',
-    age: 4,
-    photo: 'https://place-puppy.com/200x200',
-    isActive: true,
-  },
-  {
-    id: '2',
-    name: 'Kitty',
-    species: 'Cat',
-    breed: 'Persian',
-    gender: 'Female',
-    age: 2,
-    photo: 'https://placekitten.com/200/200',
-    isActive: true,
-  },
-];
+const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
 export default function PatientsScreen() {
   const router = useRouter();
+  const [patients, setPatients] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchPatients();
+  }, []);
+
+  const fetchPatients = async () => {
+    try {
+      const token = await AsyncStorage.getItem('accessToken');
+      const response = await axios.get(`${API_URL}/patients`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      if (response.data.success) {
+        setPatients(response.data.patients);
+      }
+    } catch (error) {
+      console.error('Error fetching patients:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const renderPatient = ({ item }) => (
     <TouchableOpacity
       style={styles.card}
-      onPress={() => router.push(`/patient_detail/${item.id}`)}
+      // onPress={() => router.push(`/patient_detail/${item.id}`)}
     >
       <Image source={{ uri: item.photo }} style={styles.avatar} />
 
@@ -38,9 +44,6 @@ export default function PatientsScreen() {
         <Text style={styles.name}>{item.name}</Text>
         <Text style={styles.subText}>
           {item.species} • {item.breed}
-        </Text>
-        <Text style={styles.subText}>
-          {item.gender} • {item.age} yrs
         </Text>
       </View>
 
@@ -53,15 +56,44 @@ export default function PatientsScreen() {
     </TouchableOpacity>
   );
 
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.topBar}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.iconButton}>
+            <ArrowLeft size={24} color="#1a1a1a" />
+          </TouchableOpacity>
+          <Text style={styles.topBarTitle}>Patients</Text>
+          <View style={styles.iconButton} />
+        </View>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#10b981" />
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
-      <Text style={styles.header}>Patients</Text>
+      <View style={styles.topBar}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.iconButton}>
+          <ArrowLeft size={24} color="#1a1a1a" />
+        </TouchableOpacity>
+        <Text style={styles.topBarTitle}>Patients</Text>
+        <View style={styles.iconButton} />
+      </View>
 
       <FlatList
-        data={MOCK_PATIENTS}
+        data={patients}
         keyExtractor={(item) => item.id}
         renderItem={renderPatient}
         showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.listContent}
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>No patients found</Text>
+          </View>
+        }
       />
     </View>
   );
@@ -70,12 +102,28 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F9FAFB',
-    padding: 16,
   },
-  header: {
-    fontSize: 22,
-    fontWeight: '700',
-    marginBottom: 16,
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    paddingTop: 50,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  topBarTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1a1a1a',
+  },
+  iconButton: {
+    padding: 8,
+  },
+  listContent: {
+    padding: 16,
   },
   card: {
     flexDirection: 'row',
@@ -108,5 +156,20 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: 100,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#6B7280',
   },
 });

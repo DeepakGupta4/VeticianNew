@@ -926,7 +926,7 @@
 import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  Image, Dimensions, SafeAreaView, Modal, Alert, Platform
+  Image, Dimensions, SafeAreaView, Modal, Alert, Platform, Share
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { 
@@ -943,10 +943,46 @@ const ClinicDetailScreen = () => {
   const [isBookingVisible, setBookingVisible] = useState(false);
   const [selectedTime, setSelectedTime] = useState(null);
 
-  const clinicData = params.clinic ? JSON.parse(params.clinic) : null;
-  if (!clinicData) return <View style={styles.center}><Text>Loading Profile...</Text></View>;
+  // Reconstruct clinic data from individual params
+  const clinicData = {
+    clinicDetails: {
+      clinicId: params.clinicId,
+      clinicName: params.clinicName,
+      establishmentType: params.establishmentType,
+      city: params.city,
+      locality: params.locality,
+      streetAddress: params.streetAddress,
+      fees: 500,
+      verified: true
+    },
+    veterinarianDetails: {
+      name: 'Veterinarian',
+      profilePhotoUrl: params.profilePhotoUrl,
+      specialization: 'General Practice',
+      experience: 5
+    }
+  };
+
+  if (!params.clinicId) {
+    return (
+      <View style={styles.center}>
+        <Text>Loading Profile...</Text>
+      </View>
+    );
+  }
 
   const { clinicDetails, veterinarianDetails: vet } = clinicData;
+
+  const handleShare = async () => {
+    try {
+      await Share.share({
+        message: `Check out ${clinicDetails.clinicName} - ${vet.name}\n${clinicDetails.streetAddress}, ${clinicDetails.locality}, ${clinicDetails.city}\nFees: ₹${clinicDetails.fees}`,
+        title: `${clinicDetails.clinicName} - Veterinary Clinic`
+      });
+    } catch (error) {
+      Alert.alert('Error', 'Unable to share');
+    }
+  };
 
   const timeSlots = ["09:30 AM", "11:00 AM", "12:30 PM", "04:00 PM", "05:30 PM", "07:00 PM"];
 
@@ -958,7 +994,9 @@ const ClinicDetailScreen = () => {
           <Feather name="arrow-left" size={24} color="#333" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Doctor Profile</Text>
-        <Feather name="share-2" size={22} color="#333" />
+        <TouchableOpacity onPress={handleShare}>
+          <Feather name="share-2" size={22} color="#333" />
+        </TouchableOpacity>
       </View>
 
       <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>

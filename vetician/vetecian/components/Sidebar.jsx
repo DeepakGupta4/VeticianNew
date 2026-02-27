@@ -26,13 +26,8 @@ export default function Sidebar({ visible, onClose }) {
   ];
 
   const handleLogout = async () => {
-    // Clear AsyncStorage immediately
     await AsyncStorage.multiRemove(['token', 'userId', 'user', 'refreshToken']);
-    
-    // Clear Redux state
     dispatch(signOutUser());
-    
-    // Close sidebar and navigate
     onClose();
     router.replace('/(auth)/signin');
   };

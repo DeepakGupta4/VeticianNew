@@ -1,57 +1,53 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated, ActivityIndicator, RefreshControl, Alert } from 'react-native';
-import { useSelector, useDispatch } from 'react-redux'; // 1. useDispatch import karein
-import { HeartPulse, PawPrint, Stethoscope, Syringe, CalendarClock, Menu, Zap, FileText, LogOut } from 'lucide-react-native'; // 2. LogOut icon add karein
+import { useSelector, useDispatch } from 'react-redux';
+import { HeartPulse, PawPrint, Stethoscope, Syringe, CalendarClock, Menu, Bell } from 'lucide-react-native';
 import { router } from 'expo-router';
-import api from "../../../services/api";
-// Import your logout action (adjust path based on your project)
-import { logout } from '../../../store/slices/authSlice'; 
+import { DrawerActions, useNavigation } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import api from "../../../services/api"; 
 
 export default function Home() {
     const { user } = useSelector(state => state.auth);
-    const dispatch = useDispatch(); // Redux dispatch instance
+    const dispatch = useDispatch();
+    const navigation = useNavigation();
     const fadeAnim = useRef(new Animated.Value(0)).current;
     
     const [dashboardData, setDashboardData] = useState(null);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
+    const [notificationCount, setNotificationCount] = useState(0);
 
-    // Logout Function
-    const handleLogout = () => {
-        Alert.alert(
-            "Logout",
-            "Are you sure you want to logout?",
-            [
-                { text: "Cancel", style: "cancel" },
-                { 
-                    text: "Logout", 
-                    style: "destructive",
-                    onPress: async () => {
-                        try {
-                            // 1. Agar koi logout action hai toh dispatch karein
-                            // dispatch(logout()); 
-
-                            // 2. Redirect to Login/Index
-                            router.replace('/(auth)/login'); // Apna login path check karein
-                        } catch (error) {
-                            console.log("Logout failed", error);
-                        }
-                    }
-                }
-            ]
-        );
+    // Open Drawer Function
+    const openDrawer = () => {
+        navigation.dispatch(DrawerActions.openDrawer());
     };
 
     const fetchDashboardData = async () => {
         try {
-            const data = await api.get('/users/dashboard-stats');
-            if (data.success) {
-                setDashboardData(data);
+            if (user?.role !== 'veterinarian') {
+                return;
             }
+            
+            // Fetch appointments count
+            const token = await AsyncStorage.getItem('token');
+            const appointmentsRes = await fetch(
+                `${process.env.EXPO_PUBLIC_API_URL || 'https://vetician-backend-kovk.onrender.com/api'}/auth/veterinarian/appointments`,
+                { headers: { 'Authorization': `Bearer ${token}` } }
+            );
+            const appointmentsData = await appointmentsRes.json();
+            
+            setDashboardData({
+                stats: {
+                    patients: 0,
+                    appointments: appointmentsData.success ? appointmentsData.count || appointmentsData.appointments?.length || 0 : 0,
+                    surgeries: 0
+                },
+                profile: { name: user?.name }
+            });
         } catch (error) {
             console.error('Dashboard Fetch Error:', error.message);
         } finally {
-            setLoading(false);
             setRefreshing(false);
         }
     };
@@ -76,7 +72,7 @@ export default function Home() {
             label: 'Patients', 
             value: dashboardData?.stats?.patients?.toString() || '0', 
             color: '#34C759',
-            onPress: () => router.push('/patients')
+            onPress: () => router.push('/(doc_tabs)/(tabs)/patients')
         },
         { 
             icon: PawPrint, 
@@ -90,17 +86,9 @@ export default function Home() {
             label: 'Surgeries', 
             value: dashboardData?.stats?.surgeries?.toString() || '0', 
             color: '#007AFF',
-            onPress: () => router.push('/surgeries')
+            onPress: () => router.push('/(doc_tabs)/(tabs)/surgeries')
         },
     ];
-
-    if (loading && !refreshing) {
-        return (
-            <View style={styles.loaderContainer}>
-                <ActivityIndicator size="large" color="#007AFF" />
-            </View>
-        );
-    }
 
     return (
         <Animated.ScrollView 
@@ -108,21 +96,25 @@ export default function Home() {
             showsVerticalScrollIndicator={false}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         >
-            {/* Header with Logout Button */}
+            {/* Header */}
             <View style={styles.header}>
                 <View style={styles.headerTop}>
-                    <TouchableOpacity style={styles.menuButton}>
+                    <TouchableOpacity style={styles.menuButton} onPress={openDrawer}>
                         <Menu size={24} color="#1a1a1a" />
                     </TouchableOpacity>
                     
-                    {/* Logout Button Added Here */}
-                    <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-                        <LogOut size={22} color="#FF3B30" />
+                    <TouchableOpacity style={styles.notificationButton} onPress={() => router.push('/(doc_tabs)/notifications')}>
+                        <Bell size={22} color="#1a1a1a" />
+                        {notificationCount > 0 && (
+                            <View style={styles.notificationBadge}>
+                                <Text style={styles.badgeText}>{notificationCount > 99 ? '99+' : notificationCount}</Text>
+                            </View>
+                        )}
                     </TouchableOpacity>
                 </View>
 
                 <View style={styles.headerContent}>
-                    <Text style={styles.greeting}>Hello, Dr. {user?.name || 'Veterinarian'}!</Text>
+                    <Text style={styles.greeting}>Hello, {dashboardData?.profile?.name || `Dr. ${user?.name}` || 'Veterinarian'}!</Text>
                     <Text style={styles.subtitle}>Welcome to your veterinary dashboard</Text>
                 </View>
             </View>
@@ -185,7 +177,7 @@ const styles = StyleSheet.create({
     // ... Existing Styles ...
     header: { 
         padding: 24, 
-        paddingTop: 60, 
+        paddingTop: 50, 
         backgroundColor: '#fff', 
         borderBottomWidth: 1, 
         borderBottomColor: '#f0f0f0' 
@@ -196,10 +188,28 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginBottom: 20
     },
-    logoutButton: {
+    notificationButton: {
         padding: 8,
-        backgroundColor: '#FF3B3010',
-        borderRadius: 8
+        backgroundColor: '#F0F0F0',
+        borderRadius: 8,
+        position: 'relative'
+    },
+    notificationBadge: {
+        position: 'absolute',
+        top: 4,
+        right: 4,
+        backgroundColor: '#FF3B30',
+        borderRadius: 10,
+        minWidth: 18,
+        height: 18,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingHorizontal: 4
+    },
+    badgeText: {
+        color: '#fff',
+        fontSize: 10,
+        fontWeight: 'bold'
     },
     // Baaki sab same
     loaderContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' },

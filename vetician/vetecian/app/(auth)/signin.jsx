@@ -555,8 +555,6 @@ export default function SignIn() {
 
   const handlePostLoginRouting = async (type) => {
     try {
-      console.log('🔄 Routing for type:', type);
-      
       switch(type) {
         case 'vetician':
           await handleUserLogin();
@@ -574,11 +572,9 @@ export default function SignIn() {
           router.replace('/(admin_tabs)');
           break;
         default:
-          console.log('⚠️ Unknown login type:', type);
           router.replace('/(vetician_tabs)');
       }
     } catch (error) {
-      console.error('❌ Routing error:', error);
       Alert.alert('Error', 'Navigation failed. Please restart the app.');
     }
   };
@@ -593,7 +589,6 @@ export default function SignIn() {
         router.replace('/(vetician_tabs)');
       }
     } catch (error) {
-      console.error('❌ User login routing error:', error);
       router.replace('/(vetician_tabs)');
     }
   };
@@ -640,10 +635,11 @@ export default function SignIn() {
                 placeholder="Email"
                 placeholderTextColor="#aaa"
                 value={email}
-                onChangeText={setEmail}
+                onChangeText={(text) => setEmail(text.replace('mailto:', ''))}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
+                textContentType="emailAddress"
               />
             </View>
             {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}

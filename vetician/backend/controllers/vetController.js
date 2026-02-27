@@ -3,6 +3,22 @@ const Veterinarian = require('../models/Veterinarian');
 const Appointment = require('../models/Appointment');
 const { catchAsync } = require('../utils/catchAsync');
 
+// Utility function to calculate distance between two coordinates
+const calculateDistance = (lat1, lon1, lat2, lon2) => {
+  if (!lat1 || !lon1 || !lat2 || !lon2) return null;
+  
+  const R = 6371; // Radius of the Earth in kilometers
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = 
+    Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+    Math.sin(dLon/2) * Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  const distance = R * c; // Distance in kilometers
+  return Math.round(distance * 10) / 10; // Round to 1 decimal place
+};
+
 
 
 const registerVeterinarian = catchAsync(async (req, res, next) => {
@@ -438,6 +454,10 @@ const getProfileDetails = catchAsync(async (req, res, next) => {
 
 // veterinarian's clinic for pet parent
 const getAllClinicsWithVets = catchAsync(async (req, res, next) => {
+  // Get user's location from query params
+  const { userLat, userLon } = req.query;
+  console.log(`🔍 API called with userLat: ${userLat}, userLon: ${userLon}`);
+  
   // 1. Fetch all verified clinics
   const clinics = await Clinic.find({ verified: true }).lean();
   
@@ -459,21 +479,46 @@ const getAllClinicsWithVets = catchAsync(async (req, res, next) => {
     return map;
   }, {});
   
-  // 5. Combine clinic and veterinarian data
+  // 5. Combine clinic and veterinarian data with distance calculation
   const responseData = clinics.map(clinic => {
     const vet = vetMap[clinic.userId] || null;
     
+    console.log(`🏥 Processing clinic: ${clinic.clinicName}`);
+    console.log(`📍 DB Coordinates: lat=${clinic.latitude}, lon=${clinic.longitude}`);
+    console.log(`👤 User Location: lat=${userLat}, lon=${userLon}`);
+    
+    // Calculate distance if user location and clinic coordinates are available
+    let distance = null;
+    if (userLat && userLon && clinic.latitude && clinic.longitude) {
+      distance = calculateDistance(
+        parseFloat(userLat), 
+        parseFloat(userLon), 
+        clinic.latitude, 
+        clinic.longitude
+      );
+      console.log(`📏 Calculated distance: ${distance} km`);
+    } else {
+      console.log(`⚠️ Missing coordinates - userLat: ${userLat}, userLon: ${userLon}, clinicLat: ${clinic.latitude}, clinicLon: ${clinic.longitude}`);
+    }
+    
     return {
       clinicDetails: {
+        _id: clinic._id,
         establishmentType: clinic.establishmentType,
         clinicName: clinic.clinicName,
         city: clinic.city,
         locality: clinic.locality,
         streetAddress: clinic.streetAddress,
+        latitude: clinic.latitude,
+        longitude: clinic.longitude,
         fees: clinic.fees,
         timings: clinic.timings,
         verified: clinic.verified,
-        clinicId: clinic._id
+        distance: distance,
+        phoneNumber: clinic.clinicNumber,
+        rating: 4.5, // Mock rating - you can add this to schema later
+        totalReviews: Math.floor(Math.random() * 200) + 50, // Mock reviews
+        amenities: ['Emergency Care', 'Surgery', 'Vaccination'] // Mock amenities
       },
       veterinarianDetails: vet ? {
         title: vet.title.value,
@@ -483,12 +528,27 @@ const getAllClinicsWithVets = catchAsync(async (req, res, next) => {
         experience: vet.experience.value,
         specialization: vet.specialization.value,
         profilePhotoUrl: vet.profilePhotoUrl.value,
+        qualifications: vet.qualification?.value || 'BVSc',
+        languages: ['English', 'Hindi'], // Mock data
         isVerified: vet.isVerified,
         vetId: vet._id
       } : null
     };
   });
-  console.log(responseData)
+  
+  // Sort by distance if available
+  if (userLat && userLon) {
+    responseData.sort((a, b) => {
+      const distA = a.clinicDetails.distance;
+      const distB = b.clinicDetails.distance;
+      if (distA === null && distB === null) return 0;
+      if (distA === null) return 1;
+      if (distB === null) return -1;
+      return distA - distB;
+    });
+  }
+  
+  console.log(`✅ Sending ${responseData.length} clinics with distances`);
 
   res.status(200).json({
     success: true,

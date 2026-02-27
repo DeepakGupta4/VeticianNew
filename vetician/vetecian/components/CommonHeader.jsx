@@ -1,20 +1,50 @@
-import React from "react";
-import { View, Text, TouchableOpacity } from "react-native";
-import { router } from "expo-router";
+import React from 'react';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { useRouter } from 'expo-router';
+import { ChevronLeft } from 'lucide-react-native';
 
 export default function CommonHeader({ title, showBack = true }) {
+  const router = useRouter();
+
   return (
-    <View style={{ backgroundColor: "#4CAF50", padding: 16, paddingTop: 40 }}>
-      <View style={{ flexDirection: "row", alignItems: "center" }}>
-        {showBack && (
-          <TouchableOpacity onPress={() => router.back()} style={{ marginRight: 12 }}>
-            <Text style={{ color: "#fff", fontSize: 24 }}>←</Text>
-          </TouchableOpacity>
-        )}
-        <Text style={{ color: "#fff", fontSize: 18, fontWeight: "600" }}>
-          {title}
-        </Text>
-      </View>
+    <View style={styles.header}>
+      {showBack && (
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <ChevronLeft size={24} color="#fff" />
+        </TouchableOpacity>
+      )}
+      <Text style={styles.title}>{title}</Text>
+      <View style={styles.placeholder} />
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#4E8D7C',
+    paddingTop: 40,
+    paddingBottom: 12,
+    paddingHorizontal: 16,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#fff',
+    flex: 1,
+    textAlign: 'center',
+  },
+  placeholder: {
+    width: 40,
+  },
+});
