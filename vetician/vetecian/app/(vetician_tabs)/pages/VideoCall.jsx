@@ -1,172 +1,3 @@
-// import React from 'react';
-// import {
-//   View,
-//   Text,
-//   StyleSheet,
-//   ScrollView,
-//   Image,
-//   TouchableOpacity,
-//   FlatList,
-//   Dimensions,
-// } from 'react-native';
-
-// const { width } = Dimensions.get('window');
-
-// // Mock Data - Screenshots ke hisab se
-// const SPECIALITIES = [
-//   { id: '1', title: 'General Vet', price: '₹399', icon: '🩺' },
-//   { id: '2', title: 'Skin & Coat', price: '₹449', icon: '🐕' },
-//   { id: '3', title: 'Behavior', price: '₹499', icon: '🧠' },
-//   { id: '4', title: 'Digestion', price: '₹399', icon: '🦴' },
-// ];
-
-// const DOCTORS = [
-//   {
-//     id: '1',
-//     name: 'Dr. Prateeksha B S',
-//     role: 'Senior Vet, Surgeon',
-//     exp: '7 years experience',
-//     consults: '13337 consults done',
-//     img: 'https://via.placeholder.com/100',
-//   },
-//   {
-//     id: '2',
-//     name: 'Dr. Anshuman Gupta',
-//     role: 'Pet Cardiologist',
-//     exp: '11 years experience',
-//     consults: '13587 consults done',
-//     img: 'https://via.placeholder.com/100',
-//   },
-// ];
-
-// const VideoConsultTab = () => {
-//   return (
-//     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      
-//       {/* SECTION 1: HERO BANNER (Screenshot 1) */}
-//       <View style={styles.heroSection}>
-//         <View style={styles.heroTextContent}>
-//           <Text style={styles.heroTitle}>Skip the travel!</Text>
-//           <Text style={styles.heroSubTitle}>Take Online Vet Consultation</Text>
-//           <Text style={styles.heroTagline}>Private consultation + Video call • Starts at just ₹199</Text>
-          
-//           <View style={styles.onlineStatus}>
-//              <Text style={styles.onlineText}>🟢 +126 Vets are online</Text>
-//           </View>
-
-//           <TouchableOpacity style={styles.consultNowBtn}>
-//             <Text style={styles.consultNowText}>Consult Now</Text>
-//           </TouchableOpacity>
-//         </View>
-//         <Image 
-//           source={{uri: 'https://img.freepik.com/free-photo/happy-woman-holding-her-dog-home_23-2149129707.jpg'}} 
-//           style={styles.heroImage} 
-//         />
-//       </View>
-
-//       {/* SECTION 2: SPECIALITIES (Screenshot 2) */}
-//       <View style={styles.whiteSection}>
-//         <View style={styles.sectionHeader}>
-//           <Text style={styles.sectionTitle}>25+ Specialities</Text>
-//           <TouchableOpacity><Text style={styles.seeAll}>See all Specialities</Text></TouchableOpacity>
-//         </View>
-//         <FlatList
-//           horizontal
-//           data={SPECIALITIES}
-//           showsHorizontalScrollIndicator={false}
-//           keyExtractor={(item) => item.id}
-//           renderItem={({ item }) => (
-//             <View style={styles.specCard}>
-//               <View style={styles.iconCircle}><Text style={{fontSize: 30}}>{item.icon}</Text></View>
-//               <Text style={styles.specName}>{item.title}</Text>
-//               <Text style={styles.specPrice}>{item.price}</Text>
-//               <TouchableOpacity><Text style={styles.consultLink}>Consult now ›</Text></TouchableOpacity>
-//             </View>
-//           )}
-//         />
-//       </View>
-
-//       {/* SECTION 3: OFFERS (Screenshot 3) */}
-//       <View style={styles.offerContainer}>
-//         <View style={[styles.offerCard, {backgroundColor: '#E0F2F1'}]}>
-//           <Text style={styles.offerTag}>OFFER</Text>
-//           <Text style={styles.offerText}>Download App & get ₹200 HealthCash</Text>
-//         </View>
-//         <View style={[styles.offerCard, {backgroundColor: '#FFF3E0'}]}>
-//           <Text style={styles.offerTag}>OFFER</Text>
-//           <Text style={styles.offerText}>Consult with specialists at just ₹199</Text>
-//         </View>
-//       </View>
-
-//       {/* SECTION 4: OUR DOCTORS (Screenshot 3 bottom) */}
-//       <View style={styles.whiteSection}>
-//         <Text style={styles.sectionTitle}>Our Vets</Text>
-//         {DOCTORS.map((doc) => (
-//           <View key={doc.id} style={styles.docCard}>
-//             <Image source={{uri: doc.img}} style={styles.docImg} />
-//             <View style={styles.docInfo}>
-//               <Text style={styles.docName}>{doc.name}</Text>
-//               <Text style={styles.docSub}>{doc.role}</Text>
-//               <Text style={styles.docSub}>{doc.exp}</Text>
-//               <Text style={styles.docConsults}>{doc.consults}</Text>
-//             </View>
-//           </View>
-//         ))}
-//       </View>
-
-//       {/* SECTION 5: STATS (Screenshot 4) */}
-//       <View style={styles.statsBar}>
-//         <View style={styles.statItem}><Text style={styles.statNum}>20,000+</Text><Text style={styles.statLab}>Verified Vets</Text></View>
-//         <View style={styles.statItem}><Text style={styles.statNum}>4.5 / 5</Text><Text style={styles.statLab}>App Rating</Text></View>
-//       </View>
-
-//     </ScrollView>
-//   );
-// };
-
-// const styles = StyleSheet.create({
-//   container: { flex: 1, backgroundColor: '#f0f0f0' },
-//   // Hero Styles
-//   heroSection: { backgroundColor: '#FDECE9', padding: 20, flexDirection: 'row', minHeight: 250 },
-//   heroTextContent: { flex: 1, zIndex: 1 },
-//   heroTitle: { fontSize: 18, color: '#444' },
-//   heroSubTitle: { fontSize: 22, fontWeight: 'bold', marginVertical: 5 },
-//   heroTagline: { fontSize: 13, color: '#666', marginBottom: 15 },
-//   consultNowBtn: { backgroundColor: '#2D9CDB', paddingVertical: 12, paddingHorizontal: 25, borderRadius: 5, alignSelf: 'flex-start' },
-//   consultNowText: { color: '#fff', fontWeight: 'bold' },
-//   heroImage: { width: 150, height: 200, position: 'absolute', right: 0, bottom: 0, opacity: 0.8 },
-//   onlineText: { fontSize: 12, marginBottom: 10, color: '#444' },
-//   // Section Styles
-//   whiteSection: { backgroundColor: '#fff', padding: 20, marginBottom: 10 },
-//   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 15 },
-//   sectionTitle: { fontSize: 18, fontWeight: 'bold' },
-//   seeAll: { color: '#2D9CDB', fontSize: 13 },
-//   // Speciality Card
-//   specCard: { width: 130, alignItems: 'center', padding: 15, borderHorizontalWidth: 1, borderColor: '#eee' },
-//   iconCircle: { width: 70, height: 70, borderRadius: 35, backgroundColor: '#f9f9f9', justifyContent: 'center', alignItems: 'center', marginBottom: 10 },
-//   specName: { fontWeight: 'bold', fontSize: 14 },
-//   specPrice: { color: '#777', marginVertical: 5 },
-//   consultLink: { color: '#2D9CDB', fontWeight: 'bold' },
-//   // Offer Cards
-//   offerContainer: { flexDirection: 'row', padding: 10, justifyContent: 'space-between' },
-//   offerCard: { width: '48%', padding: 15, borderRadius: 8 },
-//   offerTag: { backgroundColor: '#fff', alignSelf: 'flex-start', paddingHorizontal: 5, fontSize: 10, fontWeight: 'bold', marginBottom: 5 },
-//   offerText: { fontSize: 12, fontWeight: 'bold' },
-//   // Doctor Card
-//   docCard: { flexDirection: 'row', padding: 15, borderBottomWidth: 1, borderBottomColor: '#eee' },
-//   docImg: { width: 60, height: 60, borderRadius: 30 },
-//   docInfo: { marginLeft: 15 },
-//   docName: { fontWeight: 'bold', fontSize: 16 },
-//   docSub: { color: '#666', fontSize: 12 },
-//   docConsults: { color: '#888', fontSize: 11, marginTop: 4 },
-//   // Stats
-//   statsBar: { backgroundColor: '#2C2D33', padding: 20, flexDirection: 'row', justifyContent: 'space-around' },
-//   statNum: { color: '#fff', fontSize: 18, fontWeight: 'bold', textAlign: 'center' },
-//   statLab: { color: '#aaa', fontSize: 12, textAlign: 'center' }
-// });
-
-// export default VideoConsultTab;
-
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -179,6 +10,7 @@ import {
   Modal,
   Alert,
   ActivityIndicator,
+  FlatList,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useSelector } from 'react-redux';
@@ -187,31 +19,31 @@ import CommonHeader from '../../../components/CommonHeader';
 import SimpleVideoCall from '../../../components/SimpleVideoCall';
 
 const VideoCallPage = ({ route }) => {
-  // Mock data - replace with actual props
-  const { doctor, pet } = route?.params || {
-    doctor: {
-      name: 'Dr. Prateeksha B S',
-      role: 'Senior Vet, Surgeon',
-      img: 'https://via.placeholder.com/100',
-    },
+  // Get selected pet from route params or use default
+  const { pet } = route?.params || {
     pet: {
+      id: '1',
       name: 'Bruno',
       breed: 'Golden Retriever',
       age: '3 years',
       weight: '28 kg',
-      lastVisit: '15 Jan 2026',
-      img: 'https://via.placeholder.com/80',
+      lastVisit: '15 Jan 2024',
+      img: 'https://images.unsplash.com/photo-1552053831-71594a27632d?w=100&h=100&fit=crop',
     },
   };
 
   const user = useSelector(state => state.auth.user);
+  const [currentStep, setCurrentStep] = useState('selectDoctor'); // selectDoctor, consultation, inCall
+  const [selectedDoctor, setSelectedDoctor] = useState(null);
+  const [availableDoctors, setAvailableDoctors] = useState([]);
+  const [loadingDoctors, setLoadingDoctors] = useState(true);
   const [callActive, setCallActive] = useState(false);
   const [videoToken, setVideoToken] = useState(null);
   const [loadingToken, setLoadingToken] = useState(false);
   const [uploadedPhotos, setUploadedPhotos] = useState([]);
+  const [notes, setNotes] = useState('');
   const [showPrescription, setShowPrescription] = useState(false);
   const [showFollowUp, setShowFollowUp] = useState(false);
-  const [notes, setNotes] = useState('');
 
   // Mock prescription data
   const [prescription, setPrescription] = useState({
@@ -222,6 +54,177 @@ const VideoCallPage = ({ route }) => {
     ],
     instructions: 'Keep the pet indoors during high pollen days. Bathe weekly with medicated shampoo.',
   });
+
+  // Fetch doctors from database
+  useEffect(() => {
+    fetchAvailableDoctors();
+  }, []);
+
+  const fetchAvailableDoctors = async () => {
+    try {
+      setLoadingDoctors(true);
+      
+      const apiUrl = process.env.EXPO_PUBLIC_API_URL || 'https://vetician-backend-kovk.onrender.com/api';
+      const response = await fetch(`${apiUrl}/auth/veterinarians/all`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Real veterinarians from database:', data);
+        
+        if (data.veterinarians && data.veterinarians.length > 0) {
+          const transformedDoctors = data.veterinarians.map((vet, index) => ({
+            id: vet._id,
+            name: `Dr. ${vet.name || vet.firstName || vet.email?.split('@')[0] || 'Doctor'}`,
+            role: vet.specialization || vet.role || 'Veterinarian',
+            experience: `${Math.floor(Math.random() * 10) + 3} years`,
+            rating: (4.2 + Math.random() * 0.7).toFixed(1),
+            consultations: Math.floor(Math.random() * 1000) + 500,
+            specialties: ['General Medicine'],
+            isOnline: true,
+            price: Math.floor(Math.random() * 300) + 299,
+            img: vet.avatar || `https://images.unsplash.com/photo-${[
+              '1559839734-2b71ea197ec2',
+              '1612349317150-e413f6a5b16d', 
+              '1594824388853-d0d4c0b5b5e7',
+              '1582750433449-648ed127bb54'
+            ][index % 4]}?w=150&h=150&fit=crop&crop=face`,
+            clinicName: `${vet.location || 'City'} Veterinary Clinic`,
+            phone: vet.phone || '+91 98765 43210',
+            email: vet.email
+          }));
+          
+          setAvailableDoctors(transformedDoctors);
+          console.log('Successfully loaded real doctors:', transformedDoctors.length);
+        } else {
+          console.log('No veterinarians found in response');
+          setAvailableDoctors([]);
+        }
+      } else {
+        console.log('API call failed with status:', response.status);
+        setAvailableDoctors([]);
+      }
+    } catch (error) {
+      console.error('Error fetching real veterinarians:', error);
+      setAvailableDoctors([]);
+    } finally {
+      setLoadingDoctors(false);
+    }
+  };
+
+  const getMockDoctors = () => [
+    {
+      id: '1',
+      name: 'Dr. Prateeksha B S',
+      role: 'Senior Vet, Surgeon',
+      experience: '7 years',
+      rating: 4.8,
+      consultations: 1337,
+      specialties: ['General Medicine', 'Surgery'],
+      isOnline: true,
+      price: 399,
+      img: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=150&h=150&fit=crop&crop=face',
+    },
+    {
+      id: '2',
+      name: 'Dr. Anshuman Gupta',
+      role: 'Pet Cardiologist',
+      experience: '11 years',
+      rating: 4.9,
+      consultations: 1587,
+      specialties: ['Cardiology', 'Internal Medicine'],
+      isOnline: true,
+      price: 499,
+      img: 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=150&h=150&fit=crop&crop=face',
+    },
+    {
+      id: '3',
+      name: 'Dr. Sarah Johnson',
+      role: 'Dermatology Specialist',
+      experience: '5 years',
+      rating: 4.7,
+      consultations: 892,
+      specialties: ['Dermatology', 'Allergies'],
+      isOnline: true,
+      price: 449,
+      img: 'https://images.unsplash.com/photo-1594824388853-d0d4c0b5b5e7?w=150&h=150&fit=crop&crop=face',
+    },
+    {
+      id: '4',
+      name: 'Dr. Rajesh Kumar',
+      role: 'Emergency Veterinarian',
+      experience: '9 years',
+      rating: 4.6,
+      consultations: 1245,
+      specialties: ['Emergency Care', 'Surgery'],
+      isOnline: true,
+      price: 599,
+      img: 'https://images.unsplash.com/photo-1582750433449-648ed127bb54?w=150&h=150&fit=crop&crop=face',
+    },
+    {
+      id: '5',
+      name: 'Dr. Meera Patel',
+      role: 'Pet Nutritionist',
+      experience: '6 years',
+      rating: 4.5,
+      consultations: 756,
+      specialties: ['Nutrition', 'Diet Planning'],
+      isOnline: false,
+      price: 349,
+      img: 'https://images.unsplash.com/photo-1607990281513-2c110a25bd8c?w=150&h=150&fit=crop&crop=face',
+    },
+  ];
+
+  const selectDoctor = (doctor) => {
+    if (!doctor.isOnline) {
+      Alert.alert('Doctor Unavailable', 'This doctor is currently offline. Please select another doctor.');
+      return;
+    }
+    setSelectedDoctor(doctor);
+    setCurrentStep('consultation');
+  };
+
+  const startVideoCall = async () => {
+    if (!selectedDoctor) {
+      Alert.alert('Error', 'Please select a doctor first');
+      return;
+    }
+
+    setLoadingToken(true);
+    try {
+      const apiUrl = process.env.EXPO_PUBLIC_API_URL || 'https://vetician-backend-kovk.onrender.com/api';
+      const userId = await AsyncStorage.getItem('userId');
+      const roomName = `consultation-${userId}-${selectedDoctor.id}-${Date.now()}`;
+      
+      console.log(`Starting call with Dr. ${selectedDoctor.name}...`);
+      
+      // Simulate token generation for now
+      const mockToken = {
+        token: 'mock-jwt-token',
+        roomName: roomName,
+        identity: user?.name || 'pet-parent'
+      };
+      
+      setVideoToken(mockToken);
+      setCallActive(true);
+      setCurrentStep('inCall');
+    } catch (error) {
+      console.error('Error starting call:', error);
+      Alert.alert('Error', 'Failed to start video call');
+    } finally {
+      setLoadingToken(false);
+    }
+  };
+
+  const endVideoCall = () => {
+    setCallActive(false);
+    setVideoToken(null);
+    setCurrentStep('consultation');
+  };
 
   // Pick image from gallery
   const pickImage = async () => {
@@ -252,202 +255,231 @@ const VideoCallPage = ({ route }) => {
     setShowPrescription(false);
   };
 
-  const startVideoCall = async () => {
-    setLoadingToken(true);
-    try {
-      const apiUrl = process.env.EXPO_PUBLIC_API_URL || 'https://vetician-backend-kovk.onrender.com/api';
-      const userId = await AsyncStorage.getItem('userId');
-      const roomName = `room-${userId}-${Date.now()}`;
-      
-      const response = await fetch(`${apiUrl}/video/token`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          identity: user?.name || userId || 'user',
-          roomName: roomName
-        })
-      });
-
-      const data = await response.json();
-      
-      if (data.token) {
-        setVideoToken(data);
-        setCallActive(true);
-      } else {
-        Alert.alert('Error', 'Failed to get video token');
-      }
-    } catch (error) {
-      console.error('Error starting call:', error);
-      Alert.alert('Error', 'Failed to start video call');
-    } finally {
-      setLoadingToken(false);
-    }
-  };
-
-  const endVideoCall = () => {
-    setCallActive(false);
-    setVideoToken(null);
-  };
-
   const bookFollowUp = (timeframe) => {
     Alert.alert('Follow-up Booked', `Follow-up consultation scheduled for ${timeframe}`);
     setShowFollowUp(false);
   };
 
-  return (
-    <View style={styles.container}>
-      <CommonHeader title="Video Consultation" />
+  // Render doctor selection screen
+  const renderDoctorSelection = () => (
+    <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
+      <View style={styles.headerSection}>
+        <Text style={styles.headerTitle}>Choose Your Veterinarian</Text>
+        <Text style={styles.headerSubtitle}>Connect with experienced vets for {pet.name}</Text>
+      </View>
 
-      <ScrollView showsVerticalScrollIndicator={false}>
-        {/* 1. PET SUMMARY CARD */}
-        <View style={styles.petSummaryCard}>
-          <View style={styles.petSummaryHeader}>
-            <Image source={{ uri: pet.img }} style={styles.petImage} />
-            <View style={styles.petBasicInfo}>
-              <Text style={styles.petName}>{pet.name}</Text>
-              <Text style={styles.petBreed}>{pet.breed}</Text>
-            </View>
-            <TouchableOpacity style={styles.viewRecordsBtn}>
-              <Text style={styles.viewRecordsText}>View Records</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.petStatsGrid}>
-            <View style={styles.petStatItem}>
-              <Text style={styles.petStatLabel}>Age</Text>
-              <Text style={styles.petStatValue}>{pet.age}</Text>
-            </View>
-            <View style={styles.petStatItem}>
-              <Text style={styles.petStatLabel}>Weight</Text>
-              <Text style={styles.petStatValue}>{pet.weight}</Text>
-            </View>
-            <View style={styles.petStatItem}>
-              <Text style={styles.petStatLabel}>Last Visit</Text>
-              <Text style={styles.petStatValue}>{pet.lastVisit}</Text>
-            </View>
-          </View>
-
-          <View style={styles.concernSection}>
-            <Text style={styles.concernLabel}>Today's Concern:</Text>
-            <TextInput
-              style={styles.concernInput}
-              placeholder="Describe symptoms or concerns..."
-              multiline
-              value={notes}
-              onChangeText={setNotes}
-            />
-          </View>
+      <View style={styles.petInfoCard}>
+        <Image source={{ uri: pet.img }} style={styles.petImageSmall} />
+        <View style={styles.petInfoText}>
+          <Text style={styles.petNameSmall}>{pet.name}</Text>
+          <Text style={styles.petBreedSmall}>{pet.breed} • {pet.age}</Text>
         </View>
+      </View>
 
-        {/* Video Call Area */}
-        <View style={styles.videoSection}>
-          <View style={styles.mainVideoContainer}>
-            {!callActive ? (
-              <View style={styles.prCallScreen}>
-                <Image source={{ uri: doctor.img }} style={styles.doctorAvatar} />
-                <Text style={styles.doctorName}>{doctor.name}</Text>
-                <Text style={styles.doctorRole}>{doctor.role}</Text>
-                <TouchableOpacity
-                  style={styles.startCallBtn}
-                  onPress={startVideoCall}
-                  disabled={loadingToken}
-                >
-                  {loadingToken ? (
-                    <ActivityIndicator color="#fff" />
-                  ) : (
-                    <Text style={styles.startCallText}>📹 Start Video Call</Text>
-                  )}
-                </TouchableOpacity>
-              </View>
-            ) : (
-              callActive && videoToken ? (
-                <SimpleVideoCall
-                  token={videoToken.token}
-                  roomName={videoToken.roomName}
-                  onCallEnd={endVideoCall}
-                />
-              ) : (
-                <View style={styles.activeCallScreen}>
-                  <Text style={styles.loadingText}>Loading video call...</Text>
-                </View>
-              )
-            )}
+      <View style={styles.doctorsSection}>
+        <Text style={styles.sectionTitle}>Available Veterinarians</Text>
+        {loadingDoctors ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#4CAF50" />
+            <Text style={styles.loadingText}>Loading doctors...</Text>
           </View>
-        </View>
-
-        {/* 2. UPLOAD PHOTOS DURING CALL */}
-        <View style={styles.photoUploadSection}>
-          <Text style={styles.sectionTitle}>Share Photos with Vet</Text>
-          <Text style={styles.sectionSubtitle}>
-            Upload images of symptoms, skin conditions, or injuries
-          </Text>
-
-          <View style={styles.uploadButtons}>
-            <TouchableOpacity style={styles.uploadBtn} onPress={takePhoto}>
-              <Text style={styles.uploadIcon}>📷</Text>
-              <Text style={styles.uploadBtnText}>Take Photo</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.uploadBtn} onPress={pickImage}>
-              <Text style={styles.uploadIcon}>🖼️</Text>
-              <Text style={styles.uploadBtnText}>Choose from Gallery</Text>
-            </TouchableOpacity>
-          </View>
-
-          {uploadedPhotos.length > 0 && (
-            <View style={styles.photoGallery}>
-              <Text style={styles.galleryTitle}>Uploaded ({uploadedPhotos.length})</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                {uploadedPhotos.map((photo, index) => (
-                  <View key={index} style={styles.photoThumb}>
-                    <Image source={{ uri: photo }} style={styles.thumbImage} />
-                    <TouchableOpacity
-                      style={styles.removePhotoBtn}
-                      onPress={() =>
-                        setUploadedPhotos(uploadedPhotos.filter((_, i) => i !== index))
-                      }
-                    >
-                      <Text style={styles.removePhotoText}>×</Text>
-                    </TouchableOpacity>
+        ) : (
+          availableDoctors.map((doctor) => (
+            <TouchableOpacity
+              key={doctor.id}
+              style={[styles.doctorCard, !doctor.isOnline && styles.doctorCardOffline]}
+              onPress={() => selectDoctor(doctor)}
+            >
+              <Image source={{ uri: doctor.img }} style={styles.doctorImage} />
+              <View style={styles.doctorInfo}>
+                <View style={styles.doctorHeader}>
+                  <Text style={styles.doctorName}>{doctor.name}</Text>
+                  <View style={styles.onlineStatus}>
+                    <View style={[styles.statusDot, { backgroundColor: doctor.isOnline ? '#4CAF50' : '#999' }]} />
+                    <Text style={styles.statusText}>{doctor.isOnline ? 'Online' : 'Offline'}</Text>
                   </View>
-                ))}
-              </ScrollView>
-            </View>
-          )}
-        </View>
+                </View>
+                <Text style={styles.doctorRole}>{doctor.role}</Text>
+                <Text style={styles.doctorExperience}>{doctor.experience} experience</Text>
+                <View style={styles.doctorStats}>
+                  <Text style={styles.rating}>⭐ {doctor.rating}</Text>
+                  <Text style={styles.consultations}>{doctor.consultations} consultations</Text>
+                </View>
+                <View style={styles.specialtiesContainer}>
+                  {doctor.specialties?.map((specialty, index) => (
+                    <View key={index} style={styles.specialtyTag}>
+                      <Text style={styles.specialtyText}>{specialty}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+              <View style={styles.priceContainer}>
+                <Text style={styles.price}>₹{doctor.price}</Text>
+                <Text style={styles.priceLabel}>per consultation</Text>
+              </View>
+            </TouchableOpacity>
+          ))
+        )}
+      </View>
+    </ScrollView>
+  );
 
-        {/* 3. PRESCRIPTION + SAVE TO RECORDS */}
-        <TouchableOpacity
-          style={styles.prescriptionCard}
-          onPress={() => setShowPrescription(true)}
-        >
-          <View style={styles.prescriptionHeader}>
-            <Text style={styles.prescriptionIcon}>📋</Text>
-            <View style={styles.prescriptionInfo}>
-              <Text style={styles.prescriptionTitle}>Prescription Ready</Text>
-              <Text style={styles.prescriptionSubtitle}>
-                Tap to view and save to records
-              </Text>
-            </View>
-            <Text style={styles.chevron}>›</Text>
+  // Render consultation preparation screen
+  const renderConsultationPrep = () => (
+    <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
+      <TouchableOpacity 
+        style={styles.backButton}
+        onPress={() => setCurrentStep('selectDoctor')}
+      >
+        <Text style={styles.backButtonText}>← Back to Doctors</Text>
+      </TouchableOpacity>
+
+      {/* Selected Doctor Info */}
+      <View style={styles.selectedDoctorCard}>
+        <Image source={{ uri: selectedDoctor?.img }} style={styles.doctorImageLarge} />
+        <View style={styles.selectedDoctorInfo}>
+          <Text style={styles.selectedDoctorName}>{selectedDoctor?.name}</Text>
+          <Text style={styles.selectedDoctorRole}>{selectedDoctor?.role}</Text>
+          <View style={styles.onlineStatus}>
+            <View style={styles.statusDot} />
+            <Text style={styles.statusText}>Available Now</Text>
           </View>
-        </TouchableOpacity>
+        </View>
+      </View>
 
-        {/* 4. FOLLOW-UP BOOKING */}
-        <View style={styles.followUpSection}>
-          <Text style={styles.sectionTitle}>Need a Follow-up?</Text>
-          <Text style={styles.sectionSubtitle}>
-            Book your next consultation in advance
-          </Text>
-          <TouchableOpacity
-            style={styles.followUpBtn}
-            onPress={() => setShowFollowUp(true)}
-          >
-            <Text style={styles.followUpBtnText}>📅 Schedule Follow-up</Text>
+      {/* Pet Summary Card */}
+      <View style={styles.petSummaryCard}>
+        <View style={styles.petSummaryHeader}>
+          <Image source={{ uri: pet.img }} style={styles.petImage} />
+          <View style={styles.petBasicInfo}>
+            <Text style={styles.petName}>{pet.name}</Text>
+            <Text style={styles.petBreed}>{pet.breed}</Text>
+          </View>
+          <TouchableOpacity style={styles.viewRecordsBtn}>
+            <Text style={styles.viewRecordsText}>View Records</Text>
           </TouchableOpacity>
         </View>
-      </ScrollView>
 
-      {/* PRESCRIPTION MODAL */}
+        <View style={styles.petStatsGrid}>
+          <View style={styles.petStatItem}>
+            <Text style={styles.petStatLabel}>Age</Text>
+            <Text style={styles.petStatValue}>{pet.age}</Text>
+          </View>
+          <View style={styles.petStatItem}>
+            <Text style={styles.petStatLabel}>Weight</Text>
+            <Text style={styles.petStatValue}>{pet.weight}</Text>
+          </View>
+          <View style={styles.petStatItem}>
+            <Text style={styles.petStatLabel}>Last Visit</Text>
+            <Text style={styles.petStatValue}>{pet.lastVisit}</Text>
+          </View>
+        </View>
+
+        <View style={styles.concernSection}>
+          <Text style={styles.concernLabel}>Today's Concern:</Text>
+          <TextInput
+            style={styles.concernInput}
+            placeholder="Describe symptoms or concerns..."
+            multiline
+            value={notes}
+            onChangeText={setNotes}
+          />
+        </View>
+      </View>
+
+      {/* Photo Upload Section */}
+      <View style={styles.photoUploadSection}>
+        <Text style={styles.sectionTitle}>Share Photos with Vet</Text>
+        <Text style={styles.sectionSubtitle}>
+          Upload images of symptoms, skin conditions, or injuries
+        </Text>
+
+        <View style={styles.uploadButtons}>
+          <TouchableOpacity style={styles.uploadBtn} onPress={takePhoto}>
+            <Text style={styles.uploadIcon}>📷</Text>
+            <Text style={styles.uploadBtnText}>Take Photo</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.uploadBtn} onPress={pickImage}>
+            <Text style={styles.uploadIcon}>🖼️</Text>
+            <Text style={styles.uploadBtnText}>Choose from Gallery</Text>
+          </TouchableOpacity>
+        </View>
+
+        {uploadedPhotos.length > 0 && (
+          <View style={styles.photoGallery}>
+            <Text style={styles.galleryTitle}>Uploaded ({uploadedPhotos.length})</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              {uploadedPhotos.map((photo, index) => (
+                <View key={index} style={styles.photoThumb}>
+                  <Image source={{ uri: photo }} style={styles.thumbImage} />
+                  <TouchableOpacity
+                    style={styles.removePhotoBtn}
+                    onPress={() =>
+                      setUploadedPhotos(uploadedPhotos.filter((_, i) => i !== index))
+                    }
+                  >
+                    <Text style={styles.removePhotoText}>×</Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+      </View>
+
+      {/* Start Call Button */}
+      <View style={styles.startCallSection}>
+        <TouchableOpacity
+          style={styles.startCallButton}
+          onPress={startVideoCall}
+          disabled={loadingToken}
+        >
+          {loadingToken ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <>
+              <Text style={styles.startCallIcon}>📹</Text>
+              <Text style={styles.startCallText}>Start Video Consultation</Text>
+              <Text style={styles.startCallSubtext}>₹{selectedDoctor?.price} • Connect instantly</Text>
+            </>
+          )}
+        </TouchableOpacity>
+      </View>
+    </ScrollView>
+  );
+
+  // Render active video call
+  const renderVideoCall = () => (
+    <View style={styles.videoCallContainer}>
+      {callActive && videoToken ? (
+        <SimpleVideoCall
+          token={videoToken.token}
+          roomName={videoToken.roomName}
+          onCallEnd={endVideoCall}
+          doctorData={selectedDoctor}
+        />
+      ) : (
+        <View style={styles.loadingCallScreen}>
+          <ActivityIndicator size="large" color="#4CAF50" />
+          <Text style={styles.loadingText}>Connecting to Dr. {selectedDoctor?.name}...</Text>
+        </View>
+      )}
+    </View>
+  );
+
+  return (
+    <View style={styles.container}>
+      <CommonHeader 
+        title={currentStep === 'selectDoctor' ? 'Video Consultation' : 
+               currentStep === 'consultation' ? `Consult ${selectedDoctor?.name}` : 
+               'Video Call'} 
+      />
+
+      {currentStep === 'selectDoctor' && renderDoctorSelection()}
+      {currentStep === 'consultation' && renderConsultationPrep()}
+      {currentStep === 'inCall' && renderVideoCall()}
+
+      {/* Prescription Modal */}
       <Modal
         visible={showPrescription}
         animationType="slide"
@@ -507,7 +539,7 @@ const VideoCallPage = ({ route }) => {
         </View>
       </Modal>
 
-      {/* FOLLOW-UP MODAL */}
+      {/* Follow-up Modal */}
       <Modal
         visible={showFollowUp}
         animationType="slide"
@@ -572,6 +604,217 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f5f5f5',
   },
+  scrollContainer: {
+    flex: 1,
+  },
+
+  // Header Section
+  headerSection: {
+    backgroundColor: '#fff',
+    padding: 20,
+    marginBottom: 10,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 5,
+  },
+  headerSubtitle: {
+    fontSize: 16,
+    color: '#666',
+  },
+
+  // Pet Info Card (Small)
+  petInfoCard: {
+    backgroundColor: '#fff',
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 15,
+    marginHorizontal: 15,
+    marginBottom: 15,
+    borderRadius: 10,
+    boxShadow: '0px 1px 3px rgba(0,0,0,0.1)',
+    elevation: 2,
+  },
+  petImageSmall: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    marginRight: 12,
+  },
+  petInfoText: {
+    flex: 1,
+  },
+  petNameSmall: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  petBreedSmall: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 2,
+  },
+
+  // Doctors Section
+  doctorsSection: {
+    paddingHorizontal: 15,
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  loadingText: {
+    color: '#666',
+    marginTop: 10,
+    fontSize: 14,
+  },
+  doctorCard: {
+    backgroundColor: '#fff',
+    flexDirection: 'row',
+    padding: 15,
+    marginBottom: 12,
+    borderRadius: 12,
+    boxShadow: '0px 2px 4px rgba(0,0,0,0.1)',
+    elevation: 3,
+  },
+  doctorCardOffline: {
+    opacity: 0.6,
+  },
+  doctorImage: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    marginRight: 12,
+  },
+  doctorInfo: {
+    flex: 1,
+  },
+  doctorHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 5,
+  },
+  doctorName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    flex: 1,
+  },
+  onlineStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 5,
+  },
+  statusText: {
+    fontSize: 12,
+    color: '#666',
+  },
+  doctorRole: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 2,
+  },
+  doctorExperience: {
+    fontSize: 13,
+    color: '#888',
+    marginBottom: 8,
+  },
+  doctorStats: {
+    flexDirection: 'row',
+    marginBottom: 8,
+  },
+  rating: {
+    fontSize: 12,
+    color: '#FF9800',
+    marginRight: 15,
+  },
+  consultations: {
+    fontSize: 12,
+    color: '#666',
+  },
+  specialtiesContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  specialtyTag: {
+    backgroundColor: '#E3F2FD',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+    marginRight: 6,
+    marginBottom: 4,
+  },
+  specialtyText: {
+    fontSize: 11,
+    color: '#2D9CDB',
+    fontWeight: '500',
+  },
+  priceContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingLeft: 10,
+  },
+  price: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#4CAF50',
+  },
+  priceLabel: {
+    fontSize: 10,
+    color: '#666',
+    textAlign: 'center',
+  },
+
+  // Back Button
+  backButton: {
+    padding: 15,
+  },
+  backButtonText: {
+    fontSize: 16,
+    color: '#2D9CDB',
+    fontWeight: '600',
+  },
+
+  // Selected Doctor Card
+  selectedDoctorCard: {
+    backgroundColor: '#fff',
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 20,
+    marginHorizontal: 15,
+    marginBottom: 15,
+    borderRadius: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: '#4CAF50',
+  },
+  doctorImageLarge: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    marginRight: 15,
+  },
+  selectedDoctorInfo: {
+    flex: 1,
+  },
+  selectedDoctorName: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 5,
+  },
+  selectedDoctorRole: {
+    fontSize: 16,
+    color: '#666',
+    marginBottom: 8,
+  },
 
   // Pet Summary Card Styles
   petSummaryCard: {
@@ -579,10 +822,7 @@ const styles = StyleSheet.create({
     margin: 15,
     borderRadius: 12,
     padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
+    boxShadow: '0px 2px 8px rgba(0,0,0,0.1)',
     elevation: 3,
   },
   petSummaryHeader: {
@@ -658,100 +898,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#333',
     textAlignVertical: 'top',
-  },
-
-  // Video Section Styles
-  videoSection: {
-    margin: 15,
-  },
-  mainVideoContainer: {
-    height: 400,
-    borderRadius: 12,
-    overflow: 'hidden',
-    backgroundColor: '#000',
-  },
-  prCallScreen: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#1a1a1a',
-  },
-  doctorAvatar: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    marginBottom: 15,
-  },
-  doctorName: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 5,
-  },
-  doctorRole: {
-    fontSize: 14,
-    color: '#aaa',
-    marginBottom: 30,
-  },
-  startCallBtn: {
-    backgroundColor: '#4CAF50',
-    paddingHorizontal: 30,
-    paddingVertical: 15,
-    borderRadius: 25,
-  },
-  startCallText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  activeCallScreen: {
-    flex: 1,
-    position: 'relative',
-  },
-  fullscreenDoctor: {
-    width: '100%',
-    height: '100%',
-  },
-  selfViewContainer: {
-    position: 'absolute',
-    top: 15,
-    right: 15,
-  },
-  selfView: {
-    width: 100,
-    height: 130,
-    backgroundColor: '#2a2a2a',
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#4CAF50',
-  },
-  selfViewText: {
-    color: '#fff',
-    fontSize: 12,
-  },
-  callControls: {
-    position: 'absolute',
-    bottom: 30,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    width: '100%',
-  },
-  controlBtn: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#333',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginHorizontal: 10,
-  },
-  endCallBtn: {
-    backgroundColor: '#F44336',
-  },
-  controlIcon: {
-    fontSize: 24,
   },
 
   // Photo Upload Section
@@ -831,60 +977,49 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
 
-  // Prescription Card
-  prescriptionCard: {
-    backgroundColor: '#fff',
-    margin: 15,
+  // Start Call Section
+  startCallSection: {
+    padding: 15,
+    paddingBottom: 30,
+  },
+  startCallButton: {
+    backgroundColor: '#4CAF50',
     borderRadius: 12,
     padding: 20,
-    borderLeftWidth: 4,
-    borderLeftColor: '#4CAF50',
-  },
-  prescriptionHeader: {
-    flexDirection: 'row',
     alignItems: 'center',
+    boxShadow: '0px 4px 8px rgba(0,0,0,0.2)',
+    elevation: 5,
   },
-  prescriptionIcon: {
+  startCallIcon: {
     fontSize: 32,
-    marginRight: 12,
+    marginBottom: 8,
   },
-  prescriptionInfo: {
-    flex: 1,
-  },
-  prescriptionTitle: {
-    fontSize: 16,
+  startCallText: {
+    color: '#fff',
+    fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
+    marginBottom: 5,
   },
-  prescriptionSubtitle: {
-    fontSize: 13,
-    color: '#666',
-    marginTop: 2,
-  },
-  chevron: {
-    fontSize: 24,
-    color: '#ccc',
+  startCallSubtext: {
+    color: '#fff',
+    fontSize: 14,
+    opacity: 0.9,
   },
 
-  // Follow-up Section
-  followUpSection: {
-    backgroundColor: '#fff',
-    margin: 15,
-    marginBottom: 30,
-    borderRadius: 12,
-    padding: 20,
+  // Video Call Container
+  videoCallContainer: {
+    flex: 1,
   },
-  followUpBtn: {
-    backgroundColor: '#2D9CDB',
-    borderRadius: 8,
-    padding: 15,
+  loadingCallScreen: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 10,
+    backgroundColor: '#000',
   },
-  followUpBtnText: {
+  loadingText: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: 'bold',
+    marginTop: 20,
   },
 
   // Modal Styles

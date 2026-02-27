@@ -287,14 +287,19 @@ export default function Appointment() {
   const fetchAppointments = async () => {
     try {
       const token = await AsyncStorage.getItem('token');
-      const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL || 'https://vetician-backend-kovk.onrender.com/api'}/auth/veterinarian/appointments`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+      const apiUrl = process.env.EXPO_PUBLIC_API_URL || 'https://vetician-backend-kovk.onrender.com/api';
+      
+      const response = await fetch(`${apiUrl}/auth/veterinarian/appointments`, {
+        headers: { 'Authorization': `Bearer ${token}` }
       });
-      const data = await response.json();
-      if (data.success) {
-        setAppointments(data.appointments || []);
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setAppointments(data.appointments || []);
+        }
+      } else {
+        setAppointments([]);
       }
     } catch (error) {
       console.error('Error fetching appointments:', error);
@@ -310,27 +315,31 @@ export default function Appointment() {
     
     const initSocket = async () => {
       const token = await AsyncStorage.getItem('token');
+      const apiUrl = process.env.EXPO_PUBLIC_API_URL || 'https://vetician-backend-kovk.onrender.com/api';
       
       try {
-        const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL || 'https://vetician-backend-kovk.onrender.com/api'}/auth/veterinarian/appointments`, {
+        const response = await fetch(`${apiUrl}/auth/veterinarian/appointments`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
-        const data = await response.json();
         
-        if (data.success && data.appointments && data.appointments.length > 0) {
-          const veterinarianId = data.appointments[0].veterinarianId;
-          console.log('👨⚕️ Connecting socket for veterinarian:', veterinarianId);
-          socketService.connect(veterinarianId, 'veterinarian');
+        if (response.ok) {
+          const data = await response.json();
           
-          socketService.onNewAppointment((data) => {
-            console.log('🔔 Received new appointment notification:', data);
-            Alert.alert(
-              'New Appointment! 🔔',
-              `${data.message}`,
-              [{ text: 'View', onPress: () => fetchAppointments() }]
-            );
-            fetchAppointments();
-          });
+          if (data.success && data.appointments && data.appointments.length > 0) {
+            const veterinarianId = data.appointments[0].veterinarianId;
+            console.log('👨⚕️ Connecting socket for veterinarian:', veterinarianId);
+            socketService.connect(veterinarianId, 'veterinarian');
+            
+            socketService.onNewAppointment((data) => {
+              console.log('🔔 Received new appointment notification:', data);
+              Alert.alert(
+                'New Appointment! 🔔',
+                `${data.message}`,
+                [{ text: 'View', onPress: () => fetchAppointments() }]
+              );
+              fetchAppointments();
+            });
+          }
         }
       } catch (error) {
         console.error('Error initializing socket:', error);

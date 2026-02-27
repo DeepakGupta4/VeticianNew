@@ -933,6 +933,7 @@ import {
   MaterialIcons, FontAwesome5, Ionicons, 
   MaterialCommunityIcons, Feather 
 } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width } = Dimensions.get('window');
 
@@ -956,12 +957,17 @@ const ClinicDetailScreen = () => {
       verified: true
     },
     veterinarianDetails: {
+      vetId: params.vetId && params.vetId !== 'undefined' ? params.vetId : params.clinicId,
       name: 'Veterinarian',
       profilePhotoUrl: params.profilePhotoUrl,
       specialization: 'General Practice',
       experience: 5
     }
   };
+
+  console.log('👉 [CLINIC DETAIL] Params received:', JSON.stringify(params, null, 2));
+  console.log('👉 [CLINIC DETAIL] Clinic ID:', clinicData.clinicDetails.clinicId);
+  console.log('👉 [CLINIC DETAIL] Vet ID:', clinicData.veterinarianDetails.vetId);
 
   if (!params.clinicId) {
     return (
@@ -981,6 +987,61 @@ const ClinicDetailScreen = () => {
       });
     } catch (error) {
       Alert.alert('Error', 'Unable to share');
+    }
+  };
+
+  const handleVideoCall = async () => {
+    try {
+      const userId = await AsyncStorage.getItem('userId');
+      const userName = await AsyncStorage.getItem('userName') || 'Pet Parent';
+      const token = await AsyncStorage.getItem('token');
+      const apiUrl = process.env.EXPO_PUBLIC_API_URL || 'https://vetician-backend-kovk.onrender.com/api';
+      
+      const doctorId = clinicData.veterinarianDetails?.vetId;
+      
+      console.log('🔵 [CALL] Starting call initiation...');
+      console.log('🔵 [CALL] Caller ID:', userId);
+      console.log('🔵 [CALL] Caller Name:', userName);
+      console.log('🔵 [CALL] Receiver ID (Doctor):', doctorId);
+      
+      const response = await fetch(`${apiUrl}/call/initiate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          callerId: userId,
+          receiverId: doctorId,
+          callerData: {
+            name: userName,
+            img: `https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}&size=150&background=4E8D7C&color=fff`,
+            role: 'Pet Parent'
+          }
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok && data.success) {
+        router.push({
+          pathname: 'pages/VideoCallScreen',
+          params: {
+            callId: data.callId,
+            roomName: data.roomName,
+            token: data.token || 'mock-token',
+            receiverId: doctorId,
+            receiverName: `Dr. ${vet.name}`,
+            receiverImg: vet.profilePhotoUrl,
+            isInitiator: 'true'
+          }
+        });
+      } else {
+        Alert.alert('Error', data.message || 'Failed to initiate call');
+      }
+    } catch (error) {
+      console.error('🔴 [CALL] Exception:', error);
+      Alert.alert('Error', 'Failed to start call: ' + error.message);
     }
   };
 
@@ -1089,6 +1150,11 @@ const ClinicDetailScreen = () => {
 
       {/* Sticky Bottom Booking Button */}
       <View style={styles.bottomFixed}>
+        <TouchableOpacity style={styles.callBtn} onPress={handleVideoCall}>
+          <MaterialIcons name="videocam" size={20} color="white" style={{marginRight: 8}} />
+          <Text style={styles.callBtnText}>Video Call</Text>
+        </TouchableOpacity>
+        
         <TouchableOpacity style={styles.bookBtn} onPress={() => setBookingVisible(true)}>
           <LightningIcon />
           <View>
@@ -1206,9 +1272,25 @@ const styles = StyleSheet.create({
   // Bottom Fixed Button
   bottomFixed: { 
     padding: 15, borderTopWidth: 1, borderTopColor: '#eee', backgroundColor: 'white',
+    flexDirection: 'row', gap: 10,
     ...Platform.select({ ios: { paddingBottom: 30 } })
   },
+  callBtn: {
+    backgroundColor: '#10B981',
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  callBtnText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
   bookBtn: { 
+    flex: 1,
     backgroundColor: '#24A1DE', borderRadius: 8, paddingVertical: 12, 
     flexDirection: 'row', justifyContent: 'center', alignItems: 'center' 
   },

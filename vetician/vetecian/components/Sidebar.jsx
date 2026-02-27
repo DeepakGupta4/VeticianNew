@@ -13,7 +13,7 @@ export default function Sidebar({ visible, onClose }) {
 
   const menuItems = [
     { icon: Home, label: 'Dashboard', route: '/(vetician_tabs)/(tabs)' },
-    { icon: Video, label: 'Video Consultation', route: 'pages/VideoCall' },
+    { icon: Video, label: 'Video Consultation', route: 'pages/VideoConsultation' },
     { icon: MapPin, label: 'Doorstep Service', route: 'pages/DoorStep' },
     { icon: Eye, label: 'Pet Watching', route: 'pages/PetWatching' },
     { icon: Hotel, label: 'Book a Hostel', route: 'pages/Hostel' },

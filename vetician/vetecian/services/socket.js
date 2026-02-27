@@ -5,30 +5,27 @@ const SOCKET_URL = process.env.EXPO_PUBLIC_API_URL?.replace('/api', '') || 'http
 class SocketService {
   constructor() {
     this.socket = null;
+    this.userId = null;
+    this.userType = null;
   }
 
   connect(userId, userType) {
-    if (this.socket?.connected) {
-      console.log('✅ Socket already connected');
-      return;
-    }
+    if (this.socket?.connected) return;
 
-    console.log(`🔌 Connecting to socket server: ${SOCKET_URL}`);
-    console.log(`👤 User ID: ${userId}, Type: ${userType}`);
+    this.userId = userId;
+    this.userType = userType;
 
     this.socket = io(SOCKET_URL, {
-      transports: ['websocket'],
-      reconnection: true
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000
     });
 
     this.socket.on('connect', () => {
-      console.log('✅ Socket connected:', this.socket.id);
-      
       if (userType === 'veterinarian') {
-        console.log(`📤 Emitting join-veterinarian with ID: ${userId}`);
         this.socket.emit('join-veterinarian', userId);
       } else if (userType === 'petparent') {
-        console.log(`📤 Emitting join-petparent with ID: ${userId}`);
         this.socket.emit('join-petparent', userId);
       } else if (userType === 'paravet') {
         console.log(`📤 Emitting join-paravet with ID: ${userId}`);
@@ -37,12 +34,18 @@ class SocketService {
     });
 
     this.socket.on('disconnect', () => {
-      console.log('❌ Socket disconnected');
+      console.log('🔴 Socket disconnected');
     });
     
     this.socket.on('connect_error', (error) => {
-      console.error('❌ Socket connection error:', error.message);
+      console.error('🔴 Socket error:', error.message);
     });
+  }
+
+  ensureConnection() {
+    if (!this.socket?.connected && this.userId && this.userType) {
+      this.connect(this.userId, this.userType);
+    }
   }
 
   onNewAppointment(callback) {
@@ -91,6 +94,50 @@ class SocketService {
       console.log('🔔 Received verification-approved event:', data);
       callback(data);
     });
+  }
+
+  onIncomingCall(callback) {
+    if (!this.socket) return;
+    this.socket.on('incoming-call', callback);
+  }
+
+  emitCallResponse(response) {
+    this.ensureConnection();
+    if (!this.socket) return;
+    this.socket.emit('call-response', response);
+  }
+
+  emitJoinCall(data) {
+    this.ensureConnection();
+    if (!this.socket) return;
+    this.socket.emit('join-call', data);
+  }
+
+  emitEndCall(data) {
+    if (!this.socket) return;
+    this.socket.emit('end-call', data);
+  }
+
+  onCallAccepted(callback) {
+    if (!this.socket) return;
+    this.socket.off('call-accepted');
+    this.socket.on('call-accepted', callback);
+  }
+
+  onCallRejected(callback) {
+    if (!this.socket) return;
+    this.socket.off('call-rejected');
+    this.socket.on('call-rejected', callback);
+  }
+
+  onCallEnded(callback) {
+    if (!this.socket) return;
+    this.socket.on('call-ended', callback);
+  }
+
+  onUserJoined(callback) {
+    if (!this.socket) return;
+    this.socket.on('user-joined', callback);
   }
 
   disconnect() {
