@@ -8,3 +8,8 @@ build/
 android/.gradle/
 android/app/build/
 ios/build/
+.DS_Store
+*.tgz
+*.tar.gz
+temp/
+tmp/
