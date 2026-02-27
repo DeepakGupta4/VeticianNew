@@ -249,19 +249,19 @@
 
 
 
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Stethoscope, Clock, CalendarDays, ArrowLeft, Plus } from 'lucide-react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useRouter } from 'expo-router';
 import { useDispatch } from 'react-redux';
 import { checkVeterinarianVerification } from '../../../store/slices/authSlice';
 
 export default function AddClinic() {
-  const navigation = useNavigation();
+  const router = useRouter();
   const dispatch = useDispatch();
 
   const handleGoBack = () => {
-    navigation.goBack();
+    router.back();
   };
 
   const handleClinic = async () => {
@@ -272,38 +272,10 @@ export default function AddClinic() {
         return;
       }
 
-      const resultAction = await dispatch(checkVeterinarianVerification()).unwrap();
-      const { isVerified, message } = resultAction;
-
-      if (isVerified) {
-        Alert.alert(
-          'Verified',
-          message || 'Your account is verified',
-          [
-            {
-              text: 'Cancel',
-              style: 'cancel',
-            },
-            {
-              text: 'Continue',
-              onPress: () => navigation.navigate('onboarding/addclinicform'),
-            }
-          ]
-        );
-      } else {
-        Alert.alert(
-          'Verification Required',
-          message || 'Your account is not yet verified. Please complete verification first.',
-          [
-            {
-              text: 'OK',
-              // onPress: () => navigation.navigate('VerificationStatus'),
-            }
-          ]
-        );
-      }
+      // Direct navigate to form
+      router.push('onboarding/addclinicform');
     } catch (error) {
-      Alert.alert('Error', error.message || 'Failed to check verification status');
+      Alert.alert('Error', error.message || 'Failed to proceed');
     }
   };
 
@@ -319,7 +291,7 @@ export default function AddClinic() {
       </View>
 
       {/* Main Content */}
-      <View style={styles.content}>
+      <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.content}>
         <View style={styles.card}>
           <View style={styles.iconCircle}>
             <Plus size={32} color="#fff" />
@@ -367,7 +339,7 @@ export default function AddClinic() {
         >
           <Text style={styles.buttonText}>Add New Clinic</Text>
         </TouchableOpacity>
-      </View>
+      </ScrollView>
     </View>
   );
 }
@@ -376,6 +348,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
+  },
+  scrollContainer: {
+    flex: 1,
   },
   header: {
     flexDirection: 'row',
@@ -399,7 +374,7 @@ const styles = StyleSheet.create({
     width: 28,
   },
   content: {
-    flex: 1,
+    flexGrow: 1,
     padding: 20,
   },
   card: {

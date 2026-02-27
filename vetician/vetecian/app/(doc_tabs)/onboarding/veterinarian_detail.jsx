@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform, ScrollView, Image, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { Camera, Upload, File, X, ArrowLeft } from 'lucide-react-native';
-import { veterinarianUser } from '../../../store/slices/authSlice';
+import { veterinarianUser, veterinarianProfileData, updateVeterinarianUser } from '../../../store/slices/authSlice';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
@@ -12,6 +12,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 export default function VeterinarianProfile() {
   const router = useRouter();
   const dispatch = useDispatch();
+  const { user } = useSelector(state => state.auth);
+  const [loading, setLoading] = useState(true);
+  const [isEditMode, setIsEditMode] = useState(false);
 
   const [formData, setFormData] = useState({
     title: 'Dr.',
@@ -33,9 +36,56 @@ export default function VeterinarianProfile() {
   });
 
   const [uploadingDoc, setUploadingDoc] = useState(null);
-
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    const loadExistingData = async () => {
+      try {
+        const result = await dispatch(veterinarianProfileData()).unwrap();
+        if (result.success && result.data?.profile) {
+          setIsEditMode(true);
+          const profile = result.data.profile;
+          const nameParts = profile.name.split(' ');
+          const title = nameParts[0];
+          const name = nameParts.slice(1).join(' ');
+          
+          setFormData({
+            title: title || 'Dr.',
+            name: name || '',
+            city: profile.city || '',
+            specialization: profile.specialization || '',
+            gender: profile.gender || '',
+            experience: profile.experience?.replace(' years', '') || '',
+            qualification: profile.qualification || '',
+            registration: profile.registration || '',
+            identityProof: profile.identityProof || ''
+          });
+          
+          const newFiles = {};
+          if (profile.profilePhotoUrl) {
+            newFiles.profilePhoto = { uri: profile.profilePhotoUrl, name: 'profile.jpg' };
+          }
+          if (profile.qualificationUrl) {
+            newFiles.qualificationDocs = { uri: profile.qualificationUrl, name: 'qualification.pdf' };
+          }
+          if (profile.registrationUrl) {
+            newFiles.registrationProof = { uri: profile.registrationUrl, name: 'registration.pdf' };
+          }
+          if (profile.identityProofUrl) {
+            newFiles.identityProof = { uri: profile.identityProofUrl, name: 'identity.pdf' };
+          }
+          setFiles(prev => ({ ...prev, ...newFiles }));
+        }
+      } catch (error) {
+        console.log('No existing profile data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadExistingData();
+  }, [dispatch]);
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -141,6 +191,9 @@ export default function VeterinarianProfile() {
       
       const uploadResults = [];
       
+      // Show progress
+      console.log('📤 Uploading profile photo...');
+      
       // Upload profile photo to backend
       const photoFormData = new FormData();
       if (Platform.OS === 'web') {
@@ -205,10 +258,15 @@ export default function VeterinarianProfile() {
         identityProofUrl: identityProof.secure_url
       };
 
-      const result = await dispatch(veterinarianUser(submissionData)).unwrap();
+      const result = await dispatch(isEditMode ? updateVeterinarianUser(submissionData) : veterinarianUser(submissionData)).unwrap();
 
       console.log('✅ Veterinarian registration result:', result);
 
+      // Direct redirect without alert for web compatibility
+      setTimeout(() => {
+        router.replace('/(doc_tabs)/(tabs)');
+      }, 1000);
+      
       Alert.alert('Success', 'Profile submitted! Awaiting verification.', [
         { text: 'OK', onPress: () => router.replace('/(doc_tabs)/(tabs)') }
       ]);
@@ -228,11 +286,20 @@ export default function VeterinarianProfile() {
     }
   };
 
+  if (loading) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color="#4A90E2" />
+        <Text style={{ marginTop: 16, color: '#6B7280' }}>Loading profile...</Text>
+      </View>
+    );
+  }
+
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.container}>
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+          <TouchableOpacity onPress={() => router.replace('/(doc_tabs)/(tabs)')} style={styles.backBtn}>
             <ArrowLeft size={24} color="#4A90E2" />
           </TouchableOpacity>
           <View style={styles.headerText}>
@@ -423,7 +490,14 @@ export default function VeterinarianProfile() {
         </View>
 
         <TouchableOpacity style={[styles.submitBtn, isSubmitting && styles.submitBtnDisabled]} onPress={handleSubmit} disabled={isSubmitting}>
-          {isSubmitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitText}>Submit Profile</Text>}
+          {isSubmitting ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <ActivityIndicator color="#fff" />
+              <Text style={styles.submitText}>Uploading documents...</Text>
+            </View>
+          ) : (
+            <Text style={styles.submitText}>Submit Profile</Text>
+          )}
         </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>

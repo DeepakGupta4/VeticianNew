@@ -1296,6 +1296,8 @@ import {
   Modal,
   Alert,
   ActivityIndicator,
+  PermissionsAndroid,
+  Platform,
 } from 'react-native';
 import {
   MaterialIcons,
@@ -1308,6 +1310,7 @@ import CommonHeader from '../../../components/CommonHeader';
 import { useSelector, useDispatch } from 'react-redux';
 import { getAllVerifiedClinics } from '../../../store/slices/authSlice';
 import { useFocusEffect } from 'expo-router';
+import * as Location from 'expo-location';
 
 const { width } = Dimensions.get('window');
 
@@ -1803,7 +1806,7 @@ const BookingModal = ({ visible, onClose, clinic }) => {
 };
 
 // Clinic Card Component
-const ClinicCard = ({ clinic, onPress, onBookPress }) => {
+const ClinicCard = ({ clinic, onPress, onBookPress, userLocation, locationPermission }) => {
   const { clinicDetails, veterinarianDetails: vet } = clinic;
 
   if (!clinicDetails) {
@@ -1859,6 +1862,23 @@ const ClinicCard = ({ clinic, onPress, onBookPress }) => {
             {clinicDetails?.locality || clinicDetails?.city || 'Location'}
           </Text>
         </View>
+        
+        {/* Distance Display */}
+        {clinicDetails?.distance && (
+          <View style={styles.distanceContainer}>
+            <MaterialIcons name="near-me" size={14} color="#1976D2" />
+            <Text style={styles.distanceText}>{clinicDetails.distance} km</Text>
+          </View>
+        )}
+        
+        {/* Distance Unavailable */}
+        {!clinicDetails?.distance && locationPermission && (
+          <View style={[styles.distanceContainer, { backgroundColor: '#FFEBEE' }]}>
+            <MaterialIcons name="location-off" size={14} color="#D32F2F" />
+            <Text style={[styles.distanceText, { color: '#D32F2F' }]}>Distance unavailable</Text>
+          </View>
+        )}
+        
         <View style={styles.ratingContainer}>
           <MaterialIcons name="star" size={16} color="#FFA500" />
           <Text style={styles.ratingText}>{clinicDetails?.rating || '4.5'}</Text>
@@ -1935,14 +1955,72 @@ export default function ClinicListScreen() {
   const loading = useSelector(state => state.auth?.verifiedClinics?.loading || false);
   
   const [searchQuery, setSearchQuery] = useState('');
-  const [location, setLocation] = useState('Bangalore');
+  const [location, setLocation] = useState('');
   const [selectedClinic, setSelectedClinic] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [filterType, setFilterType] = useState('All');
+  const [userLocation, setUserLocation] = useState(null);
+  const [locationPermission, setLocationPermission] = useState(false);
+
+  // Get user location
+  const getUserLocation = async () => {
+    try {
+      console.log('📍 Getting user location...');
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        console.log('❌ Location permission denied');
+        Alert.alert(
+          'Location Permission',
+          'Please enable location permission to see nearby clinics with distance.',
+          [{ text: 'OK' }]
+        );
+        setLocationPermission(false);
+        console.log('🚀 Dispatching API call without location...');
+        dispatch(getAllVerifiedClinics());
+        return null;
+      }
+
+      setLocationPermission(true);
+      let location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+      
+      const userLoc = {
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+      };
+      
+      console.log(`📍 User location obtained: ${userLoc.latitude}, ${userLoc.longitude}`);
+      setUserLocation(userLoc);
+      
+      // Clear existing clinics data first
+      console.log('🧹 Clearing existing clinics data...');
+      
+      // Dispatch API call with location immediately
+      console.log('🚀 Dispatching API call with location...');
+      const locationParams = {
+        userLat: userLoc.latitude,
+        userLon: userLoc.longitude
+      };
+      console.log('📊 Location params:', locationParams);
+      
+      await dispatch(getAllVerifiedClinics(locationParams));
+      
+      return userLoc;
+    } catch (error) {
+      console.error('❌ Error getting location:', error);
+      setLocationPermission(false);
+      // Dispatch API call without location
+      console.log('🚀 Dispatching API call without location (error case)...');
+      dispatch(getAllVerifiedClinics());
+      return null;
+    }
+  };
 
   useFocusEffect(
     React.useCallback(() => {
-      dispatch(getAllVerifiedClinics());
+      console.log('🔄 ClinicListScreen focused - calling getUserLocation');
+      getUserLocation();
     }, [])
   );
 
@@ -2061,7 +2139,7 @@ export default function ClinicListScreen() {
         <Text style={styles.resultsCount}>
           {filteredData.length} {filteredData.length === 1 ? 'Clinic' : 'Clinics'}
         </Text>
-        <Text style={styles.resultsSubtext}>near {location}</Text>
+        {location && <Text style={styles.resultsSubtext}>near {location}</Text>}
       </View>
 
       {/* Clinic List */}
@@ -2070,6 +2148,8 @@ export default function ClinicListScreen() {
         renderItem={({ item }) => (
           <ClinicCard
             clinic={item}
+            userLocation={userLocation}
+            locationPermission={locationPermission}
             onPress={() =>
               router.push({
                 pathname: '/pages/ClinicDetailScreen',
@@ -2335,6 +2415,21 @@ const styles = StyleSheet.create({
     marginLeft: 4,
     fontWeight: '500',
     flex: 1,
+  },
+  distanceContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E3F2FD',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    marginRight: 8,
+  },
+  distanceText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#1976D2',
+    marginLeft: 3,
   },
   ratingContainer: {
     flexDirection: 'row',

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "962297137388",
+    "project_id": "vetician-cac18",
+    "storage_bucket": "vetician-cac18.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:962297137388:android:3a9a0b1b8b22db3a813dc9",
+        "android_client_info": {
+          "package_name": "com.aaditri1001.vetician"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCbZwYjRyLK9y7BTdCu1VkPc1Zuq09qfv4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

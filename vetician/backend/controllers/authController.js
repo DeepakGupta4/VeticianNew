@@ -9,6 +9,7 @@ const { AppError } = require('../utils/appError');
 const { catchAsync } = require('../utils/catchAsync');
 const PetResort = require('../models/PetResort');
 const Appointment = require('../models/Appointment');
+const Notification = require('../models/Notification');
 const { getCoordinatesFromAddress } = require('../utils/geocoding');
 
 
@@ -31,7 +32,10 @@ const generateTokens = (userId) => {
 
 // Register new user
 const register = catchAsync(async (req, res, next) => {
-  const { name, email, phone, password, role = 'vetician' } = req.body;
+  const { name, email, phone, password, loginType, role } = req.body;
+  
+  // Use loginType if provided, otherwise fall back to role, default to 'vetician'
+  const userRole = loginType || role || 'vetician';
   
   if (!name || !email || !password) {
     return next(new AppError('Name, email, and password are required', 400));
@@ -41,17 +45,17 @@ const register = catchAsync(async (req, res, next) => {
     return next(new AppError('Phone number is required', 400));
   }
 
-  if (role && !['veterinarian', 'vetician', 'paravet', 'pet_resort'].includes(role)) {
+  if (userRole && !['veterinarian', 'vetician', 'paravet', 'pet_resort'].includes(userRole)) {
     return next(new AppError('Invalid role specified', 400));
   }
 
   const existingUser = await User.findOne({
     email: email.toLowerCase().trim(),
-    role
+    role: userRole
   });
 
   if (existingUser) {
-    return next(new AppError(`User with this email already exists as a ${role}`, 400));
+    return next(new AppError(`User with this email already exists as a ${userRole}`, 400));
   }
 
   const user = new User({
@@ -59,13 +63,13 @@ const register = catchAsync(async (req, res, next) => {
     email: email.toLowerCase().trim(),
     phone: phone.trim(),
     password,
-    role
+    role: userRole
   });
 
   await user.save();
 
   try {
-    if (role === 'vetician') {
+    if (userRole === 'vetician') {
       const parent = new Parent({
         name: user.name,
         email: user.email,
@@ -73,7 +77,7 @@ const register = catchAsync(async (req, res, next) => {
         gender: 'other'
       });
       await parent.save();
-    } else if (role === 'paravet') {
+    } else if (userRole === 'paravet') {
       const paravet = new Paravet({
         userId: user._id.toString(),
         personalInfo: {
@@ -421,7 +425,7 @@ const registerVeterinarian = catchAsync(async (req, res, next) => {
 
   // Check if userId exists in the request
   if (!flatData.userId) {
-    return res.status(400).json({  // Changed to return JSON response
+    return res.status(400).json({
       success: false,
       message: 'User ID is required'
     });
@@ -433,7 +437,7 @@ const registerVeterinarian = catchAsync(async (req, res, next) => {
   });
 
   if (existingVeterinarianByUserId) {
-    return res.status(400).json({  // Changed to return JSON response
+    return res.status(400).json({
       success: false,
       message: 'You have already applied for verification'
     });
@@ -445,9 +449,9 @@ const registerVeterinarian = catchAsync(async (req, res, next) => {
   });
 
   if (existingVeterinarianByReg) {
-    return res.status(400).json({  // Changed to return JSON response
+    return res.status(400).json({
       success: false,
-      message: 'A veterinarian with this registration number already exists.' // Note: Added period to match frontend check
+      message: 'A veterinarian with this registration number already exists.'
     });
   }
 
@@ -485,6 +489,44 @@ const registerVeterinarian = catchAsync(async (req, res, next) => {
     veterinarian: veterinarian.getPublicProfile(),
     token: accessToken,
     refreshToken
+  });
+});
+
+// update Veterinarian
+const updateVeterinarian = catchAsync(async (req, res, next) => {
+  const flatData = req.body;
+
+  if (!flatData.userId) {
+    return res.status(400).json({
+      success: false,
+      message: 'User ID is required'
+    });
+  }
+
+  const veterinarian = await Veterinarian.findOne({ userId: flatData.userId });
+
+  if (!veterinarian) {
+    return res.status(404).json({
+      success: false,
+      message: 'Veterinarian profile not found'
+    });
+  }
+
+  // Update fields
+  for (const [key, value] of Object.entries(flatData)) {
+    if (key === 'userId') continue;
+    
+    if (veterinarian[key]) {
+      veterinarian[key].value = key === 'experience' ? Number(value) : value;
+    }
+  }
+
+  await veterinarian.save();
+
+  res.status(200).json({
+    success: true,
+    message: 'Profile updated successfully',
+    veterinarian: veterinarian.getPublicProfile()
   });
 });
 
@@ -597,8 +639,9 @@ const verifyVeterinarianField = catchAsync(async (req, res, next) => {
   const requiredFields = [
     'name', 'gender', 'city',
     'experience', 'specialization',
-    'qualification', 'registration',
-    'identityProof'
+    'qualification', 'qualificationUrl',
+    'registration', 'registrationUrl',
+    'identityProofUrl', 'profilePhotoUrl'
   ];
 
   const allVerified = requiredFields.every(field => {
@@ -807,10 +850,42 @@ const verifyClinic = catchAsync(async (req, res, next) => {
   });
 });
 
+// Unverify Clinic (admin)
+const unverifyClinic = catchAsync(async (req, res, next) => {
+  const { clinicId } = req.params;
+
+  const clinic = await Clinic.findById(clinicId);
+  if (!clinic) {
+    return next(new AppError('Clinic not found', 404));
+  }
+
+  clinic.verified = false;
+  await clinic.save();
+
+  res.status(200).json({
+    success: true,
+    message: 'Clinic unverified successfully'
+  });
+});
+
+// Delete Clinic (admin)
+const deleteClinic = catchAsync(async (req, res, next) => {
+  const { clinicId } = req.params;
+
+  const clinic = await Clinic.findByIdAndDelete(clinicId);
+  if (!clinic) {
+    return next(new AppError('Clinic not found', 404));
+  }
+
+  res.status(200).json({
+    success: true,
+    message: 'Clinic deleted successfully'
+  });
+});
+
 // get profile screen data
 const getProfileDetails = catchAsync(async (req, res, next) => {
-  const { userId } = req.body;
-  console.log(req.body)
+  const { userId } = req.params;
 
   if (!userId) {
     return next(new AppError('User ID is required', 400));
@@ -822,24 +897,31 @@ const getProfileDetails = catchAsync(async (req, res, next) => {
     Clinic.find({ userId })
   ]);
 
-  // console.log(veterinarian, clinics)
-
   if (!veterinarian) {
-    return next(new AppError('No veterinarian found with that user ID', 404));
+    return res.status(200).json({
+      success: true,
+      data: null
+    });
   }
 
-  // Format the response similar to your example image
+  // Format the response
   const profileData = {
-    status: 'Your profile is under review',
-    message: 'Please give us 7 business days from the date of submission to review your profile',
+    status: veterinarian.isVerified ? 'Profile verified' : 'Your profile is under review',
+    message: veterinarian.isVerified ? 'Your profile has been verified' : 'Please give us 7 business days from the date of submission to review your profile',
     profile: {
       name: `${veterinarian.title.value} ${veterinarian.name.value}`,
+      title: veterinarian.title.value,
+      gender: veterinarian.gender.value,
+      city: veterinarian.city.value,
       specialization: veterinarian.specialization.value,
       qualification: veterinarian.qualification.value,
-      experience: `${veterinarian.experience.value} years of experience`,
+      experience: `${veterinarian.experience.value} years`,
       registration: veterinarian.registration.value,
-      additionalCertification: 'Arizona State Board of Dental Examiners-2003', // This would come from your data
+      identityProof: veterinarian.identityProof.value,
       profilePhotoUrl: veterinarian.profilePhotoUrl.value,
+      qualificationUrl: veterinarian.qualificationUrl.value,
+      registrationUrl: veterinarian.registrationUrl.value,
+      identityProofUrl: veterinarian.identityProofUrl.value,
       isVerified: veterinarian.isVerified
     },
     clinics: clinics.map(clinic => ({
@@ -1416,8 +1498,9 @@ const createAppointment = catchAsync(async (req, res, next) => {
   }
 
   // 4. Validate veterinarian exists if provided
+  let veterinarian;
   if (veterinarianId) {
-    const veterinarian = await Veterinarian.findById(veterinarianId);
+    veterinarian = await Veterinarian.findById(veterinarianId);
     if (!veterinarian) {
       return next(new AppError('No veterinarian found with that ID', 404));
     }
@@ -1439,7 +1522,31 @@ const createAppointment = catchAsync(async (req, res, next) => {
     status: 'pending' // Default status
   });
 
-  // 6. Format the response data similar to your clinic/vet format
+  // 6. Save notification to database and emit real-time notification
+  if (veterinarianId) {
+    const notification = await Notification.create({
+      userId: veterinarianId,
+      userType: 'Veterinarian',
+      title: 'New Appointment',
+      message: `New ${bookingType} appointment for ${petName}`,
+      type: 'appointment',
+      relatedId: newAppointment._id
+    });
+
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`vet-${veterinarianId}`).emit('new-appointment', {
+        appointmentId: newAppointment._id,
+        petName: newAppointment.petName,
+        petType: newAppointment.petType,
+        date: newAppointment.date,
+        bookingType: newAppointment.bookingType,
+        message: `New ${bookingType} appointment for ${petName}`
+      });
+    }
+  }
+
+  // 7. Format the response data similar to your clinic/vet format
   const responseData = {
     appointmentDetails: {
       _id: newAppointment._id,
@@ -1670,6 +1777,219 @@ const verifyOTP = catchAsync(async (req, res, next) => {
   });
 });
 
+// Unverify veterinarian (admin)
+const unverifyVeterinarian = catchAsync(async (req, res, next) => {
+  const { veterinarianId } = req.params;
+
+  const veterinarian = await Veterinarian.findById(veterinarianId);
+  if (!veterinarian) {
+    return next(new AppError('Veterinarian not found', 404));
+  }
+
+  // Set isVerified to false
+  veterinarian.isVerified = false;
+  
+  // Optionally unverify all fields (so admin can re-verify)
+  const fieldsToUnverify = [
+    'name', 'gender', 'city', 'experience',
+    'specialization', 'qualification', 'qualificationUrl',
+    'registration', 'registrationUrl',
+    'identityProofUrl', 'profilePhotoUrl'
+  ];
+  
+  fieldsToUnverify.forEach(field => {
+    if (veterinarian[field]) {
+      veterinarian[field].verified = false;
+    }
+  });
+  
+  await veterinarian.save();
+
+  res.status(200).json({
+    success: true,
+    message: 'Veterinarian unverified successfully'
+  });
+});
+
+// Delete veterinarian (admin)
+const deleteVeterinarian = catchAsync(async (req, res, next) => {
+  const { veterinarianId } = req.params;
+
+  const veterinarian = await Veterinarian.findByIdAndDelete(veterinarianId);
+  if (!veterinarian) {
+    return next(new AppError('Veterinarian not found', 404));
+  }
+
+  res.status(200).json({
+    success: true,
+    message: 'Veterinarian deleted successfully'
+  });
+});
+
+// Get veterinarian details by ID (admin)
+const getVeterinarianById = catchAsync(async (req, res, next) => {
+  const { veterinarianId } = req.params;
+
+  const veterinarian = await Veterinarian.findById(veterinarianId);
+  if (!veterinarian) {
+    return next(new AppError('Veterinarian not found', 404));
+  }
+
+  res.status(200).json({
+    success: true,
+    veterinarian
+  });
+});
+
+// Update veterinarian by ID (admin)
+const updateVeterinarianById = catchAsync(async (req, res, next) => {
+  const { veterinarianId } = req.params;
+  const updates = req.body;
+
+  const veterinarian = await Veterinarian.findById(veterinarianId);
+  if (!veterinarian) {
+    return next(new AppError('Veterinarian not found', 404));
+  }
+
+  // Update fields
+  Object.keys(updates).forEach(key => {
+    if (veterinarian[key] && typeof veterinarian[key] === 'object' && veterinarian[key].value !== undefined) {
+      veterinarian[key].value = key === 'experience' ? Number(updates[key]) : updates[key];
+    }
+  });
+
+  await veterinarian.save();
+
+  res.status(200).json({
+    success: true,
+    message: 'Veterinarian updated successfully',
+    veterinarian
+  });
+});
+
+// Get veterinarian appointments (for doctor dashboard)
+const getVeterinarianAppointments = catchAsync(async (req, res, next) => {
+  try {
+    const userId = req.user._id;
+    
+    // Find veterinarian by userId
+    const veterinarian = await Veterinarian.findOne({ userId });
+    if (!veterinarian) {
+      return next(new AppError('Veterinarian profile not found', 404));
+    }
+
+    // Get all appointments for this veterinarian
+    const appointments = await Appointment.find({ 
+      veterinarianId: veterinarian._id 
+    }).sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      count: appointments.length,
+      appointments
+    });
+  } catch (error) {
+    return next(new AppError('Failed to fetch appointments', 500));
+  }
+});
+
+// Update appointment status (for doctor)
+const updateAppointmentStatus = catchAsync(async (req, res, next) => {
+  const { appointmentId } = req.params;
+  const { status } = req.body;
+
+  const appointment = await Appointment.findById(appointmentId);
+  if (!appointment) {
+    return next(new AppError('Appointment not found', 404));
+  }
+
+  appointment.status = status;
+  await appointment.save();
+
+  // Save notification to database and emit real-time notification
+  const notification = await Notification.create({
+    userId: appointment.userId,
+    userType: 'User',
+    title: 'Appointment Update',
+    message: `Your appointment for ${appointment.petName} has been ${status}`,
+    type: 'status_update',
+    relatedId: appointment._id
+  });
+
+  const io = req.app.get('io');
+  if (io) {
+    io.to(`petparent-${appointment.userId}`).emit('appointment-status-update', {
+      appointmentId: appointment._id,
+      status: appointment.status,
+      petName: appointment.petName,
+      message: `Your appointment for ${appointment.petName} has been ${status}`
+    });
+  }
+
+  res.status(200).json({
+    success: true,
+    message: 'Appointment status updated',
+    appointment
+  });
+});
+
+// Get pet parent appointments
+const getPetParentAppointments = catchAsync(async (req, res, next) => {
+  try {
+    const userId = req.user._id;
+    
+    // Get all appointments for this user
+    const appointments = await Appointment.find({ 
+      userId 
+    }).sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      count: appointments.length,
+      appointments
+    });
+  } catch (error) {
+    return next(new AppError('Failed to fetch appointments', 500));
+  }
+});
+
+// Get notifications for user
+const getNotifications = catchAsync(async (req, res, next) => {
+  const userId = req.user._id;
+  const { userType } = req.query;
+
+  const notifications = await Notification.find({ 
+    userId,
+    ...(userType && { userType })
+  }).sort({ createdAt: -1 });
+
+  res.status(200).json({
+    success: true,
+    count: notifications.length,
+    notifications
+  });
+});
+
+// Mark notification as read
+const markNotificationRead = catchAsync(async (req, res, next) => {
+  const { notificationId } = req.params;
+
+  const notification = await Notification.findByIdAndUpdate(
+    notificationId,
+    { isRead: true },
+    { new: true }
+  );
+
+  if (!notification) {
+    return next(new AppError('Notification not found', 404));
+  }
+
+  res.status(200).json({
+    success: true,
+    notification
+  });
+});
+
 module.exports = {
   register,
   login,
@@ -1684,6 +2004,7 @@ module.exports = {
   updateUserPet,
   deleteUserPet,
   registerVeterinarian,
+  updateVeterinarian,
   getUnverifiedVeterinarians,
   getVerifiedVeterinarians,
   verifyVeterinarianField,
@@ -1703,5 +2024,16 @@ module.exports = {
   getPetsByUserId,
   deleteAccount,
   sendOTP,
-  verifyOTP
+  verifyOTP,
+  unverifyVeterinarian,
+  deleteVeterinarian,
+  unverifyClinic,
+  deleteClinic,
+  getVeterinarianById,
+  updateVeterinarianById,
+  getVeterinarianAppointments,
+  updateAppointmentStatus,
+  getPetParentAppointments,
+  getNotifications,
+  markNotificationRead
 };

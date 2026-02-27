@@ -140,7 +140,6 @@ export const signInUser = createAsyncThunk(
       const headers = await getCommonHeaders(false);
       
       const requestBody = { email, password, loginType };
-      console.log('🔍 SignIn Request:', { BASE_URL, requestBody });
       
       const res = await fetch(`${BASE_URL}/auth/login`, {
         method: 'POST',
@@ -150,11 +149,8 @@ export const signInUser = createAsyncThunk(
       });
       
       const responseText = await res.text();
-      console.log('📥 SignIn Response:', { status: res.status, responseText: responseText.substring(0, 200) });
       
-      // Check if response is HTML (error page)
       if (responseText.includes('<!DOCTYPE') || responseText.includes('<html')) {
-        console.error('❌ Received HTML instead of JSON - Backend might be down');
         return rejectWithValue('Server error. Please check your internet connection and try again.');
       }
       
@@ -184,17 +180,18 @@ export const signUpUser = createAsyncThunk(
     try {
       const BASE_URL = getApiBaseUrl();
       const headers = await getCommonHeaders(false);
+      
+      const requestBody = { name, email, phone, password, loginType };
+      
       const res = await fetch(`${BASE_URL}/auth/register`, {
         method: 'POST',
         headers,
-        body: JSON.stringify({ name, email, phone, password, loginType }),
+        body: JSON.stringify(requestBody),
       });
       
       const responseText = await res.text();
       
-      // Check if response is HTML (error page)
       if (responseText.includes('<!DOCTYPE') || responseText.includes('<html')) {
-        console.error('❌ Received HTML instead of JSON - Backend might be down');
         return rejectWithValue('Server error. Please try again later.');
       }
       
@@ -204,6 +201,7 @@ export const signUpUser = createAsyncThunk(
       }
       
       const data = JSON.parse(responseText);
+      
       if (data.user?._id) await AsyncStorage.setItem('userId', data.user._id);
       return data;
     } catch (error) {
@@ -329,25 +327,126 @@ export const veterinarianUser = createAsyncThunk(
   }
 );
 
+export const updateVeterinarianUser = createAsyncThunk(
+  'auth/updateVeterinarianUser',
+  async (vetData, { rejectWithValue, getState }) => {
+    try {
+      const state = getState();
+      const userId = state.auth.user?._id || await AsyncStorage.getItem('userId');
+      if (!userId) throw new Error('User not authenticated');
+      
+      const BASE_URL = getApiBaseUrl();
+      const headers = await getCommonHeaders(true);
+      const res = await fetch(`${BASE_URL}/auth/veterinarian-update`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify({ ...vetData, userId }),
+      });
+      
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`HTTP ${res.status}: ${errorText}`);
+      }
+      
+      return await res.json();
+    } catch (error) {
+      return rejectWithValue(error.message || 'Failed to update veterinarian data');
+    }
+  }
+);
+
+export const veterinarianProfileData = createAsyncThunk(
+  'auth/veterinarianProfileData',
+  async (_, { rejectWithValue, getState }) => {
+    try {
+      const state = getState();
+      const userId = state.auth.user?._id || await AsyncStorage.getItem('userId');
+      
+      if (!userId) throw new Error('User not authenticated');
+      
+      const BASE_URL = getApiBaseUrl();
+      const headers = await getCommonHeaders(true);
+      const res = await fetch(`${BASE_URL}/auth/veterinarian/${userId}`, {
+        method: 'GET',
+        headers,
+      });
+      
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`HTTP ${res.status}: ${errorText}`);
+      }
+      
+      return await res.json();
+    } catch (error) {
+      return rejectWithValue(error.message || 'Failed to fetch veterinarian data');
+    }
+  }
+);
+
 /* =========================
     Clinic Thunks
 ========================= */
+export const registerClinic = createAsyncThunk(
+  'auth/registerClinic',
+  async (clinicData, { rejectWithValue }) => {
+    try {
+      const userId = await AsyncStorage.getItem('userId');
+      if (!userId) throw new Error('User not authenticated');
+      
+      const BASE_URL = getApiBaseUrl();
+      const headers = await getCommonHeaders(true);
+      const res = await fetch(`${BASE_URL}/auth/register-clinic`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ ...clinicData, userId }),
+      });
+      
+      if (!res.ok) {
+        const errorText = await res.text();
+        const errorMessage = parseErrorMessage(errorText);
+        return rejectWithValue({ error: { message: errorMessage } });
+      }
+      
+      return await res.json();
+    } catch (error) {
+      return rejectWithValue({ error: { message: error.message || 'Failed to register clinic' } });
+    }
+  }
+);
+
 export const getAllVerifiedClinics = createAsyncThunk(
   'auth/getAllVerifiedClinics',
-  async (_, { rejectWithValue }) => {
+  async (locationParams = {}, { rejectWithValue }) => {
     try {
       const BASE_URL = getApiBaseUrl();
       const headers = await getCommonHeaders(false);
-      const res = await fetch(`${BASE_URL}/auth/petparent/verified/all-clinic`, {
-        method: 'POST',
+      
+      console.log('🚀 Redux: getAllVerifiedClinics called with params:', locationParams);
+      
+      // Build query string for location parameters
+      let queryString = '';
+      if (locationParams.userLat && locationParams.userLon) {
+        queryString = `?userLat=${locationParams.userLat}&userLon=${locationParams.userLon}`;
+        console.log('📍 Redux: Query string built:', queryString);
+      }
+      
+      const apiUrl = `${BASE_URL}/clinics/all${queryString}`;
+      console.log('🌐 Redux: Making API call to:', apiUrl);
+      
+      const res = await fetch(apiUrl, {
+        method: 'GET',
         headers,
       });
+      
+      console.log('📡 Redux: API response status:', res.status);
+      
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const response = await res.json();
       console.log('✅ Clinics API Response:', response);
       console.log('✅ Clinics Data Array:', response.data);
       return response.data || [];
     } catch (error) {
+      console.error('❌ Redux: getAllVerifiedClinics error:', error);
       return rejectWithValue(error.message || 'Failed to load clinics');
     }
   }
@@ -457,6 +556,7 @@ const authSlice = createSlice({
   initialState,
   reducers: {
     signOut: (state) => {
+      AsyncStorage.multiRemove(['token', 'userId', 'user', 'refreshToken']);
       state.user = null;
       state.token = null;
       state.refreshToken = null;
@@ -500,6 +600,9 @@ const authSlice = createSlice({
         if (action.payload.token) {
           AsyncStorage.setItem('token', action.payload.token);
         }
+        if (action.payload.user?._id) {
+          AsyncStorage.setItem('userId', action.payload.user._id);
+        }
       })
       .addCase(signInUser.rejected, (state, action) => {
         state.isLoading = false;
@@ -516,6 +619,9 @@ const authSlice = createSlice({
         state.isAuthenticated = true;
         if (action.payload.token) {
           AsyncStorage.setItem('token', action.payload.token);
+        }
+        if (action.payload.user?._id) {
+          AsyncStorage.setItem('userId', action.payload.user._id);
         }
       })
       .addCase(signUpUser.rejected, (state, action) => {

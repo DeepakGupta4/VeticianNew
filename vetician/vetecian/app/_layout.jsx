@@ -31,6 +31,9 @@ function AuthGuard({ children }) {
       const role = user?.role || 'vetician';
       
       switch(role) {
+        case 'admin':
+          router.replace('/(admin_tabs)');
+          break;
         case 'veterinarian':
           router.replace('/(doc_tabs)');
           break;

@@ -1,5 +1,7 @@
 const User = require('../models/User');
-const Veterinarian = require('../models/Veterinarian')
+const Veterinarian = require('../models/Veterinarian');
+const Appointment = require('../models/Appointment');
+const Surgery = require('../models/Surgery');
 const { AppError } = require('../utils/appError');
 const { catchAsync } = require('../utils/catchAsync');
 
@@ -85,24 +87,25 @@ const getDashboardStats = catchAsync(async (req, res, next) => {
     });
   }
 
+  const veterinarianId = req.user._id || req.user.userId;
   
-  const stats = {
-    patients: 24, // Placeholder: await Patient.countDocuments({ vetId: req.user._id })
-    appointments: 12,
-    surgeries: 3,
-  };
+  const [appointmentsCount, surgeriesCount] = await Promise.all([
+    Appointment.countDocuments({ veterinarianId }),
+    Surgery.countDocuments({ veterinarianId })
+  ]);
 
-  // 3. Recent activities/patients fetch karein
-  const recentPatients = [
-    { id: '1', name: 'Max', breed: 'Golden Retriever', time: '10:00 AM', status: 'Annual checkup' },
-    { id: '2', name: 'Whiskers', breed: 'Persian Cat', time: '11:30 AM', status: 'Vaccination' },
-    { id: '3', name: 'Rocky', breed: 'German Shepherd', time: '2:00 PM', status: 'Post-op' },
-  ];
+  const uniquePatients = await Appointment.distinct('userId', { veterinarianId });
+
+  const stats = {
+    patients: uniquePatients.length,
+    appointments: appointmentsCount,
+    surgeries: surgeriesCount,
+  };
 
   res.status(200).json({
     success: true,
     stats,
-    recentPatients
+    notifications: { unreadCount: 0 }
   });
 });
 

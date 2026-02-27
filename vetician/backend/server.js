@@ -43,6 +43,9 @@ const parentRoutes = require('./routes/parentRoutes');
 const doorstepRoutes = require('./routes/doorstepRoutes');
 const vetRoutes = require('./routes/vetRoutes');
 const uploadRoutes = require('./routes/upload');
+const appointmentRoutes = require('./routes/appointmentRoutes');
+const patientRoutes = require('./routes/patientRoutes');
+const surgeryRoutes = require('./routes/surgeryRoutes');
 console.log('📹 Loading video call routes...');
 const videoCallRoutes = require('./routes/videoCall');
 console.log('✅ All routes loaded');
@@ -75,6 +78,9 @@ app.use('/api/parents', parentRoutes);
 app.use('/api/doorstep', doorstepRoutes);
 app.use('/api/clinics', vetRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/appointments', appointmentRoutes);
+app.use('/api/patients', patientRoutes);
+app.use('/api/surgeries', surgeryRoutes);
 console.log('📹 Registering video route at /api/video');
 app.use('/api/video', videoCallRoutes);
 console.log('✅ All routes registered');
@@ -114,6 +120,17 @@ io.on('connection', (socket) => {
   socket.on('join-user', (userId) => {
     socket.join(`user-${userId}`);
     console.log(`👤 User ${userId} joined`);
+  });
+
+  socket.on('join-veterinarian', (vetId) => {
+    socket.join(`vet-${vetId}`);
+    console.log(`🩺 Veterinarian ${vetId} joined room: vet-${vetId}`);
+    console.log(`📊 Active rooms for socket ${socket.id}:`, Array.from(socket.rooms));
+  });
+
+  socket.on('join-petparent', (userId) => {
+    socket.join(`petparent-${userId}`);
+    console.log(`🐾 Pet Parent ${userId} joined`);
   });
 
   socket.on('disconnect', () => {

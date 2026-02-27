@@ -27,21 +27,33 @@ const uploadToCloudinary = async (file) => {
   const type = isImage ? 'image' : 'raw';
 
   try {
-    // File validation
-    const fileInfo = await FileSystem.getInfoAsync(file.uri, { size: true });
-    if (!fileInfo.exists) throw new Error(`File not found: ${file.uri}`);
-    if (fileInfo.size === 0) throw new Error('Empty file');
+    // File validation - skip on web
+    if (Platform.OS !== 'web') {
+      const fileInfo = await FileSystem.getInfoAsync(file.uri, { size: true });
+      if (!fileInfo.exists) throw new Error(`File not found: ${file.uri}`);
+      if (fileInfo.size === 0) throw new Error('Empty file');
+    }
 
     let lastError;
     for (let attempt = 1; attempt <= 3; attempt++) {
       try {
         const formData = new FormData();
-        formData.append('file', {
-          uri: file.uri,
-          name: file.name || `upload_${Date.now()}.${fileExtension}`,
-          type: isImage ? `image/${fileExtension === 'jpg' ? 'jpeg' : fileExtension}`
-            : file.type || 'application/pdf'
-        });
+        
+        if (Platform.OS === 'web') {
+          // Web: use blob
+          const response = await fetch(file.uri);
+          const blob = await response.blob();
+          formData.append('file', blob, file.name || `upload_${Date.now()}.${fileExtension}`);
+        } else {
+          // Native: use file object
+          formData.append('file', {
+            uri: file.uri,
+            name: file.name || `upload_${Date.now()}.${fileExtension}`,
+            type: isImage ? `image/${fileExtension === 'jpg' ? 'jpeg' : fileExtension}`
+              : file.type || 'application/pdf'
+          });
+        }
+        
         formData.append('upload_preset', 'vetician');
         formData.append('cloud_name', 'dqwzfs4ox');
 
@@ -196,6 +208,7 @@ const ClinicCreationFlow = ({ navigation }) => {
       onSubmit={async (finalFormData) => {
         try {
           const result = await dispatch(registerClinic(finalFormData)).unwrap();
+          console.log('Registration result:', result);
 
           if (result.success) {
             Alert.alert(
@@ -205,20 +218,10 @@ const ClinicCreationFlow = ({ navigation }) => {
             );
           }
         } catch (error) {
-          console.log("Error =>", error)
-          const errorMessage = error.payload?.error?.message || 'Registration failed';
+          console.log("Error =>", error);
+          const errorMessage = error.error?.message || error.message || 'Registration failed';
 
-          if (errorMessage.includes('already exists in this city')) {
-            Alert.alert(
-              'Clinic Exists',
-              errorMessage,
-              [{ text: 'OK' }]
-            );
-          } else {
-            Alert.alert('Error', errorMessage);
-          }
-        } finally {
-          setIsSubmitting(false);
+          Alert.alert('Error', errorMessage);
         }
       }}
       onBack={() => setStep(5)}
@@ -488,7 +491,7 @@ const SessionTimingsStep = ({
         <Text style={styles.title}>SESSION TIMINGS</Text>
 
         <View style={styles.toggleContainer}>
-          <Text>Same timings for weekdays</Text>
+          <Text style={styles.toggleText}>Same timings for weekdays</Text>
           <TouchableOpacity onPress={toggleSameTimings}>
             <View style={styles.toggleButton}>
               <View style={[
@@ -525,7 +528,7 @@ const SessionTimingsStep = ({
             style={styles.timeInput}
             onPress={() => openTimePicker('start')}
           >
-            <Text>{formData.timings[selectedDay].start || 'Select start time'}</Text>
+            <Text style={styles.timeInputText}>{formData.timings[selectedDay].start || 'Select start time'}</Text>
           </TouchableOpacity>
 
           <Text style={styles.timingLabel}>End Time</Text>
@@ -533,7 +536,7 @@ const SessionTimingsStep = ({
             style={styles.timeInput}
             onPress={() => openTimePicker('end')}
           >
-            <Text>{formData.timings[selectedDay].end || 'Select end time'}</Text>
+            <Text style={styles.timeInputText}>{formData.timings[selectedDay].end || 'Select end time'}</Text>
           </TouchableOpacity>
         </View>
 
@@ -547,7 +550,7 @@ const SessionTimingsStep = ({
               ]}
               onPress={() => handleSetTiming(selectedDay, 'type', 'Video')}
             >
-              <Text>Video</Text>
+              <Text style={styles.typeButtonText}>Video</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[
@@ -556,7 +559,7 @@ const SessionTimingsStep = ({
               ]}
               onPress={() => handleSetTiming(selectedDay, 'type', 'In-Clinic')}
             >
-              <Text>In-Clinic</Text>
+              <Text style={styles.typeButtonText}>In-Clinic</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[
@@ -565,7 +568,7 @@ const SessionTimingsStep = ({
               ]}
               onPress={() => handleSetTiming(selectedDay, 'type', 'Both')}
             >
-              <Text>Both</Text>
+              <Text style={styles.typeButtonText}>Both</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -604,7 +607,7 @@ const SessionTimingsStep = ({
                     style={styles.timeOption}
                     onPress={() => handleTimeSelect(`${hour < 10 ? '0' + hour : hour}:00 am`)}
                   >
-                    <Text>{hour}:00 am</Text>
+                    <Text style={styles.timeOptionText}>{hour}:00 am</Text>
                   </TouchableOpacity>
                 ))}
               </ScrollView>
@@ -616,7 +619,7 @@ const SessionTimingsStep = ({
                     style={styles.timeOption}
                     onPress={() => handleTimeSelect(`${hour < 10 ? '0' + hour : hour}:00 pm`)}
                   >
-                    <Text>{hour}:00 pm</Text>
+                    <Text style={styles.timeOptionText}>{hour}:00 pm</Text>
                   </TouchableOpacity>
                 ))}
               </ScrollView>
@@ -626,7 +629,7 @@ const SessionTimingsStep = ({
               style={styles.cancelButton}
               onPress={() => setShowTimePicker(false)}
             >
-              <Text>CANCEL</Text>
+              <Text style={styles.cancelButtonText}>CANCEL</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -651,17 +654,24 @@ const DocumentUploadStep = ({ formData, setFormData, onSubmit, onBack }) => {
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const selectedFile = result.assets[0];
-        const fileInfo = await FileSystem.getInfoAsync(selectedFile.uri);
-
-        if (!fileInfo.exists) {
-          throw new Error('Selected file could not be accessed');
+        
+        let fileSize = 0;
+        if (Platform.OS !== 'web') {
+          const fileInfo = await FileSystem.getInfoAsync(selectedFile.uri);
+          if (!fileInfo.exists) {
+            throw new Error('Selected file could not be accessed');
+          }
+          fileSize = fileInfo.size;
+        } else {
+          // On web, get size from the file object
+          fileSize = selectedFile.size || 0;
         }
 
         setOwnerProofFile({
           uri: selectedFile.uri,
           name: selectedFile.name,
           type: selectedFile.mimeType || 'application/pdf',
-          size: fileInfo.size
+          size: fileSize
         });
       }
     } catch (error) {
@@ -679,8 +689,18 @@ const DocumentUploadStep = ({ formData, setFormData, onSubmit, onBack }) => {
     setIsUploading(true);
     try {
       const cloudinaryResponse = await uploadToCloudinary(ownerProofFile);
+      
+      // Filter out days with no timings set
+      const filteredTimings = {};
+      Object.entries(formData.timings).forEach(([day, timing]) => {
+        if (timing.start && timing.end && timing.type) {
+          filteredTimings[day] = timing;
+        }
+      });
+      
       const updatedFormData = {
         ...formData,
+        timings: filteredTimings,
         ownerProof: cloudinaryResponse.secure_url
       };
 
@@ -1195,6 +1215,27 @@ const styles = StyleSheet.create({
   },
   uploadingButton: {
     backgroundColor: '#7FB3D5',
+  },
+  toggleText: {
+    fontSize: 14,
+    color: '#2C3E50',
+  },
+  typeButtonText: {
+    fontSize: 14,
+    color: '#2C3E50',
+  },
+  timeInputText: {
+    fontSize: 14,
+    color: '#2C3E50',
+  },
+  timeOptionText: {
+    fontSize: 14,
+    color: '#2C3E50',
+  },
+  cancelButtonText: {
+    fontSize: 14,
+    color: '#2C3E50',
+    fontWeight: '600',
   },
 });
 

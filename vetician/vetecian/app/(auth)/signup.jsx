@@ -44,12 +44,8 @@ export default function SignUp() {
  
 
   const handleSignUp = async () => {
-    console.log('📱 SIGNUP COMPONENT - handleSignUp started');
-    
-    // Reset errors
     setErrors({});
 
-    // Validation logic (Same as yours)
     const newErrors = {};
     if (!formData.name.trim()) newErrors.name = 'Full name is required';
     if (!formData.email.trim() || !validateEmail(formData.email)) newErrors.email = 'Valid email is required';
@@ -64,26 +60,17 @@ export default function SignUp() {
     }
 
     try {
-      console.log('🚀 SIGNUP COMPONENT - Dispatching signUpUser action...');
       const dispatchParams = {
         name: formData.name.trim(),
         email: formData.email.trim(),
         phone: `+91${formData.phone.trim()}`,
         password: formData.password,
-        loginType: loginType, // Backend expects 'loginType' not 'role'
+        loginType: loginType,
       };
 
-      // ✅ FIX: Response ko 'result' variable mein store karein
       const result = await dispatch(signUpUser(dispatchParams)).unwrap();
 
-      console.log('✅ SIGNUP COMPONENT - signUpUser dispatch successful');
-      console.log('📄 SIGNUP COMPONENT - Result:', result);
-
-      // ✅ Check if result exists (unwrap handles errors in catch block)
       if (result) {
-        console.log('🎉 SIGNUP COMPONENT - Signup successful');
-        
-        // Route to appropriate onboarding based on login type
         switch (loginType) {
           case 'veterinarian':
             router.replace('/(doc_tabs)/onboarding/onboarding_conf');
@@ -94,14 +81,11 @@ export default function SignUp() {
           case 'paravet':
             router.replace('/(peravet_tabs)/(tabs)');
             break;
-          default: // vetician / pet parent
+          default:
             router.replace('/(vetician_tabs)/onboarding/onboarding_conf');
         }
       }
     } catch (error) {
-      console.log('❌ SIGNUP COMPONENT - Caught error:', error);
-      
-      // Set error in state instead of Alert
       setErrors({ general: typeof error === 'string' ? error : (error.message || 'An error occurred') });
     }
   };
@@ -154,10 +138,11 @@ export default function SignUp() {
                   placeholder="Email"
                   placeholderTextColor="#aaa"
                   value={formData.email}
-                  onChangeText={(value) => handleInputChange('email', value)}
+                  onChangeText={(value) => handleInputChange('email', value.replace('mailto:', ''))}
                   keyboardType="email-address"
                   autoCapitalize="none"
                   autoCorrect={false}
+                  textContentType="emailAddress"
                 />
               </View>
               {errors.email && (

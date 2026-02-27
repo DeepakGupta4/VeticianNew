@@ -989,7 +989,7 @@ export default function Home() {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        console.log('Location permission denied');
+        console.log('⚠️ Location permission denied');
         return;
       }
       const location = await Location.getCurrentPositionAsync({});
@@ -997,9 +997,9 @@ export default function Home() {
         latitude: location.coords.latitude,
         longitude: location.coords.longitude,
       });
-      console.log('📍 User Location:', location.coords);
+      console.log('📍 User Location:', location.coords.latitude, location.coords.longitude);
     } catch (error) {
-      console.error('Error getting location:', error);
+      console.error('❌ Error getting location:', error);
     }
   };
 
@@ -1045,29 +1045,43 @@ export default function Home() {
   // Fetch Nearby Clinics
   const fetchClinics = async () => {
     try {
-      const data = await ApiService.getAllVerifiedClinics();
+      console.log('🔍 Dashboard: Fetching clinics with location:', userLocation);
+      
+      // Pass location parameters to API call
+      const locationParams = userLocation ? {
+        userLat: userLocation.latitude,
+        userLon: userLocation.longitude
+      } : {};
+      
+      const data = await ApiService.getAllVerifiedClinics(locationParams);
       const clinicsList = Array.isArray(data) ? data : (data?.data || []);
       
-      // Only use real clinics from database
       const clinicsWithDistance = clinicsList.map(clinic => {
-        let distance = 'N/A';
-        const lat = clinic.clinicDetails?.latitude || clinic.latitude;
-        const lon = clinic.clinicDetails?.longitude || clinic.longitude;
+        const distance = clinic.clinicDetails?.distance || 'N/A';
         
-        if (userLocation && lat && lon) {
-          distance = calculateDistance(userLocation.latitude, userLocation.longitude, lat, lon);
-          console.log(`📏 Distance to ${clinic.clinicDetails?.clinicName}: ${distance} km`);
-        } else {
-          distance = (Math.random() * 9 + 1).toFixed(1);
-          console.log('⚠️ Using random distance - location not available');
-        }
-        return { ...clinic, distance, clinicName: clinic.clinicDetails?.clinicName, establishmentType: clinic.clinicDetails?.establishmentType, city: clinic.clinicDetails?.city, profilePhotoUrl: clinic.veterinarianDetails?.profilePhotoUrl, _id: clinic.clinicDetails?.clinicId || clinic.clinicDetails?._id };
+        console.log(`🏥 Dashboard Clinic: ${clinic.clinicDetails?.clinicName}`);
+        console.log(`   Distance from API: ${distance}`);
+        
+        return { 
+          ...clinic, 
+          distance, 
+          clinicName: clinic.clinicDetails?.clinicName, 
+          establishmentType: clinic.clinicDetails?.establishmentType, 
+          city: clinic.clinicDetails?.city, 
+          profilePhotoUrl: clinic.veterinarianDetails?.profilePhotoUrl, 
+          _id: clinic.clinicDetails?.clinicId || clinic.clinicDetails?._id 
+        };
       });
 
-      clinicsWithDistance.sort((a, b) => parseFloat(a.distance) - parseFloat(b.distance));
+      clinicsWithDistance.sort((a, b) => {
+        const distA = a.distance === 'N/A' ? Infinity : parseFloat(a.distance);
+        const distB = b.distance === 'N/A' ? Infinity : parseFloat(b.distance);
+        return distA - distB;
+      });
       setClinics(clinicsWithDistance);
+      console.log(`📊 Dashboard: Total clinics loaded: ${clinicsWithDistance.length}`);
     } catch (err) {
-      console.error('❌ Clinics fetch failed:', err.message);
+      console.error('❌ Dashboard clinics fetch failed:', err.message);
       setClinics([]);
     }
   };
@@ -1136,7 +1150,19 @@ export default function Home() {
   };
 
   const handleClinicPress = (clinic) => {
-    router.push({ pathname: 'pages/ClinicDetailScreen', params: { clinic } });
+    router.push({
+      pathname: 'pages/ClinicDetailScreen',
+      params: {
+        clinicId: clinic._id,
+        clinicName: clinic.clinicName,
+        establishmentType: clinic.establishmentType,
+        city: clinic.clinicDetails?.city || clinic.city,
+        locality: clinic.clinicDetails?.locality,
+        streetAddress: clinic.clinicDetails?.streetAddress,
+        distance: clinic.distance,
+        profilePhotoUrl: clinic.profilePhotoUrl
+      }
+    });
   };
 
   const handleAppointmentPress = (appointment) => {
@@ -1223,9 +1249,11 @@ export default function Home() {
         {item.establishmentType}
       </Text>
       <View style={styles.clinicDistance}>
-        <MapPin size={12} color="#4E8D7C" />
-        <Text style={styles.clinicDistanceText}>
-          {item.distance || '2.5'} km away
+        <MapPin size={12} color={item.distance !== 'N/A' ? "#4E8D7C" : "#FF6B6B"} />
+        <Text style={[styles.clinicDistanceText, { 
+          color: item.distance !== 'N/A' ? "#4E8D7C" : "#FF6B6B" 
+        }]}>
+          {item.distance !== 'N/A' ? `${item.distance} km away` : 'Distance unavailable'}
         </Text>
       </View>
     </TouchableOpacity>
@@ -1455,13 +1483,13 @@ export default function Home() {
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Nearby Clinics</Text>
             <TouchableOpacity onPress={() => navigateTo('pages/ClinicListScreen')}>
-              <Text style={styles.seeAll}>See All</Text>
+              <Text style={styles.seeAll}>View All</Text>
             </TouchableOpacity>
           </View>
           {clinics.length > 0 ? (
             <FlatList
               horizontal
-              data={clinics}
+              data={clinics.slice(0, 4)}
               renderItem={renderClinicCard}
               keyExtractor={(item) => item._id}
               showsHorizontalScrollIndicator={false}

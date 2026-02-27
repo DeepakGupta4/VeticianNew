@@ -15,6 +15,7 @@ const {
   updateUserPet,
   deleteUserPet,
   registerVeterinarian,
+  updateVeterinarian,
   getUnverifiedVeterinarians,
   getVerifiedVeterinarians,
   verifyVeterinarianField,
@@ -34,7 +35,18 @@ const {
   getPetsByUserId,
   deleteAccount,
   sendOTP,
-  verifyOTP
+  verifyOTP,
+  unverifyVeterinarian,
+  deleteVeterinarian,
+  unverifyClinic,
+  deleteClinic,
+  getVeterinarianById,
+  updateVeterinarianById,
+  getVeterinarianAppointments,
+  updateAppointmentStatus,
+  getPetParentAppointments,
+  getNotifications,
+  markNotificationRead
 } = require('../controllers/authController');
 
 const { auth } = require('../middleware/auth');
@@ -138,17 +150,32 @@ router.delete('/users/:userId/pets/:petId', deleteUserPet);
 ========================= */
 
 router.post('/petparent/appointments/book', auth, createAppointment);
+router.get('/petparent/appointments', auth, getPetParentAppointments);
+router.get('/veterinarian/appointments', auth, getVeterinarianAppointments);
+router.patch('/appointment/:appointmentId/status', auth, updateAppointmentStatus);
+
+/* =========================
+   NOTIFICATIONS
+========================= */
+
+router.get('/notifications', auth, getNotifications);
+router.patch('/notifications/:notificationId/read', auth, markNotificationRead);
 
 /* =========================
    VETERINARIAN
 ========================= */
 
 router.post('/veterinarian-register', registerVeterinarian);
+router.put('/veterinarian-update', updateVeterinarian);
 router.post('/check-veterinarian-verification', checkVeterinarianVerification);
 
 router.post('/admin/verified', getVerifiedVeterinarians);
 router.post('/admin/unverified', getUnverifiedVeterinarians);
 router.patch('/verify/:veterinarianId/:fieldName', verifyVeterinarianField);
+router.patch('/unverify/:veterinarianId', unverifyVeterinarian);
+router.delete('/veterinarian/:veterinarianId', deleteVeterinarian);
+router.get('/veterinarian/details/:veterinarianId', getVeterinarianById);
+router.put('/veterinarian/:veterinarianId', updateVeterinarianById);
 
 /* =========================
    CLINIC
@@ -158,7 +185,9 @@ router.post('/register-clinic', registerClinic);
 router.post('/admin/unverified/clinic', getUnverifiedClinics);
 router.post('/admin/verified/clinic', getVerifiedClinics);
 router.post('/admin/clinic/verify/:clinicId', verifyClinic);
-router.post('/veterinarian/profile-screen', getProfileDetails);
+router.post('/admin/clinic/unverify/:clinicId', unverifyClinic);
+router.delete('/clinic/:clinicId', deleteClinic);
+router.get('/veterinarian/:userId', getProfileDetails);
 
 /* =========================
    PET RESORT
