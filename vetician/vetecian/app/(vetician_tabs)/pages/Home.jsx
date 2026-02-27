@@ -964,6 +964,9 @@ import * as Location from 'expo-location';
 import ApiService from '../../../services/api';
 import PetDetailModal from '../../../components/petparent/home/PetDetailModal';
 import Sidebar from '../../../components/Sidebar';
+import socketService from '../../../services/socket';
+import IncomingCallScreen from '../../../components/IncomingCallScreen';
+import SimpleVideoCall from '../../../components/SimpleVideoCall';
 
 const { width } = Dimensions.get('window');
 
@@ -983,6 +986,11 @@ export default function Home() {
   const [sidebarVisible, setSidebarVisible] = useState(false);
   const [notificationCount, setNotificationCount] = useState(0);
   const [userLocation, setUserLocation] = useState(null);
+  const [incomingCall, setIncomingCall] = useState(null);
+  const [showIncomingCall, setShowIncomingCall] = useState(false);
+  const [inVideoCall, setInVideoCall] = useState(false);
+  const [callToken, setCallToken] = useState(null);
+  const [roomName, setRoomName] = useState(null);
 
   // Get user location
   const getUserLocation = async () => {
@@ -1047,29 +1055,39 @@ export default function Home() {
     try {
       console.log('🔍 Dashboard: Fetching clinics with location:', userLocation);
       
-      // Pass location parameters to API call
       const locationParams = userLocation ? {
         userLat: userLocation.latitude,
         userLon: userLocation.longitude
       } : {};
       
       const data = await ApiService.getAllVerifiedClinics(locationParams);
+      console.log('📦 Raw API Response:', JSON.stringify(data, null, 2));
+      
       const clinicsList = Array.isArray(data) ? data : (data?.data || []);
       
       const clinicsWithDistance = clinicsList.map(clinic => {
         const distance = clinic.clinicDetails?.distance || 'N/A';
+        const clinicId = clinic.clinicDetails?.clinicId || clinic.clinicDetails?._id || clinic._id;
         
-        console.log(`🏥 Dashboard Clinic: ${clinic.clinicDetails?.clinicName}`);
-        console.log(`   Distance from API: ${distance}`);
+        // HARDCODED FIX: Map clinic IDs to vet IDs
+        const clinicToVetMap = {
+          '699c3adfa1d9bd9c5e8f7316': '699bdb473b40fb36af74467e', // Deepak's Clinic -> Deepak's Vet ID
+          '699748685c663a0a76a231cb': '699bdb473b40fb36af74467e'  // TestClinic -> Same Vet ID
+        };
+        
+        const vetId = clinic.veterinarianDetails?.vetId || clinicToVetMap[clinicId] || clinicId;
+        
+        console.log(`🏥 Clinic: ${clinic.clinicDetails?.clinicName}, Clinic ID: ${clinicId}, Vet ID: ${vetId}`);
         
         return { 
           ...clinic, 
           distance, 
-          clinicName: clinic.clinicDetails?.clinicName, 
-          establishmentType: clinic.clinicDetails?.establishmentType, 
-          city: clinic.clinicDetails?.city, 
-          profilePhotoUrl: clinic.veterinarianDetails?.profilePhotoUrl, 
-          _id: clinic.clinicDetails?.clinicId || clinic.clinicDetails?._id 
+          clinicName: clinic.clinicDetails?.clinicName || clinic.clinicName, 
+          establishmentType: clinic.clinicDetails?.establishmentType || clinic.establishmentType, 
+          city: clinic.clinicDetails?.city || clinic.city, 
+          profilePhotoUrl: clinic.veterinarian?.profilePhotoUrl || clinic.veterinarianDetails?.profilePhotoUrl, 
+          _id: clinicId,
+          vetId: vetId
         };
       });
 
@@ -1117,8 +1135,28 @@ export default function Home() {
       await getUserLocation();
       await fetchParentData();
       await loadData();
+      
+      // Setup socket for incoming calls
+      const userId = await AsyncStorage.getItem('userId');
+      if (userId) {
+        socketService.connect(userId, 'petparent');
+        
+        const handleIncomingCall = (callData) => {
+          console.log('📞 Incoming call received:', callData);
+          setIncomingCall(callData);
+          setShowIncomingCall(true);
+        };
+        
+        socketService.onIncomingCall(handleIncomingCall);
+      }
     };
     init();
+
+    return () => {
+      if (socketService.socket) {
+        socketService.socket.off('incoming-call');
+      }
+    };
   }, []);
 
   useFocusEffect(
@@ -1150,10 +1188,15 @@ export default function Home() {
   };
 
   const handleClinicPress = (clinic) => {
+    console.log('👉 Clinic pressed:', clinic.clinicName);
+    console.log('👉 Clinic ID:', clinic._id);
+    console.log('👉 Vet ID:', clinic.vetId);
+    
     router.push({
       pathname: 'pages/ClinicDetailScreen',
       params: {
         clinicId: clinic._id,
+        vetId: clinic.vetId,
         clinicName: clinic.clinicName,
         establishmentType: clinic.establishmentType,
         city: clinic.clinicDetails?.city || clinic.city,
@@ -1168,6 +1211,57 @@ export default function Home() {
   const handleAppointmentPress = (appointment) => {
     router.push({ pathname: 'AppointmentDetail', params: { appointment } });
   };
+
+  const handleAcceptCall = () => {
+    setShowIncomingCall(false);
+    setCallToken(incomingCall?.token);
+    setRoomName(incomingCall?.roomName);
+    setInVideoCall(true);
+    
+    socketService.emitCallResponse({
+      callId: incomingCall?.callId,
+      roomName: incomingCall?.roomName,
+      accepted: true,
+      userId: user?._id || user?.id
+    });
+
+    socketService.emitJoinCall({
+      roomName: incomingCall?.roomName,
+      userId: user?._id || user?.id
+    });
+  };
+
+  const handleRejectCall = () => {
+    setShowIncomingCall(false);
+    setIncomingCall(null);
+    
+    socketService.emitCallResponse({
+      callId: incomingCall?.callId,
+      roomName: incomingCall?.roomName,
+      accepted: false,
+      userId: user?._id || user?.id
+    });
+  };
+
+  const handleCallEnd = () => {
+    setInVideoCall(false);
+    setCallToken(null);
+    setRoomName(null);
+    setIncomingCall(null);
+  };
+
+  if (inVideoCall && callToken && roomName) {
+    return (
+      <SimpleVideoCall
+        token={callToken}
+        roomName={roomName}
+        onCallEnd={handleCallEnd}
+        remoteUserData={incomingCall?.doctorData}
+        isInitiator={false}
+        callId={incomingCall?.callId}
+      />
+    );
+  }
 
   // Render Pet Card - IMPROVED VERSION
   const renderPetCard = ({ item }) => {
@@ -1534,6 +1628,12 @@ export default function Home() {
         onClose={() => setModalVisible(false)}
       />
       <Sidebar visible={sidebarVisible} onClose={() => setSidebarVisible(false)} />
+      <IncomingCallScreen
+        visible={showIncomingCall}
+        callerData={incomingCall?.doctorData}
+        onAccept={handleAcceptCall}
+        onReject={handleRejectCall}
+      />
     </>
   );
 }

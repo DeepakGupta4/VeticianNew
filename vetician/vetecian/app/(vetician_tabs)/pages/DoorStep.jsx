@@ -272,7 +272,13 @@ const BookingModal = ({ visible, onClose, service }) => {
         [
           {
             text: 'OK',
-            onPress: () => onClose(),
+            onPress: () => {
+              onClose();
+              // Refresh bookings list in parent component
+              if (typeof window !== 'undefined' && window.refreshBookings) {
+                window.refreshBookings();
+              }
+            },
           },
         ]
       );
@@ -618,25 +624,34 @@ const BookingModal = ({ visible, onClose, service }) => {
 };
 
 // Live Tracking Modal
-const TrackingModal = ({ visible, onClose }) => {
-  const [currentStatus, setCurrentStatus] = useState('confirmed');
+const TrackingModal = ({ visible, onClose, booking }) => {
+  const [currentStatus, setCurrentStatus] = useState(booking?.status || 'confirmed');
   const [eta, setEta] = useState(25);
 
   const statuses = [
-    { id: 'confirmed', label: 'Booking Confirmed', icon: 'check-circle', color: '#10B981' },
-    { id: 'assigned', label: 'Partner Assigned', icon: 'person', color: '#24A1DE' },
-    { id: 'onway', label: 'On the Way', icon: 'directions-car', color: '#FF9800' },
-    { id: 'arrived', label: 'Partner Arrived', icon: 'location-on', color: '#9C27B0' },
-    { id: 'inprogress', label: 'Service in Progress', icon: 'build', color: '#FF5722' },
+    { id: 'pending', label: 'Booking Confirmed', icon: 'check-circle', color: '#10B981' },
+    { id: 'confirmed', label: 'Partner Assigned', icon: 'person', color: '#24A1DE' },
+    { id: 'in-progress', label: 'Service in Progress', icon: 'build', color: '#FF5722' },
     { id: 'completed', label: 'Service Completed', icon: 'done-all', color: '#4CAF50' },
   ];
 
-  const partner = {
+  const partner = booking ? {
+    name: booking.servicePartnerName || 'Service Partner',
+    photo: 'https://randomuser.me/api/portraits/men/1.jpg',
+    specialization: 'Paravet',
+    rating: 4.8
+  } : {
     name: 'Demo Partner',
     photo: 'https://randomuser.me/api/portraits/men/1.jpg',
     specialization: 'Paravet',
     rating: 4.8
   };
+
+  useEffect(() => {
+    if (booking) {
+      setCurrentStatus(booking.status);
+    }
+  }, [booking]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -754,6 +769,8 @@ const ParavetModule = () => {
   const [selectedService, setSelectedService] = useState(null);
   const [bookingModalVisible, setBookingModalVisible] = useState(false);
   const [trackingModalVisible, setTrackingModalVisible] = useState(false);
+  const [userBookings, setUserBookings] = useState([]);
+  const [selectedBooking, setSelectedBooking] = useState(null);
 
   useEffect(() => {
     const fetchParentData = async () => {
@@ -763,7 +780,28 @@ const ParavetModule = () => {
       }
     };
     fetchParentData();
+    fetchUserBookings();
+    
+    // Setup refresh callback
+    if (typeof window !== 'undefined') {
+      window.refreshBookings = fetchUserBookings;
+    }
+    
+    return () => {
+      if (typeof window !== 'undefined') {
+        delete window.refreshBookings;
+      }
+    };
   }, []);
+
+  const fetchUserBookings = async () => {
+    try {
+      const response = await ApiService.getDoorstepBookings();
+      setUserBookings(response.data || []);
+    } catch (error) {
+      console.error('Error fetching bookings:', error);
+    }
+  };
 
   const handleServiceSelect = (service) => {
     // Check profile completion before opening modal
@@ -992,9 +1030,42 @@ const ParavetModule = () => {
         </View>
 
         {/* Track Demo Button */}
+        {userBookings.length > 0 && (
+          <View style={styles.activeBookingsSection}>
+            <Text style={styles.sectionTitle}>Active Bookings</Text>
+            {userBookings.filter(b => b.status !== 'completed' && b.status !== 'cancelled').map((booking) => (
+              <TouchableOpacity
+                key={booking._id}
+                style={styles.activeBookingCard}
+                onPress={() => {
+                  setSelectedBooking(booking);
+                  setTrackingModalVisible(true);
+                }}
+              >
+                <View style={styles.bookingCardLeft}>
+                  <Text style={styles.bookingServiceType}>{booking.serviceType}</Text>
+                  <Text style={styles.bookingDate}>
+                    {new Date(booking.appointmentDate).toLocaleDateString()} • {booking.timeSlot}
+                  </Text>
+                  <Text style={styles.bookingPartner}>{booking.servicePartnerName}</Text>
+                </View>
+                <View style={styles.bookingCardRight}>
+                  <View style={[styles.statusBadge, { backgroundColor: booking.status === 'confirmed' ? '#10B981' : '#FF9800' }]}>
+                    <Text style={styles.statusText}>{booking.status}</Text>
+                  </View>
+                  <MaterialIcons name="chevron-right" size={24} color="#999" />
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+
         <TouchableOpacity
           style={styles.demoButton}
-          onPress={() => setTrackingModalVisible(true)}
+          onPress={() => {
+            setSelectedBooking(null);
+            setTrackingModalVisible(true);
+          }}
         >
           <MaterialIcons name="location-on" size={20} color="#fff" />
           <Text style={styles.demoButtonText}>View Live Tracking Demo</Text>
@@ -1015,6 +1086,7 @@ const ParavetModule = () => {
       <TrackingModal
         visible={trackingModalVisible}
         onClose={() => setTrackingModalVisible(false)}
+        booking={selectedBooking}
       />
     </SafeAreaView>
   );
@@ -1360,6 +1432,58 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 15,
     fontWeight: '700',
+  },
+
+  // Active Bookings
+  activeBookingsSection: {
+    padding: 16,
+    paddingTop: 24,
+  },
+  activeBookingCard: {
+    flexDirection: 'row',
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+  },
+  bookingCardLeft: {
+    flex: 1,
+  },
+  bookingServiceType: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1a1a1a',
+    marginBottom: 4,
+  },
+  bookingDate: {
+    fontSize: 13,
+    color: '#666',
+    marginBottom: 4,
+  },
+  bookingPartner: {
+    fontSize: 12,
+    color: '#24A1DE',
+    fontWeight: '600',
+  },
+  bookingCardRight: {
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+  },
+  statusBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  statusText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
   },
 
   // Modal Styles

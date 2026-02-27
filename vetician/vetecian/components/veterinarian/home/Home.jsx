@@ -5,7 +5,10 @@ import { HeartPulse, PawPrint, Stethoscope, Syringe, CalendarClock, Menu, Bell }
 import { router } from 'expo-router';
 import { DrawerActions, useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import api from "../../../services/api"; 
+import api from "../../../services/api";
+import socketService from '../../../services/socket';
+import IncomingCallScreen from '../../IncomingCallScreen';
+import SimpleVideoCall from '../../SimpleVideoCall'; 
 
 export default function Home() {
     const { user } = useSelector(state => state.auth);
@@ -17,6 +20,11 @@ export default function Home() {
     const [loading, setLoading] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
     const [notificationCount, setNotificationCount] = useState(0);
+    const [incomingCall, setIncomingCall] = useState(null);
+    const [showIncomingCall, setShowIncomingCall] = useState(false);
+    const [inVideoCall, setInVideoCall] = useState(false);
+    const [callToken, setCallToken] = useState(null);
+    const [roomName, setRoomName] = useState(null);
 
     // Open Drawer Function
     const openDrawer = () => {
@@ -26,27 +34,52 @@ export default function Home() {
     const fetchDashboardData = async () => {
         try {
             if (user?.role !== 'veterinarian') {
+                setDashboardData({
+                    stats: { patients: 0, appointments: 0, surgeries: 0 },
+                    profile: { name: user?.name }
+                });
                 return;
             }
             
-            // Fetch appointments count
             const token = await AsyncStorage.getItem('token');
-            const appointmentsRes = await fetch(
-                `${process.env.EXPO_PUBLIC_API_URL || 'https://vetician-backend-kovk.onrender.com/api'}/auth/veterinarian/appointments`,
-                { headers: { 'Authorization': `Bearer ${token}` } }
-            );
-            const appointmentsData = await appointmentsRes.json();
+            const apiUrl = process.env.EXPO_PUBLIC_API_URL || 'https://vetician-backend-kovk.onrender.com/api';
             
-            setDashboardData({
-                stats: {
-                    patients: 0,
-                    appointments: appointmentsData.success ? appointmentsData.count || appointmentsData.appointments?.length || 0 : 0,
-                    surgeries: 0
-                },
-                profile: { name: user?.name }
-            });
+            try {
+                const appointmentsRes = await fetch(
+                    `${apiUrl}/auth/veterinarian/appointments`,
+                    { headers: { 'Authorization': `Bearer ${token}` } }
+                );
+                
+                if (appointmentsRes.ok) {
+                    const appointmentsData = await appointmentsRes.json();
+                    setDashboardData({
+                        stats: {
+                            patients: 0,
+                            appointments: appointmentsData.success ? appointmentsData.count || appointmentsData.appointments?.length || 0 : 0,
+                            surgeries: 0
+                        },
+                        profile: { name: user?.name }
+                    });
+                } else {
+                    // API endpoint not available, set default values
+                    setDashboardData({
+                        stats: { patients: 0, appointments: 0, surgeries: 0 },
+                        profile: { name: user?.name }
+                    });
+                }
+            } catch (apiError) {
+                // API call failed, set default values
+                setDashboardData({
+                    stats: { patients: 0, appointments: 0, surgeries: 0 },
+                    profile: { name: user?.name }
+                });
+            }
         } catch (error) {
             console.error('Dashboard Fetch Error:', error.message);
+            setDashboardData({
+                stats: { patients: 0, appointments: 0, surgeries: 0 },
+                profile: { name: user?.name }
+            });
         } finally {
             setRefreshing(false);
         }
@@ -59,12 +92,87 @@ export default function Home() {
             duration: 800,
             useNativeDriver: true,
         }).start();
+
+        // Setup socket for incoming calls
+        const setupSocket = async () => {
+            const userId = await AsyncStorage.getItem('userId');
+            if (userId) {
+                socketService.disconnect();
+                socketService.connect(userId, 'veterinarian');
+                socketService.onIncomingCall((callData) => {
+                    setIncomingCall(callData);
+                    setShowIncomingCall(true);
+                });
+            }
+        };
+        setupSocket();
+
+        return () => {
+            socketService.disconnect();
+        };
     }, []);
 
     const onRefresh = () => {
         setRefreshing(true);
         fetchDashboardData();
     };
+
+    const handleAcceptCall = () => {
+        setShowIncomingCall(false);
+        setCallToken(incomingCall?.token);
+        // Use roomName from incomingCall
+        const callRoomName = incomingCall?.roomName;
+        setRoomName(callRoomName);
+        setInVideoCall(true);
+        
+        console.log('📞 Accepting call with roomName:', callRoomName);
+        
+        socketService.emitCallResponse({
+            callId: incomingCall?.callId,
+            roomName: callRoomName,
+            accepted: true,
+            userId: user?._id || user?.id
+        });
+
+        socketService.emitJoinCall({
+            roomName: callRoomName,
+            userId: user?._id || user?.id
+        });
+    };
+
+    const handleRejectCall = () => {
+        setShowIncomingCall(false);
+        setIncomingCall(null);
+        
+        socketService.emitCallResponse({
+            callId: incomingCall?.callId,
+            roomName: incomingCall?.roomName,
+            accepted: false,
+            userId: user?._id || user?.id
+        });
+    };
+
+    const handleCallEnd = () => {
+        setInVideoCall(false);
+        setCallToken(null);
+        setRoomName(null);
+        setIncomingCall(null);
+    };
+
+    if (inVideoCall && callToken && roomName) {
+        console.log('🎥 Doctor joining video call with roomName:', roomName);
+        return (
+            <SimpleVideoCall
+                token={callToken}
+                roomName={roomName}
+                onCallEnd={handleCallEnd}
+                remoteUserData={incomingCall?.callerData}
+                isInitiator={false}
+                callId={incomingCall?.callId}
+                socket={socketService.socket}
+            />
+        );
+    }
 
     const stats = [
         { 
@@ -169,6 +277,13 @@ export default function Home() {
                     </TouchableOpacity>
                 </View>
             </View>
+
+            <IncomingCallScreen
+                visible={showIncomingCall}
+                callerData={incomingCall?.callerData}
+                onAccept={handleAcceptCall}
+                onReject={handleRejectCall}
+            />
         </Animated.ScrollView>
     );
 }
