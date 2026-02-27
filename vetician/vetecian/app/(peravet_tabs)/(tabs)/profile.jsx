@@ -1,398 +1,430 @@
-
-
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Dimensions, StatusBar, SafeAreaView } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, ActivityIndicator, RefreshControl } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
 import { useRouter } from 'expo-router';
 import { signOutUser } from '../../../store/slices/authSlice';
-import { 
-  User, Mail, Calendar, MapPin, Phone, Edit3, LogOut, Settings, 
-  Shield, TrendingUp, CheckCircle, AlertCircle, ChevronRight, Award
-} from 'lucide-react-native';
-import { useParavetOnboarding } from '../../../contexts/ParavetOnboardingContext';
+import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
-const { width } = Dimensions.get('window');
+import api from '../../../services/api';
 
 export default function Profile() {
   const { user } = useSelector(state => state.auth);
-  const { formData } = useParavetOnboarding();
   const dispatch = useDispatch();
   const router = useRouter();
-
-  const [sections, setSections] = useState({
-    personalInfo: { completed: false, step: 1 },
-    verification: { completed: false, step: 2 },
-    experienceSkills: { completed: false, step: 3 },
-    bankDetails: { completed: false, step: 4 },
-  });
+  
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [profileData, setProfileData] = useState(null);
+  const [editingSection, setEditingSection] = useState(null);
+  const [editData, setEditData] = useState({});
 
   useEffect(() => {
-    const checkCompletion = () => {
-      const personalInfoComplete = !!(formData.fullName && formData.mobileNumber && formData.email && formData.city);
-      const verificationComplete = !!(formData.governmentIdUrl && formData.certificationProofUrl);
-      const experienceComplete = !!(formData.yearsOfExperience && formData.areasOfExpertise?.length > 0);
-      const bankDetailsComplete = !!(formData.accountHolderName && formData.paymentValue && formData.pan);
-
-      setSections({
-        personalInfo: { completed: personalInfoComplete, step: 1 },
-        verification: { completed: verificationComplete, step: 2 },
-        experienceSkills: { completed: experienceComplete, step: 3 },
-        bankDetails: { completed: bankDetailsComplete, step: 4 },
+    fetchProfile();
+    
+    // Listen for verification approval
+    const setupNotifications = async () => {
+      const userId = await AsyncStorage.getItem('userId');
+      const SocketService = (await import('../../../services/socket')).default;
+      SocketService.connect(userId, 'paravet');
+      
+      SocketService.onVerificationApproved((data) => {
+        Alert.alert('🎉 Congratulations!', data.message);
+        fetchProfile(); // Refresh profile to show approved status
       });
     };
-    checkCompletion();
-  }, [formData]);
+    
+    setupNotifications();
+  }, []);
 
-  const handleSignOut = async () => {
+  const fetchProfile = async () => {
     try {
-      await AsyncStorage.removeItem('token');
-      await AsyncStorage.removeItem('userId');
-      await dispatch(signOutUser());
-      router.replace('/(auth)/signin');
+      const userId = await AsyncStorage.getItem('userId');
+      const response = await api.get(`/paravet/profile/${userId}`);
+      console.log('📊 Profile data:', JSON.stringify(response.data, null, 2));
+      setProfileData(response.data);
     } catch (error) {
-      console.error('Sign out error:', error);
+      console.error('Error fetching profile:', error);
+      Alert.alert('Error', 'Failed to load profile data');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
     }
   };
 
-  const completedSections = Object.values(sections).filter(s => s.completed).length;
-  const totalSections = Object.keys(sections).length;
-  const overallStrength = Math.round((completedSections / totalSections) * 100);
-
-  const sectionConfig = {
-    personalInfo: { title: 'Basic Info', icon: User, color: '#6366F1', step: 1 },
-    verification: { title: 'Verification', icon: Shield, color: '#8B5CF6', step: 2 },
-    experienceSkills: { title: 'Experience', icon: TrendingUp, color: '#10B981', step: 3 },
-    bankDetails: { title: 'Bank & Payouts', icon: Award, color: '#F59E0B', step: 4 },
+  const handleEdit = (section) => {
+    setEditingSection(section);
+    setEditData(profileData);
   };
 
-  const handleEditSection = (sectionKey) => {
-    const stepMap = { personalInfo: 3, verification: 4, experienceSkills: 5, bankDetails: 6 };
-    router.push(`/(peravet_tabs)/onboarding/step${stepMap[sectionKey]}_${sectionKey === 'personalInfo' ? 'personal_info' : sectionKey === 'verification' ? 'documents' : sectionKey === 'experienceSkills' ? 'experience' : 'payment'}`);
+  const handleSave = async (section) => {
+    try {
+      const userId = await AsyncStorage.getItem('userId');
+      
+      if (section === 'personal') {
+        await api.patch(`/paravet/personal-info/${userId}`, {
+          fullName: editData.personalInfo?.fullName?.value,
+          mobileNumber: editData.personalInfo?.mobileNumber?.value,
+          email: editData.personalInfo?.email?.value,
+          city: editData.personalInfo?.city?.value,
+          serviceArea: editData.personalInfo?.serviceArea?.value,
+        });
+      } else if (section === 'experience') {
+        await api.patch(`/paravet/experience-skills/${userId}`, {
+          yearsOfExperience: editData.experience?.yearsOfExperience?.value,
+          areasOfExpertise: editData.experience?.areasOfExpertise?.value || [],
+          languagesSpoken: editData.experience?.languagesSpoken?.value || [],
+        });
+      } else if (section === 'payment') {
+        await api.patch(`/paravet/payment-info/${userId}`, {
+          paymentMethod: editData.paymentInfo?.paymentMethod,
+          accountHolderName: editData.paymentInfo?.accountHolderName?.value,
+          pan: editData.paymentInfo?.pan?.value,
+        });
+      }
+      
+      setEditingSection(null);
+      fetchProfile();
+      Alert.alert('Success', 'Profile updated successfully');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to update profile');
+    }
+  };
+
+  const handleSignOut = async () => {
+    Alert.alert('Sign Out', 'Are you sure?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Sign Out',
+        onPress: async () => {
+          await AsyncStorage.multiRemove(['token', 'userId']);
+          dispatch(signOutUser());
+          router.replace('/(auth)/signin');
+        },
+      },
+    ]);
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#5856D6" />
+        <Text style={{ marginTop: 10, color: '#666' }}>Loading profile...</Text>
+      </View>
+    );
+  }
+
+  if (!profileData) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text style={{ color: '#666', fontSize: 16 }}>No profile data found</Text>
+        <TouchableOpacity 
+          style={{ marginTop: 20, backgroundColor: '#5856D6', padding: 12, borderRadius: 8 }}
+          onPress={fetchProfile}
+        >
+          <Text style={{ color: '#FFF', fontWeight: 'bold' }}>Retry</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  const Section = ({ title, icon, data, section, children }) => (
+    <View style={styles.section}>
+      <View style={styles.sectionHeader}>
+        <View style={styles.sectionTitleRow}>
+          <Ionicons name={icon} size={24} color="#9B59B6" />
+          <Text style={styles.sectionTitle}>{title}</Text>
+        </View>
+        {editingSection === section ? (
+          <View style={styles.editActions}>
+            <TouchableOpacity onPress={() => setEditingSection(null)} style={styles.cancelBtn}>
+              <Text style={styles.cancelText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => handleSave(section)} style={styles.saveBtn}>
+              <Text style={styles.saveText}>Save</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <TouchableOpacity onPress={() => handleEdit(section)}>
+            <Ionicons name="create-outline" size={20} color="#9B59B6" />
+          </TouchableOpacity>
+        )}
+      </View>
+      {children}
+    </View>
+  );
+
+  const Field = ({ label, value, field, section, editable = true }) => {
+    const isEditing = editingSection === section;
+    const displayValue = value || 'Not set';
+    
+    return (
+      <View style={styles.field}>
+        <Text style={styles.fieldLabel}>{label}</Text>
+        {isEditing && editable ? (
+          <TextInput
+            style={styles.fieldInput}
+            value={editData[section]?.[field]?.value || editData[section]?.[field] || ''}
+            onChangeText={(text) => {
+              setEditData(prev => ({
+                ...prev,
+                [section]: {
+                  ...prev[section],
+                  [field]: { ...prev[section]?.[field], value: text }
+                }
+              }));
+            }}
+            placeholder={`Enter ${label.toLowerCase()}`}
+          />
+        ) : (
+          <Text style={styles.fieldValue}>{displayValue}</Text>
+        )}
+      </View>
+    );
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" />
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
-        
-        {/* --- HEADER --- */}
-        <View style={styles.headerSection}>
-          <Text style={styles.pageTitle}>Profile</Text>
-        </View>
+    <ScrollView 
+      style={styles.container}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchProfile(); }} />}
+    >
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Profile</Text>
+        <TouchableOpacity onPress={handleSignOut}>
+          <Ionicons name="log-out-outline" size={24} color="#FFF" />
+        </TouchableOpacity>
+      </View>
 
-        {/* --- USER CARD --- */}
-        <View style={styles.userCardContainer}>
-          <TouchableOpacity style={styles.userCard} onPress={() => router.push('/(peravet_tabs)/(tabs)/ProfileDetails')}>
-            <View style={styles.userCardContent}>
-              <View style={styles.userAvatarSmall}>
-                <User size={24} color="#6366F1" strokeWidth={2} />
-              </View>
-              <View style={styles.userDetails}>
-                <Text style={styles.userNameCard}>{user?.name || 'Veterinary Partner'}</Text>
-                <Text style={styles.userPhoneCard}>{user?.phone || 'Not Set'}</Text>
-              </View>
-            </View>
-            <ChevronRight size={20} color="#CBD5E1" />
-          </TouchableOpacity>
-        </View>
-
-        {/* --- PROFILE STRENGTH CARD --- */}
-        <View style={styles.strengthCardContainer}>
-          <View style={styles.strengthCard}>
-            <View style={styles.strengthHeader}>
-              <Text style={styles.strengthTitle}>Profile Strength</Text>
-              <Text style={styles.strengthPercent}>{overallStrength}%</Text>
-            </View>
-            <View style={styles.progressBar}>
-              <View style={[styles.progressBarFill, { width: `${overallStrength}%` }]} />
-            </View>
-            <Text style={styles.strengthSubtext}>Complete your profile to start receiving bookings</Text>
+      {/* Profile Status */}
+      <View style={styles.statusCard}>
+        <View style={styles.statusRow}>
+          <Ionicons 
+            name={profileData?.applicationStatus?.approvalStatus === 'approved' ? 'checkmark-circle' : 'time-outline'} 
+            size={32} 
+            color={profileData?.applicationStatus?.approvalStatus === 'approved' ? '#4CAF50' : '#FF9800'} 
+          />
+          <View style={styles.statusText}>
+            <Text style={styles.statusTitle}>
+              {profileData?.applicationStatus?.approvalStatus === 'approved' ? 'Verified' : 'Pending Verification'}
+            </Text>
+            <Text style={styles.statusSubtitle}>
+              {profileData?.applicationStatus?.approvalStatus === 'approved' 
+                ? 'Your profile is active' 
+                : 'Complete your profile for verification'}
+            </Text>
           </View>
         </View>
+        {!profileData?.personalInfo?.fullName?.value && (
+          <TouchableOpacity 
+            style={{ marginTop: 15, backgroundColor: '#5856D6', padding: 12, borderRadius: 8 }}
+            onPress={() => router.push('/(peravet_tabs)/onboarding/step1_welcome')}
+          >
+            <Text style={{ color: '#FFF', textAlign: 'center', fontWeight: 'bold' }}>Complete Onboarding</Text>
+          </TouchableOpacity>
+        )}
+      </View>
 
-        {/* --- ONBOARDING SECTIONS AS MENU ITEMS --- */}
-        <View style={styles.sectionsContainer}>
-          {Object.entries(sectionConfig).map(([key, config]) => {
-            const isCompleted = sections[key].completed;
-            const Icon = config.icon;
-            return (
-              <TouchableOpacity 
-                key={key}
-                style={styles.menuItem}
-                onPress={() => handleEditSection(key)}
-                activeOpacity={0.6}
-              >
-                <View style={[styles.menuItemIconBg, { backgroundColor: `${config.color}15` }]}>
-                  <Icon size={22} color={config.color} strokeWidth={2} />
-                </View>
-                <View style={styles.menuItemContent}>
-                  <Text style={styles.menuItemTitle}>{config.title}</Text>
-                  <Text style={[styles.menuItemStatus, { color: isCompleted ? '#10B981' : '#94A3B8' }]}>
-                    {isCompleted ? 'Completed' : 'Action Required'}
-                  </Text>
-                </View>
-                {isCompleted ? (
-                  <CheckCircle size={20} color="#10B981" strokeWidth={2} />
-                ) : (
-                  <ChevronRight size={20} color="#CBD5E1" />
-                )}
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+      {/* Personal Information */}
+      <Section title="Personal Information" icon="person" section="personalInfo">
+        <Field 
+          label="Full Name" 
+          value={profileData?.personalInfo?.fullName?.value || user?.name} 
+          field="fullName" 
+          section="personalInfo" 
+        />
+        <Field 
+          label="Email" 
+          value={profileData?.personalInfo?.email?.value || user?.email} 
+          field="email" 
+          section="personalInfo" 
+        />
+        <Field 
+          label="Mobile Number" 
+          value={profileData?.personalInfo?.mobileNumber?.value || user?.phone} 
+          field="mobileNumber" 
+          section="personalInfo" 
+        />
+        <Field 
+          label="City" 
+          value={profileData?.personalInfo?.city?.value} 
+          field="city" 
+          section="personalInfo" 
+        />
+        <Field 
+          label="Service Area" 
+          value={profileData?.personalInfo?.serviceArea?.value} 
+          field="serviceArea" 
+          section="personalInfo" 
+        />
+      </Section>
 
-        {/* --- QUICK INFO --- */}
-        <View style={styles.quickInfoContainer}>
-          <View style={styles.infoRow}>
-            <View style={styles.infoBox}>
-              <MapPin size={16} color="#6366F1" />
-              <Text style={styles.infoLabel}>Location</Text>
-              <Text style={styles.infoValue}>{user?.location || 'Not Set'}</Text>
-            </View>
-            <View style={styles.infoBox}>
-              <Phone size={16} color="#6366F1" />
-              <Text style={styles.infoLabel}>Phone</Text>
-              <Text style={styles.infoValue}>{user?.phone || 'Not Set'}</Text>
-            </View>
+      {/* Documents */}
+      <Section title="Documents" icon="document-text" section="documents">
+        <View style={styles.documentRow}>
+          <Text style={styles.fieldLabel}>Government ID</Text>
+          <View style={styles.documentStatus}>
+            <Ionicons 
+              name={profileData?.documents?.governmentId?.type ? 'checkmark-circle' : 'close-circle'} 
+              size={20} 
+              color={profileData?.documents?.governmentId?.type ? '#4CAF50' : '#F44336'} 
+            />
+            <Text style={styles.documentStatusText}>
+              {profileData?.documents?.governmentId?.type ? 'Uploaded' : 'Not uploaded'}
+            </Text>
           </View>
         </View>
-
-        {/* --- SIGN OUT BUTTON --- */}
-        <View style={styles.signOutContainer}>
-          <TouchableOpacity style={styles.signOutBtn} onPress={handleSignOut}>
-            <View style={styles.signOutIconBg}>
-              <LogOut size={20} color="#EF4444" strokeWidth={2} />
-            </View>
-            <Text style={styles.signOutBtnText}>Sign Out of Account</Text>
-            <ChevronRight size={20} color="#CBD5E1" />
-          </TouchableOpacity>
+        <View style={styles.documentRow}>
+          <Text style={styles.fieldLabel}>Certification Proof</Text>
+          <View style={styles.documentStatus}>
+            <Ionicons 
+              name={profileData?.documents?.certificationProof?.type ? 'checkmark-circle' : 'close-circle'} 
+              size={20} 
+              color={profileData?.documents?.certificationProof?.type ? '#4CAF50' : '#F44336'} 
+            />
+            <Text style={styles.documentStatusText}>
+              {profileData?.documents?.certificationProof?.type ? 'Uploaded' : 'Not uploaded'}
+            </Text>
+          </View>
         </View>
+        <View style={styles.documentRow}>
+          <Text style={styles.fieldLabel}>Profile Photo</Text>
+          <View style={styles.documentStatus}>
+            <Ionicons 
+              name={profileData?.documents?.profilePhoto?.type ? 'checkmark-circle' : 'close-circle'} 
+              size={20} 
+              color={profileData?.documents?.profilePhoto?.type ? '#4CAF50' : '#F44336'} 
+            />
+            <Text style={styles.documentStatusText}>
+              {profileData?.documents?.profilePhoto?.type ? 'Uploaded' : 'Not uploaded'}
+            </Text>
+          </View>
+        </View>
+      </Section>
 
-      </ScrollView>
-    </SafeAreaView>
+      {/* Experience & Skills */}
+      <Section title="Experience & Skills" icon="briefcase" section="experience">
+        <Field 
+          label="Years of Experience" 
+          value={profileData?.experience?.yearsOfExperience?.value} 
+          field="yearsOfExperience" 
+          section="experience" 
+        />
+        <View style={styles.field}>
+          <Text style={styles.fieldLabel}>Areas of Expertise</Text>
+          <Text style={styles.fieldValue}>
+            {profileData?.experience?.areasOfExpertise?.value?.join(', ') || 'Not set'}
+          </Text>
+        </View>
+        <View style={styles.field}>
+          <Text style={styles.fieldLabel}>Languages Spoken</Text>
+          <Text style={styles.fieldValue}>
+            {profileData?.experience?.languagesSpoken?.value?.join(', ') || 'Not set'}
+          </Text>
+        </View>
+      </Section>
+
+      {/* Payment Information */}
+      <Section title="Payment Information" icon="card" section="payment">
+        <Field 
+          label="Account Holder Name" 
+          value={profileData?.paymentInfo?.accountHolderName?.value} 
+          field="accountHolderName" 
+          section="paymentInfo" 
+        />
+        <Field 
+          label="PAN Number" 
+          value={profileData?.paymentInfo?.pan?.value} 
+          field="pan" 
+          section="paymentInfo" 
+        />
+        <View style={styles.field}>
+          <Text style={styles.fieldLabel}>Payment Method</Text>
+          <Text style={styles.fieldValue}>
+            {profileData?.paymentInfo?.paymentMethod?.type || 'Not set'}
+          </Text>
+        </View>
+      </Section>
+
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
-    backgroundColor: '#F8FAFC' 
-  },
-
-  /* Header */
-  headerSection: {
-    paddingHorizontal: 24,
-    paddingTop: 12,
-    paddingBottom: 16,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
-  },
-  pageTitle: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: '#0F172A',
-    letterSpacing: -0.5,
-  },
-
-  /* User Card */
-  userCardContainer: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 8,
-  },
-  userCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    marginHorizontal: 0,
-  },
-  userCardContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  userAvatarSmall: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: '#EEF2FF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  userDetails: {
-    flex: 1,
-  },
-  userNameCard: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#0F172A',
-    marginBottom: 2,
-  },
-  userPhoneCard: {
-    fontSize: 13,
-    color: '#64748B',
-    fontWeight: '500',
-  },
-
-  /* Strength Card */
-  strengthCardContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  strengthCard: {
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  strengthHeader: {
+  container: { flex: 1, backgroundColor: '#F7F7FC' },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F7F7FC' },
+  header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    backgroundColor: '#5856D6',
+    padding: 20,
+    paddingTop: 50,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
   },
-  strengthTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#0F172A',
+  headerTitle: { fontSize: 28, fontWeight: '800', color: '#FFF' },
+  statusCard: {
+    backgroundColor: '#FFF',
+    margin: 16,
+    padding: 20,
+    borderRadius: 16,
+    elevation: 3,
+    shadowColor: '#5856D6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
   },
-  strengthPercent: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#6366F1',
+  statusRow: { flexDirection: 'row', alignItems: 'center' },
+  statusText: { marginLeft: 15, flex: 1 },
+  statusTitle: { fontSize: 18, fontWeight: '700', color: '#1a1a1a' },
+  statusSubtitle: { fontSize: 14, color: '#666', marginTop: 4 },
+  section: {
+    backgroundColor: '#FFF',
+    marginHorizontal: 16,
+    marginBottom: 16,
+    padding: 18,
+    borderRadius: 16,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
   },
-  progressBar: {
-    height: 6,
-    backgroundColor: '#F1F5F9',
-    borderRadius: 3,
-    overflow: 'hidden',
-    marginBottom: 10,
-  },
-  progressBarFill: {
-    height: '100%',
-    backgroundColor: '#6366F1',
-    borderRadius: 3,
-  },
-  strengthSubtext: {
-    fontSize: 12,
-    color: '#64748B',
-    lineHeight: 16,
-    fontWeight: '500',
-  },
-
-  /* Sections Menu */
-  sectionsContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  menuItem: {
+  sectionHeader: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderRadius: 14,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
+    marginBottom: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 2,
+    borderBottomColor: '#F0F0F5',
   },
-  menuItemIconBg: {
-    width: 44,
-    height: 44,
+  sectionTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  sectionTitle: { fontSize: 18, fontWeight: '700', color: '#1a1a1a' },
+  editActions: { flexDirection: 'row', gap: 10 },
+  cancelBtn: { paddingHorizontal: 12, paddingVertical: 6 },
+  cancelText: { color: '#666', fontSize: 14, fontWeight: '600' },
+  saveBtn: { backgroundColor: '#5856D6', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 },
+  saveText: { color: '#FFF', fontSize: 14, fontWeight: '700' },
+  field: { marginBottom: 14 },
+  fieldLabel: { fontSize: 13, color: '#666', marginBottom: 6, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
+  fieldValue: { fontSize: 16, color: '#1a1a1a', fontWeight: '500' },
+  fieldInput: {
+    fontSize: 16,
+    color: '#1a1a1a',
+    borderWidth: 2,
+    borderColor: '#5856D6',
     borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  menuItemContent: {
-    flex: 1,
-  },
-  menuItemTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#0F172A',
-    marginBottom: 2,
-  },
-  menuItemStatus: {
-    fontSize: 12,
+    padding: 12,
+    backgroundColor: '#F7F7FC',
     fontWeight: '500',
   },
-
-  /* Quick Info */
-  quickInfoContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  infoRow: {
+  documentRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: 8,
-  },
-  infoBox: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
     alignItems: 'center',
-    gap: 6,
-  },
-  infoLabel: {
-    fontSize: 11,
-    color: '#64748B',
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  infoValue: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#0F172A',
-    textAlign: 'center',
-  },
-
-  /* Sign Out */
-  signOutContainer: {
-    paddingHorizontal: 16,
+    marginBottom: 14,
     paddingVertical: 8,
   },
-  signOutBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#FEE2E2',
-    marginTop: 8,
-  },
-  signOutIconBg: {
-    width: 44,
-    height: 44,
-    borderRadius: 10,
-    backgroundColor: '#FEF2F2',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  signOutBtnText: {
-    flex: 1,
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#EF4444',
-  },
+  documentStatus: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  documentStatusText: { fontSize: 14, color: '#666', fontWeight: '600' },
 });

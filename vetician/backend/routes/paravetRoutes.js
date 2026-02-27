@@ -40,7 +40,80 @@ router.patch(
   '/upload-documents/:userId',
   uploadDocuments
 );
+
+// Update documents endpoint
+router.patch('/documents/:userId', auth, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const Paravet = require('../models/Paravet');
+    
+    // Transform the incoming data to match the schema
+    const updates = {};
+    Object.keys(req.body).forEach(key => {
+      updates[key] = req.body[key];
+    });
+    
+    const paravet = await Paravet.findOneAndUpdate(
+      { userId },
+      { $set: updates },
+      { new: true, runValidators: false }
+    );
+    
+    if (!paravet) {
+      return res.status(404).json({ success: false, message: 'Paravet not found' });
+    }
+    
+    res.json({ success: true, data: paravet });
+  } catch (error) {
+    console.error('Document update error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 router.post('/submit/:userId', auth, submitApplication);
+
+// Send submission email
+router.post('/send-submission-email', async (req, res) => {
+  try {
+    const { email, name } = req.body;
+    
+    // Email sending logic (using nodemailer or your email service)
+    const nodemailer = require('nodemailer');
+    
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
+      }
+    });
+    
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: 'Onboarding Submitted Successfully - Vetician',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #5856D6;">Welcome to Vetician!</h2>
+          <p>Dear ${name},</p>
+          <p>Your onboarding has been <strong>submitted successfully</strong>.</p>
+          <p>Our admin team will review your application and you will receive a notification once your profile is verified.</p>
+          <p>Thank you for joining Vetician!</p>
+          <br>
+          <p>Best regards,<br>Vetician Team</p>
+        </div>
+      `
+    };
+    
+    await transporter.sendMail(mailOptions);
+    console.log('✅ Email sent to:', email);
+    
+    res.json({ success: true, message: 'Email sent successfully' });
+  } catch (error) {
+    console.error('❌ Email error:', error);
+    res.status(500).json({ success: false, message: 'Email failed but submission successful' });
+  }
+});
 
 // Complete onboarding submission by document ID (MUST BE BEFORE /onboarding/user/:userId)
 router.post('/onboarding/:id', async (req, res) => {
@@ -115,6 +188,43 @@ router.post('/onboarding/user/:userId', auth, async (req, res) => {
 router.get('/admin/unverified', getUnverifiedParavets);
 router.patch('/admin/verify/:id', verifyParavet);
 router.patch('/admin/verify-field/:id/:field', verifyParavetField);
+
+// Admin verify paravet endpoint
+router.patch('/admin/verify/:id', async (req, res) => {
+  try {
+    const Paravet = require('../models/Paravet');
+    const { approvalStatus } = req.body;
+    
+    const paravet = await Paravet.findByIdAndUpdate(
+      req.params.id,
+      { 
+        'applicationStatus.approvalStatus': approvalStatus || 'approved',
+        'applicationStatus.approvedAt': new Date()
+      },
+      { new: true }
+    );
+    
+    if (!paravet) {
+      return res.status(404).json({ success: false, message: 'Paravet not found' });
+    }
+    
+    // Send real-time notification via socket
+    const io = req.app.get('io');
+    if (io && paravet.userId) {
+      io.to(`paravet-${paravet.userId}`).emit('verification-approved', {
+        message: 'Congratulations, you are registered successfully.',
+        status: 'approved',
+        timestamp: new Date()
+      });
+      console.log(`🔔 Sent approval notification to paravet-${paravet.userId}`);
+    }
+    
+    res.json({ success: true, data: paravet });
+  } catch (error) {
+    console.error('Verify error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
 
 // Get verified paravets for doorstep service
 router.get('/verified', async (req, res) => {

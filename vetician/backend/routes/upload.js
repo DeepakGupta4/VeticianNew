@@ -44,6 +44,49 @@ router.post('/image', auth, upload.single('file'), async (req, res) => {
   }
 });
 
+// Generic upload endpoint for paravet documents
+router.post('/', upload.single('file'), async (req, res) => {
+  try {
+    console.log('📤 Upload request received');
+    console.log('File:', req.file ? 'Present' : 'Missing');
+    console.log('Body:', req.body);
+    
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'No file uploaded' });
+    }
+
+    const documentType = req.body.documentType || 'document';
+    const folder = `paravet_documents/${documentType}`;
+
+    console.log('☁️ Uploading to Cloudinary...');
+    const result = await new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        { folder, resource_type: 'auto' },
+        (error, result) => {
+          if (error) {
+            console.error('❌ Cloudinary error:', error);
+            reject(error);
+          } else {
+            console.log('✅ Upload successful:', result.secure_url);
+            resolve(result);
+          }
+        }
+      );
+      uploadStream.end(req.file.buffer);
+    });
+
+    res.json({ 
+      success: true, 
+      url: result.secure_url,
+      fileUrl: result.secure_url,
+      public_id: result.public_id 
+    });
+  } catch (error) {
+    console.error('❌ Upload error:', error);
+    res.status(500).json({ success: false, message: 'Upload failed', error: error.message });
+  }
+});
+
 // Upload document endpoint
 router.post('/document', auth, upload.single('file'), async (req, res) => {
   try {

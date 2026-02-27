@@ -417,6 +417,7 @@ import {
 import { useRouter } from 'expo-router';
 import { Upload, FileText, Check } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useParavetOnboarding } from '../../../contexts/ParavetOnboardingContext';
 
 export default function Step4Documents() {
@@ -467,18 +468,53 @@ export default function Step4Documents() {
   setIsUploading(docId);
 
   try {
-    // Simulate upload delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    const formDataToSend = new FormData();
     
-    // Use local URI instead of uploading to server
-    const localUrl = asset.uri;
+    // Get token for authentication
+    const token = await AsyncStorage.getItem('token');
+    
+    // Use localhost for testing, production URL for deployed
+    const uploadUrl = __DEV__ 
+      ? 'http://localhost:3000/api/upload'
+      : 'https://vetician-backend-kovk.onrender.com/api/upload';
+    
+    if (Platform.OS === 'web') {
+      // For web, fetch the blob from the URI
+      const response = await fetch(asset.uri);
+      const blob = await response.blob();
+      formDataToSend.append('file', blob, `${docId}_${Date.now()}.jpg`);
+    } else {
+      // For mobile
+      formDataToSend.append('file', {
+        uri: asset.uri,
+        type: asset.type || 'image/jpeg',
+        name: `${docId}_${Date.now()}.jpg`,
+      });
+    }
+    
+    formDataToSend.append('documentType', docId);
+    
+    const uploadResponse = await fetch(uploadUrl, {
+      method: 'POST',
+      body: formDataToSend,
+      headers: {
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+    });
 
-    // Store in context
-    updateFormData(`${docId}Url`, localUrl);
+    if (!uploadResponse.ok) {
+      const errorData = await uploadResponse.json().catch(() => ({}));
+      throw new Error(errorData.message || 'Upload failed');
+    }
+    
+    const data = await uploadResponse.json();
+    const uploadedUrl = data.url || data.fileUrl || asset.uri;
+
+    updateFormData(`${docId}Url`, uploadedUrl);
     Alert.alert('Success', 'Document uploaded successfully!');
   } catch (err) {
     console.error('Upload error:', err);
-    Alert.alert('Error', 'Upload failed. Please try again.');
+    Alert.alert('Error', err.message || 'Upload failed. Please try again.');
   } finally {
     setIsUploading(null);
   }

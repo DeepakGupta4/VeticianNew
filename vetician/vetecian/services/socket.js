@@ -30,6 +30,9 @@ class SocketService {
       } else if (userType === 'petparent') {
         console.log(`📤 Emitting join-petparent with ID: ${userId}`);
         this.socket.emit('join-petparent', userId);
+      } else if (userType === 'paravet') {
+        console.log(`📤 Emitting join-paravet with ID: ${userId}`);
+        this.socket.emit('join-paravet', userId);
       }
     });
 
@@ -62,6 +65,30 @@ class SocketService {
     console.log('👂 Listening for appointment-status-update events');
     this.socket.on('appointment-status-update', (data) => {
       console.log('🔔 Received appointment-status-update event:', data);
+      callback(data);
+    });
+  }
+
+  onNewBooking(callback) {
+    if (!this.socket) {
+      console.log('⚠️ Socket not initialized for onNewBooking');
+      return;
+    }
+    console.log('👂 Listening for new-booking events');
+    this.socket.on('new-booking', (data) => {
+      console.log('🔔 Received new-booking event:', data);
+      callback(data);
+    });
+  }
+
+  onVerificationApproved(callback) {
+    if (!this.socket) {
+      console.log('⚠️ Socket not initialized for onVerificationApproved');
+      return;
+    }
+    console.log('👂 Listening for verification-approved events');
+    this.socket.on('verification-approved', (data) => {
+      console.log('🔔 Received verification-approved event:', data);
       callback(data);
     });
   }

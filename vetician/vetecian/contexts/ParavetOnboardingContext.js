@@ -227,66 +227,58 @@ export const ParavetOnboardingProvider = ({ children }) => {
         console.log('✅ Training saved:', trainingResult);
       }
       
-      // Upload documents LAST to avoid being overwritten
+      // Upload documents with actual URLs
+      const docUpdates = {};
       if (formData.governmentIdUrl) {
-        await api.patch(`/paravet/upload-documents/${userId}`, {
-          documentType: 'governmentId',
-          url: 'uploaded'
-        });
+        docUpdates['documents.governmentId'] = { idType: 'uploaded', url: formData.governmentIdUrl, verified: false };
       }
-      
-      // Upload certification proof TWICE to ensure it persists
       if (formData.certificationProofUrl) {
-        await api.patch(`/paravet/upload-documents/${userId}`, {
-          documentType: 'certificationProof',
-          url: 'uploaded'
-        });
-        // Wait a bit and upload again
-        await new Promise(resolve => setTimeout(resolve, 500));
-        await api.patch(`/paravet/upload-documents/${userId}`, {
-          documentType: 'certificationProof',
-          url: 'uploaded'
-        });
+        docUpdates['documents.certificationProof'] = { url: formData.certificationProofUrl, certificationType: 'uploaded', verified: false };
       }
-      
       if (formData.profilePhotoUrl) {
-        await api.patch(`/paravet/upload-documents/${userId}`, {
-          documentType: 'profilePhoto',
-          url: 'uploaded'
-        });
+        docUpdates['documents.profilePhoto'] = { url: formData.profilePhotoUrl, verified: false };
       }
       
-      console.log('✅ All documents uploaded');
+      if (Object.keys(docUpdates).length > 0) {
+        await api.patch(`/paravet/documents/${userId}`, docUpdates);
+        console.log('✅ Documents uploaded:', Object.keys(docUpdates));
+      }
       
-      // Wait for database to sync
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      console.log('✅ Documents uploaded');
       
       // Verify final state
       const currentState = await api.get(`/paravet/profile/${userId}`);
       const paravet = currentState.data;
       console.log('🔍 Final validation:');
-      console.log('  governmentId.type:', paravet.documents?.governmentId?.type);
-      console.log('  certificationProof.type:', paravet.documents?.certificationProof?.type);
-      
-      // If STILL missing after all attempts, upload one more time directly before submit
-      if (!paravet.documents?.certificationProof?.type && formData.certificationProofUrl) {
-        console.log('⚠️ Certification still missing - final attempt before submit');
-        // Use direct MongoDB update via a custom endpoint
-        try {
-          await api.post(`/paravet/onboarding/${userId}`, {
-            'documents.certificationProof': { type: 'uploaded', url: 'uploaded', verified: false }
-          });
-        } catch (e) {
-          console.log('Direct update failed, proceeding anyway');
-        }
-      }
+      console.log('  governmentId:', paravet.documents?.governmentId?.idType || 'missing');
+      console.log('  certificationProof:', paravet.documents?.certificationProof?.url ? 'uploaded' : 'missing');
+      console.log('  profilePhoto:', paravet.documents?.profilePhoto?.url ? 'uploaded' : 'missing');
       
       // Final submission
       const submitResult = await api.post(`/paravet/submit/${userId}`);
       console.log('✅ Final submission:', submitResult);
       
+      // Mark as submitted and pending approval
+      await api.patch(`/paravet/personal-info/${userId}`, {
+        'applicationStatus.submitted': true,
+        'applicationStatus.submittedAt': new Date(),
+        'applicationStatus.approvalStatus': 'pending'
+      });
+      
+      // Send email notification
+      try {
+        await api.post('/paravet/send-submission-email', {
+          userId,
+          email: formData.email,
+          name: formData.fullName
+        });
+        console.log('✅ Submission email sent');
+      } catch (emailError) {
+        console.log('⚠️ Email send failed:', emailError.message);
+      }
+      
       setIsLoading(false);
-      return { success: true, message: 'Onboarding data saved successfully' };
+      return { success: true, message: 'Application submitted! Check your email for confirmation.' };
     } catch (error) {
       setIsLoading(false);
       console.error('❌ Error submitting onboarding:', error);
