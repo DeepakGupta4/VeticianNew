@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import { io } from 'socket.io-client';
-import SimpleVideoCall from '../../../components/SimpleVideoCall';
+import TwilioNativeVideoCall from '../../../components/TwilioNativeVideoCall';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const SOCKET_URL = process.env.EXPO_PUBLIC_API_URL?.replace('/api', '') || 'https://vetician-backend-kovk.onrender.com';
@@ -24,32 +24,13 @@ export default function VideoCallScreen() {
 
     const setupCall = async () => {
       const userId = await AsyncStorage.getItem('userId');
+      console.log('🔵 Setting up call for userId:', userId);
       
       // Create dedicated socket for this call
       socketRef.current = io(SOCKET_URL, {
         transports: ['websocket', 'polling'],
         reconnection: false,
         forceNew: true
-      });
-
-      // Setup listeners immediately
-      socketRef.current.on('call-accepted', (data) => {
-        console.log('✅ Call accepted - using roomName from response:', data.roomName);
-        if (mounted) {
-          if (ringIntervalRef.current) clearInterval(ringIntervalRef.current);
-          // Update roomName to match what doctor is using
-          setActualRoomName(data.roomName);
-          setCallState('connected');
-          setShowVideoCall(true);
-        }
-      });
-
-      socketRef.current.on('call-rejected', (data) => {
-        if (mounted) {
-          if (ringIntervalRef.current) clearInterval(ringIntervalRef.current);
-          setCallState('ended');
-          setTimeout(() => router.back(), 2000);
-        }
       });
 
       // Wait for connection then join
@@ -60,6 +41,27 @@ export default function VideoCallScreen() {
           roomName: params.roomName,
           userId: 'pet-parent-' + Date.now()
         });
+        console.log('✅ Joined rooms:', userId, params.roomName);
+      });
+
+      // Setup listeners AFTER connection
+      socketRef.current.on('call-accepted', (data) => {
+        console.log('✅ Call accepted event received:', data);
+        if (mounted) {
+          if (ringIntervalRef.current) clearInterval(ringIntervalRef.current);
+          setActualRoomName(data.roomName);
+          setCallState('connected');
+          setShowVideoCall(true);
+        }
+      });
+
+      socketRef.current.on('call-rejected', (data) => {
+        console.log('❌ Call rejected event received:', data);
+        if (mounted) {
+          if (ringIntervalRef.current) clearInterval(ringIntervalRef.current);
+          setCallState('ended');
+          setTimeout(() => router.back(), 2000);
+        }
       });
 
       listenersSetup.current = true;
@@ -112,17 +114,10 @@ export default function VideoCallScreen() {
 
   if (showVideoCall) {
     return (
-      <SimpleVideoCall
-        token={params.token}
+      <TwilioNativeVideoCall
         roomName={actualRoomName}
-        onCallEnd={handleEndCall}
-        remoteUserData={{
-          name: params.receiverName,
-          img: params.receiverImg
-        }}
-        isInitiator={params.isInitiator === 'true'}
-        callId={params.callId}
-        socket={socketRef.current}
+        userName={params.receiverName || 'Pet Parent'}
+        onEndCall={handleEndCall}
       />
     );
   }

@@ -8,7 +8,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from "../../../services/api";
 import socketService from '../../../services/socket';
 import IncomingCallScreen from '../../IncomingCallScreen';
-import SimpleVideoCall from '../../SimpleVideoCall'; 
+import TwilioNativeVideoCall from '../../TwilioNativeVideoCall'; 
 
 export default function Home() {
     const { user } = useSelector(state => state.auth);
@@ -118,15 +118,10 @@ export default function Home() {
     };
 
     const handleAcceptCall = () => {
-        setShowIncomingCall(false);
-        setCallToken(incomingCall?.token);
-        // Use roomName from incomingCall
         const callRoomName = incomingCall?.roomName;
-        setRoomName(callRoomName);
-        setInVideoCall(true);
-        
         console.log('📞 Accepting call with roomName:', callRoomName);
         
+        // First emit call response
         socketService.emitCallResponse({
             callId: incomingCall?.callId,
             roomName: callRoomName,
@@ -134,10 +129,19 @@ export default function Home() {
             userId: user?._id || user?.id
         });
 
+        // Then join the call room
         socketService.emitJoinCall({
             roomName: callRoomName,
-            userId: user?._id || user?.id
+            userId: 'doctor-' + (user?._id || user?.id)
         });
+        
+        // Small delay to ensure socket events are processed
+        setTimeout(() => {
+            setShowIncomingCall(false);
+            setCallToken(incomingCall?.token);
+            setRoomName(callRoomName);
+            setInVideoCall(true);
+        }, 100);
     };
 
     const handleRejectCall = () => {
@@ -159,17 +163,13 @@ export default function Home() {
         setIncomingCall(null);
     };
 
-    if (inVideoCall && callToken && roomName) {
+    if (inVideoCall && roomName) {
         console.log('🎥 Doctor joining video call with roomName:', roomName);
         return (
-            <SimpleVideoCall
-                token={callToken}
+            <TwilioNativeVideoCall
                 roomName={roomName}
-                onCallEnd={handleCallEnd}
-                remoteUserData={incomingCall?.callerData}
-                isInitiator={false}
-                callId={incomingCall?.callId}
-                socket={socketService.socket}
+                userName={user?.name || 'Doctor'}
+                onEndCall={handleCallEnd}
             />
         );
     }

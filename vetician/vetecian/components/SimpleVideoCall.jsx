@@ -75,8 +75,27 @@ export default function SimpleVideoCall({ token, roomName, onCallEnd, remoteUser
     const configuration = {
       iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' }
-      ]
+        { urls: 'stun:stun1.l.google.com:19302' },
+        { urls: 'stun:stun2.l.google.com:19302' },
+        { urls: 'stun:stun3.l.google.com:19302' },
+        { urls: 'stun:stun4.l.google.com:19302' },
+        {
+          urls: 'turn:openrelay.metered.ca:80',
+          username: 'openrelayproject',
+          credential: 'openrelayproject'
+        },
+        {
+          urls: 'turn:openrelay.metered.ca:443',
+          username: 'openrelayproject',
+          credential: 'openrelayproject'
+        },
+        {
+          urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+          username: 'openrelayproject',
+          credential: 'openrelayproject'
+        }
+      ],
+      iceCandidatePoolSize: 10
     };
 
     peerConnectionRef.current = new RTCPeerConnection(configuration);
@@ -88,10 +107,23 @@ export default function SimpleVideoCall({ token, roomName, onCallEnd, remoteUser
 
     // Handle remote stream
     peerConnectionRef.current.ontrack = (event) => {
-      console.log('📹 Remote track received');
+      console.log('📹 Remote track received:', event.streams.length);
       if (remoteVideoRef.current && event.streams[0]) {
         remoteVideoRef.current.srcObject = event.streams[0];
+        console.log('✅ Remote video set successfully');
         setConnectionState('connected');
+      }
+    };
+
+    // Additional connection monitoring
+    peerConnectionRef.current.oniceconnectionstatechange = () => {
+      console.log('ICE connection state:', peerConnectionRef.current.iceConnectionState);
+      if (peerConnectionRef.current.iceConnectionState === 'connected' || 
+          peerConnectionRef.current.iceConnectionState === 'completed') {
+        setConnectionState('connected');
+      } else if (peerConnectionRef.current.iceConnectionState === 'failed') {
+        console.error('❌ ICE connection failed');
+        setConnectionState('failed');
       }
     };
 
@@ -114,7 +146,10 @@ export default function SimpleVideoCall({ token, roomName, onCallEnd, remoteUser
 
     // Create and send offer if initiator
     if (isInitiator) {
-      const offer = await peerConnectionRef.current.createOffer();
+      const offer = await peerConnectionRef.current.createOffer({
+        offerToReceiveAudio: true,
+        offerToReceiveVideo: true
+      });
       await peerConnectionRef.current.setLocalDescription(offer);
       const socketToUse = socket || socketService.socket;
       console.log('📤 Sending offer to room:', roomName);
@@ -135,8 +170,10 @@ export default function SimpleVideoCall({ token, roomName, onCallEnd, remoteUser
     if (!isInitiator) {
       socketToUse.on('offer', async (data) => {
         if (data.roomName !== roomName) return;
+        console.log('📥 Received offer from room:', roomName);
         if (peerConnectionRef.current) {
           await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(data.offer));
+          console.log('✅ Remote description set');
           // Process queued ICE candidates
           while (iceCandidatesQueue.current.length > 0) {
             const candidate = iceCandidatesQueue.current.shift();
@@ -144,6 +181,7 @@ export default function SimpleVideoCall({ token, roomName, onCallEnd, remoteUser
           }
           const answer = await peerConnectionRef.current.createAnswer();
           await peerConnectionRef.current.setLocalDescription(answer);
+          console.log('📤 Sending answer to room:', roomName);
           socketToUse.emit('answer', { roomName, answer });
         }
       });
@@ -153,8 +191,10 @@ export default function SimpleVideoCall({ token, roomName, onCallEnd, remoteUser
     if (isInitiator) {
       socketToUse.on('answer', async (data) => {
         if (data.roomName !== roomName) return;
+        console.log('📥 Received answer from room:', roomName);
         if (peerConnectionRef.current) {
           await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(data.answer));
+          console.log('✅ Remote description set from answer');
           // Process queued ICE candidates
           while (iceCandidatesQueue.current.length > 0) {
             const candidate = iceCandidatesQueue.current.shift();

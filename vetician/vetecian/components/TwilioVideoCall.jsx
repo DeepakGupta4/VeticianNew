@@ -1,8 +1,24 @@
 import React from 'react';
-import { View, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, ActivityIndicator, Platform, Text, TouchableOpacity } from 'react-native';
 import { WebView } from 'react-native-webview';
 
 const TwilioVideoCall = ({ roomName, userName, token, onEndCall }) => {
+  const [error, setError] = React.useState(null);
+  const [loading, setLoading] = React.useState(true);
+
+  // WebView doesn't support getUserMedia on Android
+  return (
+    <View style={styles.container}>
+      <View style={styles.errorContainer}>
+        <Text style={styles.errorText}>Video Call Feature Coming Soon</Text>
+        <Text style={styles.errorSubtext}>We're working on implementing native video calling. This feature will be available in the next update.</Text>
+        <TouchableOpacity style={styles.backButton} onPress={onEndCall}>
+          <Text style={styles.backButtonText}>Go Back</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
   const htmlContent = `
 <!DOCTYPE html>
 <html>
@@ -160,19 +176,38 @@ const TwilioVideoCall = ({ roomName, userName, token, onEndCall }) => {
   const handleMessage = (event) => {
     try {
       const data = JSON.parse(event.nativeEvent.data);
+      console.log('WebView message:', data);
+      
       if (data.type === 'end-call') {
         onEndCall();
       } else if (data.type === 'error') {
         console.error('Video call error:', data.message);
-        onEndCall();
+        setError(data.message);
+        setLoading(false);
+      } else if (data.type === 'connected') {
+        setLoading(false);
       }
     } catch (error) {
       console.error('Error parsing message:', error);
+      setError('Failed to parse WebView message');
     }
+  };
+
+  const handleError = (syntheticEvent) => {
+    const { nativeEvent } = syntheticEvent;
+    console.error('WebView error:', nativeEvent);
+    setError('WebView failed to load: ' + nativeEvent.description);
+    setLoading(false);
   };
 
   return (
     <View style={styles.container}>
+      {loading && (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color="#4CAF50" />
+          <Text style={styles.loadingText}>Connecting to video call...</Text>
+        </View>
+      )}
       <WebView
         source={{ html: htmlContent }}
         style={styles.webview}
@@ -180,13 +215,27 @@ const TwilioVideoCall = ({ roomName, userName, token, onEndCall }) => {
         domStorageEnabled={true}
         mediaPlaybackRequiresUserAction={false}
         allowsInlineMediaPlayback={true}
+        allowFileAccess={true}
+        allowUniversalAccessFromFileURLs={true}
+        mixedContentMode="always"
         onMessage={handleMessage}
-        renderLoading={() => (
-          <View style={styles.loading}>
-            <ActivityIndicator size="large" color="#4CAF50" />
-          </View>
-        )}
-        startInLoadingState={true}
+        onError={handleError}
+        onHttpError={(syntheticEvent) => {
+          const { nativeEvent } = syntheticEvent;
+          console.error('HTTP error:', nativeEvent.statusCode);
+          setError(`HTTP Error: ${nativeEvent.statusCode}`);
+        }}
+        onPermissionRequest={(request) => {
+          console.log('Permission requested:', request.nativeEvent.resources);
+          if (request.nativeEvent.resources.includes('camera') || 
+              request.nativeEvent.resources.includes('microphone')) {
+            request.nativeEvent.grant(request.nativeEvent.resources);
+          }
+        }}
+        onLoadEnd={() => {
+          console.log('WebView loaded');
+          setTimeout(() => setLoading(false), 2000);
+        }}
       />
     </View>
   );
@@ -209,6 +258,52 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#000',
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    zIndex: 999,
+  },
+  loadingText: {
+    color: '#fff',
+    fontSize: 16,
+    marginTop: 20,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  errorText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  errorSubtext: {
+    color: '#999',
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 30,
+  },
+  backButton: {
+    backgroundColor: '#FF3B30',
+    paddingHorizontal: 30,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  backButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 

@@ -50,7 +50,9 @@
         "RECORD_AUDIO",
         "MODIFY_AUDIO_SETTINGS",
         "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE"
+        "WRITE_EXTERNAL_STORAGE",
+        "INTERNET",
+        "ACCESS_NETWORK_STATE"
       ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/icon.png",
