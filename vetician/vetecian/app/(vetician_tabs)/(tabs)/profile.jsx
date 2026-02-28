@@ -212,17 +212,23 @@ export default function Profile() {
       })).unwrap();
 
       if (result.success) {
-        Alert.alert(
-          'Success',
-          'Profile updated successfully!',
-          [{ text: 'OK', onPress: () => {
-            setEditModalVisible(false);
-            const userId = AsyncStorage.getItem('userId');
-            if (userId) {
-              dispatch(getParent(userId));
-            }
-          }}]
-        );
+        setEditModalVisible(false);
+        const userId = await AsyncStorage.getItem('userId');
+        if (userId) {
+          const refreshResult = await dispatch(getParent(userId)).unwrap();
+          setParentData(refreshResult.parent[0]);
+          if (refreshResult.parent[0]) {
+            setFormData({
+              name: refreshResult.parent[0].name || '',
+              email: refreshResult.parent[0].email || user?.email || '',
+              phone: refreshResult.parent[0].phone || '',
+              address: refreshResult.parent[0].address || '',
+              gender: refreshResult.parent[0].gender || 'male',
+              image: refreshResult.parent[0].image ? { uri: refreshResult.parent[0].image } : null
+            });
+          }
+        }
+        Alert.alert('Success', 'Profile updated successfully!');
       }
     } catch (error) {
       console.error('Submission error:', error);
@@ -332,7 +338,7 @@ export default function Profile() {
           <Text style={styles.headerTitle}>Profile</Text>
         </View>
 
-        {/* Profile Card - Click to open Profile Details */}
+        {/* Profile Card */}
         <View style={styles.profileCard}>
           <TouchableOpacity 
             style={styles.profileHeader}
@@ -358,6 +364,15 @@ export default function Profile() {
             <View style={styles.chevronButton}>
               <Text style={styles.chevronIcon}>›</Text>
             </View>
+          </TouchableOpacity>
+
+          {/* Edit Profile Button */}
+          <TouchableOpacity 
+            style={styles.editProfileButton}
+            onPress={() => setEditModalVisible(true)}
+          >
+            <Edit size={20} color="#3B82F6" />
+            <Text style={styles.editProfileText}>Edit Profile</Text>
           </TouchableOpacity>
 
           {/* Rating Section */}
@@ -623,8 +638,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
   },
   profileLeft: {
     flexDirection: 'row',
@@ -668,6 +681,20 @@ const styles = StyleSheet.create({
     fontSize: 24,
     color: '#94A3B8',
     fontWeight: '300',
+  },
+  editProfileButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+    gap: 8,
+  },
+  editProfileText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#3B82F6',
   },
   ratingSection: {
     flexDirection: 'row',

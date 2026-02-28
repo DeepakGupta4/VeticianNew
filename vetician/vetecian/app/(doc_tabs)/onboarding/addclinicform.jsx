@@ -162,10 +162,10 @@ const ClinicCreationFlow = ({ navigation }) => {
     );
   }
 
-  // Step 3: Clinic Address
+  // Step 3: Clinic Contact & Fees
   if (step === 3) {
     return (
-      <ClinicAddressStep
+      <ClinicContactStep
         formData={formData}
         setFormData={setFormData}
         onContinue={() => setStep(4)}
@@ -174,33 +174,21 @@ const ClinicCreationFlow = ({ navigation }) => {
     );
   }
 
-  // Step 4: Clinic Contact & Fees
+  // Step 4: Session Timings
   if (step === 4) {
-    return (
-      <ClinicContactStep
-        formData={formData}
-        setFormData={setFormData}
-        onContinue={() => setStep(5)}
-        onBack={() => setStep(3)}
-      />
-    );
-  }
-
-  // Step 5: Session Timings
-  if (step === 5) {
     return (
       <SessionTimingsStep
         formData={formData}
         setFormData={setFormData}
         handleSetTiming={handleSetTiming}
         handleSetAllWeekdays={handleSetAllWeekdays}
-        onContinue={() => setStep(6)}
-        onBack={() => setStep(4)}
+        onContinue={() => setStep(5)}
+        onBack={() => setStep(3)}
       />
     );
   }
 
-  // Step 6: Final Details & Document Upload
+  // Step 5: Final Details & Document Upload
   return (
     <DocumentUploadStep
       formData={formData}
@@ -219,12 +207,21 @@ const ClinicCreationFlow = ({ navigation }) => {
           }
         } catch (error) {
           console.log("Error =>", error);
-          const errorMessage = error.error?.message || error.message || 'Registration failed';
+          const errorMessage = error.error?.message?.message || error.error?.message || error.message || 'Registration failed';
+          console.log("Detailed error message:", errorMessage);
 
-          Alert.alert('Error', errorMessage);
+          // Show user-friendly error message
+          let displayMessage = errorMessage;
+          if (errorMessage.includes('already exists in this city')) {
+            displayMessage = 'A clinic with this name already exists in this city. Please use a different name or contact support if this is your clinic.';
+          } else if (errorMessage.includes('already registered a clinic')) {
+            displayMessage = 'You have already registered a clinic. You can only register one clinic per account.';
+          }
+
+          Alert.alert('Error', displayMessage);
         }
       }}
-      onBack={() => setStep(5)}
+      onBack={() => setStep(4)}
     />
   );
 };
@@ -285,7 +282,7 @@ const ClinicDetailsStep = ({ formData, setFormData, onContinue, onBack }) => {
         <Text style={styles.title}>ADD CLINIC</Text>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Clinic Name</Text>
+          <Text style={styles.label}>Clinic Name*</Text>
           <TextInput
             style={styles.input}
             value={formData.clinicName}
@@ -293,53 +290,6 @@ const ClinicDetailsStep = ({ formData, setFormData, onContinue, onBack }) => {
             placeholder="Enter clinic name"
           />
         </View>
-
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>City</Text>
-          <TextInput
-            style={styles.input}
-            value={formData.city}
-            onChangeText={(text) => setFormData({ ...formData, city: text })}
-            placeholder="Enter city"
-          />
-        </View>
-
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Locality</Text>
-          <TextInput
-            style={styles.input}
-            value={formData.locality}
-            onChangeText={(text) => setFormData({ ...formData, locality: text })}
-            placeholder="Enter locality"
-          />
-        </View>
-      </ScrollView>
-
-      <View style={styles.footer}>
-        <TouchableOpacity style={styles.backButton} onPress={onBack}>
-          <Text style={styles.backText}>BACK</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[
-            styles.continueButton,
-            (!formData.clinicName || !formData.city || !formData.locality) && styles.disabledButton
-          ]}
-          onPress={onContinue}
-          disabled={!formData.clinicName || !formData.city || !formData.locality}
-        >
-          <Text style={styles.continueText}>CONTINUE</Text>
-        </TouchableOpacity>
-      </View>
-    </SafeAreaView>
-  );
-};
-
-// Step 3 Component: Clinic Address
-const ClinicAddressStep = ({ formData, setFormData, onContinue, onBack }) => {
-  return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.title}>CLINIC ADDRESS</Text>
 
         <View style={styles.inputGroup}>
           <Text style={styles.label}>City*</Text>
@@ -352,7 +302,7 @@ const ClinicAddressStep = ({ formData, setFormData, onContinue, onBack }) => {
         </View>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Locality</Text>
+          <Text style={styles.label}>Locality*</Text>
           <TextInput
             style={styles.input}
             value={formData.locality}
@@ -362,7 +312,7 @@ const ClinicAddressStep = ({ formData, setFormData, onContinue, onBack }) => {
         </View>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Street Address</Text>
+          <Text style={styles.label}>Street Address*</Text>
           <TextInput
             style={styles.input}
             value={formData.streetAddress}
@@ -379,10 +329,10 @@ const ClinicAddressStep = ({ formData, setFormData, onContinue, onBack }) => {
         <TouchableOpacity
           style={[
             styles.continueButton,
-            !formData.city && styles.disabledButton
+            (!formData.clinicName || !formData.city || !formData.locality || !formData.streetAddress) && styles.disabledButton
           ]}
           onPress={onContinue}
-          disabled={!formData.city}
+          disabled={!formData.clinicName || !formData.city || !formData.locality || !formData.streetAddress}
         >
           <Text style={styles.continueText}>CONTINUE</Text>
         </TouchableOpacity>
@@ -699,11 +649,26 @@ const DocumentUploadStep = ({ formData, setFormData, onSubmit, onBack }) => {
       });
       
       const updatedFormData = {
-        ...formData,
+        establishmentType: formData.establishmentType,
+        clinicName: formData.clinicName,
+        city: formData.city,
+        locality: formData.locality || '',
+        streetAddress: formData.streetAddress || '',
+        clinicNumber: formData.clinicNumber || '',
+        fees: formData.fees || '500',
         timings: filteredTimings,
-        ownerProof: cloudinaryResponse.secure_url
+        ownerProof: cloudinaryResponse.secure_url,
+        verified: false,
+        // Add these required fields that might be missing
+        phoneNumber: formData.clinicNumber || '',
+        address: `${formData.streetAddress || ''}, ${formData.locality || ''}, ${formData.city}`.replace(/^,\s*/, ''),
+        rating: 0,
+        totalReviews: 0,
+        amenities: []
       };
 
+      console.log('📋 Submitting clinic data:', updatedFormData);
+      
       setFormData(updatedFormData);
       onSubmit(updatedFormData);
     } catch (error) {
@@ -736,38 +701,56 @@ const DocumentUploadStep = ({ formData, setFormData, onSubmit, onBack }) => {
         </View>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Upload Owner Proof*</Text>
+          <Text style={styles.label}>Upload Documents*</Text>
           <Text style={styles.helperText}>
-            Acceptable documents: Clinic Registration Proof, Waste Disposal Proof, or Tax receipt
+            Please upload at least one of the following documents:
           </Text>
 
-          <TouchableOpacity
-            style={[
-              styles.uploadButton,
-              uploadError && styles.uploadError
-            ]}
-            onPress={handleDocumentUpload}
-            disabled={isUploading}
-          >
-            {ownerProofFile ? (
-              <View style={styles.fileInfoContainer}>
-                <MaterialIcons name="description" size={24} color="#3B82F6" />
-                <View style={styles.fileDetails}>
-                  <Text style={styles.fileName} numberOfLines={1}>
-                    {ownerProofFile.name}
-                  </Text>
-                  <Text style={styles.fileSize}>
-                    {Math.round(ownerProofFile.size / 1024)} KB
-                  </Text>
+          {/* Owner Proof */}
+          <View style={styles.documentSection}>
+            <Text style={styles.documentLabel}>Owner Proof (Required)</Text>
+            <Text style={styles.documentSubtext}>Clinic Registration, Waste Disposal Proof, or Tax Receipt</Text>
+            <TouchableOpacity
+              style={[
+                styles.uploadButton,
+                uploadError && styles.uploadError
+              ]}
+              onPress={handleDocumentUpload}
+              disabled={isUploading}
+            >
+              {ownerProofFile ? (
+                <View style={styles.fileInfoContainer}>
+                  <MaterialIcons name="description" size={24} color="#3B82F6" />
+                  <View style={styles.fileDetails}>
+                    <Text style={styles.fileName} numberOfLines={1}>
+                      {ownerProofFile.name}
+                    </Text>
+                    <Text style={styles.fileSize}>
+                      {Math.round(ownerProofFile.size / 1024)} KB
+                    </Text>
+                  </View>
                 </View>
-              </View>
-            ) : (
-              <>
-                <MaterialIcons name="cloud-upload" size={24} color="#3B82F6" />
-                <Text style={styles.uploadButtonText}>Select PDF File</Text>
-              </>
-            )}
-          </TouchableOpacity>
+              ) : (
+                <>
+                  <MaterialIcons name="cloud-upload" size={24} color="#3B82F6" />
+                  <Text style={styles.uploadButtonText}>Select PDF File</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+
+          {/* Additional Documents */}
+          <View style={styles.documentSection}>
+            <Text style={styles.documentLabel}>Additional Documents (Optional)</Text>
+            <Text style={styles.documentSubtext}>License, Insurance, or Other Certificates</Text>
+            <TouchableOpacity
+              style={styles.uploadButton}
+              onPress={() => Alert.alert('Info', 'Additional documents can be uploaded later from profile settings.')}
+            >
+              <MaterialIcons name="add" size={24} color="#666" />
+              <Text style={[styles.uploadButtonText, {color: '#666'}]}>Add More Documents</Text>
+            </TouchableOpacity>
+          </View>
 
           {uploadError && (
             <Text style={styles.errorText}>{uploadError}</Text>
@@ -973,6 +956,26 @@ const styles = StyleSheet.create({
     marginTop: 6,
     fontSize: 13,
     fontWeight: '500',
+  },
+  documentSection: {
+    marginBottom: 20,
+    padding: 12,
+    backgroundColor: '#F8F9FA',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+  },
+  documentLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#2C3E50',
+    marginBottom: 4,
+  },
+  documentSubtext: {
+    fontSize: 12,
+    color: '#7F8C8D',
+    marginBottom: 10,
+    lineHeight: 16,
   },
   footer: {
     flexDirection: 'row',

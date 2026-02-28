@@ -15,6 +15,7 @@ import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import CommonHeader from '../../../components/CommonHeader';
 import socketService from '../../../services/socket';
+import ApiService from '../../../services/api';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://vetician-backend-kovk.onrender.com/api';
 
@@ -71,13 +72,36 @@ export default function MyBookings() {
   const fetchBookings = async () => {
     try {
       const token = await AsyncStorage.getItem('token');
-      const response = await fetch(`${API_URL}/auth/petparent/appointments`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const data = await response.json();
-      if (data.success) {
-        setBookings(data.appointments || []);
-      }
+      
+      // Fetch both video call appointments and doorstep bookings
+      const [appointmentsRes, doorstepData] = await Promise.all([
+        fetch(`${API_URL}/auth/petparent/appointments`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }).then(res => res.json()),
+        ApiService.getDoorstepBookings()
+      ]);
+      
+      // Combine both types of bookings
+      const allBookings = [
+        ...(appointmentsRes.appointments || []),
+        ...(doorstepData.data || []).map(booking => ({
+          _id: booking._id,
+          bookingType: booking.serviceType,
+          service: booking.serviceType,
+          date: booking.appointmentDate,
+          status: booking.status,
+          clinicName: 'Home Service',
+          doctorName: booking.servicePartnerName,
+          petName: booking.petIds?.[0]?.name || 'Pet',
+          isEmergency: booking.isEmergency,
+          totalAmount: booking.totalAmount
+        }))
+      ];
+      
+      // Sort by date (newest first)
+      allBookings.sort((a, b) => new Date(b.date) - new Date(a.date));
+      
+      setBookings(allBookings);
     } catch (error) {
       console.error('Error fetching bookings:', error);
     } finally {
@@ -127,6 +151,18 @@ export default function MyBookings() {
     );
   };
 
+  const getServiceIcon = (serviceType) => {
+    const type = serviceType?.toLowerCase() || '';
+    if (type.includes('video') || type.includes('consultation')) return 'videocam';
+    if (type.includes('vet') || type.includes('home') || type.includes('doorstep')) return 'home';
+    if (type.includes('groom')) return 'cut';
+    if (type.includes('train')) return 'school';
+    if (type.includes('watch')) return 'eye';
+    if (type.includes('hostel')) return 'bed';
+    if (type.includes('school')) return 'color-palette';
+    return 'medical';
+  };
+
   const getStatusColor = (status) => {
     switch (status) {
       case 'confirmed':
@@ -148,7 +184,6 @@ export default function MyBookings() {
     <TouchableOpacity 
       style={styles.bookingCard}
       onPress={() => {
-        // Navigate to booking details page
         router.push({
           pathname: '/(vetician_tabs)/pages/BookingDetails',
           params: { appointmentId: item._id }
@@ -157,10 +192,13 @@ export default function MyBookings() {
       activeOpacity={0.7}
     >
       <View style={styles.cardHeader}>
+        <View style={styles.serviceIconWrapper}>
+          <Ionicons name={getServiceIcon(item.bookingType || item.service)} size={24} color="#4CAF50" />
+        </View>
         <View style={styles.serviceInfo}>
           <Text style={styles.serviceTitle}>{item.bookingType || item.service}</Text>
           <Text style={styles.serviceDate}>
-            {new Date(item.date).toLocaleDateString()} • {new Date(item.date).toLocaleTimeString()}
+            {new Date(item.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} • {new Date(item.date).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
           </Text>
         </View>
         <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) }]}>
@@ -183,10 +221,20 @@ export default function MyBookings() {
           <MaterialIcons name="pets" size={16} color="#666" />
           <Text style={styles.infoText}>{item.petName}</Text>
         </View>
+
+        {item.isEmergency && (
+          <View style={styles.emergencyBadge}>
+            <MaterialIcons name="emergency" size={14} color="#FF4757" />
+            <Text style={styles.emergencyText}>Emergency</Text>
+          </View>
+        )}
       </View>
 
-      {item.status === 'pending' && (
-        <View style={styles.cardFooter}>
+      <View style={styles.cardFooter}>
+        {item.totalAmount && (
+          <Text style={styles.totalAmount}>₹{item.totalAmount}</Text>
+        )}
+        {item.status === 'pending' && (
           <TouchableOpacity 
             style={styles.cancelButton}
             onPress={(e) => {
@@ -194,10 +242,10 @@ export default function MyBookings() {
               handleCancelBooking(item._id);
             }}
           >
-            <Text style={styles.cancelButtonText}>Cancel Booking</Text>
+            <Text style={styles.cancelButtonText}>Cancel</Text>
           </TouchableOpacity>
-        </View>
-      )}
+        )}
+      </View>
     </TouchableOpacity>
   );
 
@@ -269,9 +317,17 @@ const styles = StyleSheet.create({
   },
   cardHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     marginBottom: 12,
+    gap: 12,
+  },
+  serviceIconWrapper: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#E8F5E9',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   serviceInfo: {
     flex: 1,
@@ -341,13 +397,13 @@ const styles = StyleSheet.create({
   },
   cancelButton: {
     backgroundColor: '#F44336',
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     paddingVertical: 8,
     borderRadius: 8,
   },
   cancelButtonText: {
     color: '#fff',
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
   },
   emptyState: {

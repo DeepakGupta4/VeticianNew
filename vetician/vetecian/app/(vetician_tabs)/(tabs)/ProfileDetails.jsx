@@ -115,13 +115,13 @@ export default function ProfileDetails() {
         }
       }
 
-      // Strip country code and any non-digit characters from phone number
-      const cleanPhone = newFormData.phone.replace(/\D/g, '');
+      // Keep phone number as is - don't strip country code
+      const phoneNumber = newFormData.phone;
 
       const result = await dispatch(updateParent({
         name: newFormData.name.trim(),
         email: newFormData.email.trim(),
-        phone: cleanPhone,
+        phone: phoneNumber,
         gender: newFormData.gender.toLowerCase(),
         dateOfBirth: dateOfBirthISO,
         emergencyContact: newFormData.emergencyContact,
@@ -172,13 +172,13 @@ export default function ProfileDetails() {
         year: 'numeric' 
       });
 
-      // Strip country code and any non-digit characters from phone number
-      const cleanPhone = formData.phone.replace(/\D/g, '');
+      // Keep phone number as is - don't strip country code
+      const phoneNumber = formData.phone;
 
       const result = await dispatch(updateParent({
         name: formData.name,
         email: formData.email,
-        phone: cleanPhone,
+        phone: phoneNumber,
         gender: formData.gender.toLowerCase(),
         dateOfBirth: date.toISOString(),
         emergencyContact: formData.emergencyContact,
@@ -210,13 +210,13 @@ export default function ProfileDetails() {
         }
       }
       
-      // Strip country code and any non-digit characters from phone number
-      const cleanPhone = formData.phone.replace(/\D/g, '');
+      // Keep phone number as is - don't strip country code
+      const phoneNumber = formData.phone;
       
       const result = await dispatch(updateParent({
         name: formData.name,
         email: formData.email,
-        phone: cleanPhone,
+        phone: phoneNumber,
         gender: gender.toLowerCase(),
         dateOfBirth: dateOfBirthISO,
         emergencyContact: formData.emergencyContact || '',

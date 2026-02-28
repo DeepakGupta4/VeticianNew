@@ -8,7 +8,10 @@ export default function Layout() {
 
   useEffect(() => {
     if (user && user.role !== 'veterinarian') {
-      router.replace('/(auth)/signin');
+      // Use setTimeout to ensure navigation happens after mount
+      setTimeout(() => {
+        router.replace('/(auth)/signin');
+      }, 0);
     }
   }, [user]);
 

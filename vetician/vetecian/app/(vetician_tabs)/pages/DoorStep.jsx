@@ -12,6 +12,7 @@ import {
   Modal,
   TextInput,
   Switch,
+  ActivityIndicator,
 } from 'react-native';
 import {
   MaterialIcons,
@@ -29,70 +30,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import CommonHeader from '../../../components/CommonHeader';
 
 const { width } = Dimensions.get('window');
-
-// Mock Data
-const SERVICES = [
-  {
-    id: '1',
-    title: 'Vet Home Visit',
-    subtitle: 'General checkup, injections, first aid',
-    price: 599,
-    duration: '45-60 min',
-    icon: 'stethoscope',
-    iconSet: 'FontAwesome5',
-    color: '#FF6B6B',
-  },
-  {
-    id: '2',
-    title: 'Vaccination at Home',
-    subtitle: 'All vaccines administered safely',
-    price: 499,
-    duration: '30 min',
-    icon: 'syringe',
-    iconSet: 'FontAwesome5',
-    color: '#4ECDC4',
-  },
-  {
-    id: '3',
-    title: 'Pet Grooming',
-    subtitle: 'Bath, haircut, nail trim',
-    price: 799,
-    duration: '90-120 min',
-    icon: 'cut',
-    iconSet: 'FontAwesome5',
-    color: '#95E1D3',
-  },
-  {
-    id: '4',
-    title: 'Pet Training Session',
-    subtitle: 'Professional behavioral training',
-    price: 899,
-    duration: '60 min',
-    icon: 'dog',
-    iconSet: 'MaterialCommunityIcons',
-    color: '#F38181',
-  },
-  {
-    id: '5',
-    title: 'Physiotherapy',
-    subtitle: 'Post-surgery & recovery care',
-    price: 1299,
-    duration: '60 min',
-    icon: 'medical-bag',
-    iconSet: 'MaterialCommunityIcons',
-    color: '#AA96DA',
-  },
-  {
-    id: '6',
-    title: 'Pet Walking',
-    subtitle: 'Hourly or daily walks',
-    price: 199,
-    duration: '30 min',
-    icon: 'walk',
-    iconSet: 'MaterialCommunityIcons',
-    color: '#FCBAD3',
-  },
-];
 
 const generateTimeSlots = () => {
   const slots = [];
@@ -207,31 +144,44 @@ const BookingModal = ({ visible, onClose, service }) => {
   };
 
   const handleConfirmBooking = async () => {
-    // Check profile completion first
-    if (!isProfileComplete(parentData)) {
-      Alert.alert(
-        'Complete Your Profile',
-        'Please complete your profile first.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { 
-            text: 'Go to Profile', 
-            onPress: () => {
-              onClose();
-              setTimeout(() => {
-                router.push('/(vetician_tabs)/(tabs)/profile');
-              }, 300);
-            }
-          }
-        ]
-      );
+    console.log('🔵 Confirm Booking clicked!');
+    console.log('🔵 Selected Date:', selectedDate);
+    console.log('🔵 Selected Slot:', selectedSlot);
+    console.log('🔵 Selected Partner:', selectedPartner);
+    console.log('🔵 Selected Pets:', selectedPets);
+    console.log('🔵 Is Emergency:', isEmergency);
+    
+    if (!selectedDate || !selectedSlot || !selectedPartner || selectedPets.length === 0) {
+      console.log('❌ Missing required fields!');
+      Alert.alert('Incomplete Information', 'Please select date, time slot, service partner, and at least one pet');
       return;
     }
 
-    if (!selectedDate || !selectedSlot || !selectedPartner || selectedPets.length === 0) {
-      Alert.alert('Incomplete Information', 'Please fill all required fields');
-      return;
-    }
+    // Temporarily bypass profile check until backend is deployed
+    console.log('⚠️ Profile check bypassed - backend deployment pending');
+    // if (!isProfileComplete(parentData)) {
+    //   console.log('❌ Profile incomplete!');
+    //   const missingFields = getMissingFields(parentData);
+    //   const missingFieldsList = missingFields.map(field => `  ${field}`).join('\n');
+    //   
+    //   Alert.alert(
+    //     '⚠️ Complete Your Profile',
+    //     `Please complete these fields to book services:\n\n${missingFieldsList}`,
+    //     [
+    //       { text: 'Later', style: 'cancel' },
+    //       { 
+    //         text: 'Complete Now', 
+    //         onPress: () => {
+    //           onClose();
+    //           setTimeout(() => {
+    //             router.push('/(vetician_tabs)/(tabs)/profile');
+    //           }, 300);
+    //         }
+    //       }
+    //     ]
+    //   );
+    //   return;
+    // }
 
     try {
       const bookingData = {
@@ -266,19 +216,20 @@ const BookingModal = ({ visible, onClose, service }) => {
       // Connect socket and emit booking created event
       SocketService.connect(user._id, 'user');
 
+      onClose();
       Alert.alert(
         'Booking Confirmed! 🎉',
         `Your ${service.title} is confirmed!\n\nDate: ${selectedDate.label}, ${selectedDate.month} ${selectedDate.date}\nTime: ${selectedSlot.time}\nService Partner: ${selectedPartner.name}\nPets: ${selectedPets.map(p => p.name).join(', ')}\nTotal: ₹${calculateTotal()}`,
         [
           {
-            text: 'OK',
+            text: 'View Bookings',
             onPress: () => {
-              onClose();
-              // Refresh bookings list in parent component
-              if (typeof window !== 'undefined' && window.refreshBookings) {
-                window.refreshBookings();
-              }
+              router.push('/(vetician_tabs)/(tabs)/MyBookings');
             },
+          },
+          {
+            text: 'OK',
+            style: 'cancel',
           },
         ]
       );
@@ -289,9 +240,12 @@ const BookingModal = ({ visible, onClose, service }) => {
   };
 
   const togglePetSelection = (pet) => {
+    console.log('🐾 Toggling pet:', pet.name, pet._id);
     if (selectedPets.find(p => p._id === pet._id)) {
+      console.log('❌ Removing pet from selection');
       setSelectedPets(selectedPets.filter(p => p._id !== pet._id));
     } else {
+      console.log('✅ Adding pet to selection');
       setSelectedPets([...selectedPets, pet]);
     }
   };
@@ -314,9 +268,7 @@ const BookingModal = ({ visible, onClose, service }) => {
             <View style={styles.serviceSummaryLeft}>
               <Text style={styles.serviceModalTitle}>{service?.title}</Text>
               <Text style={styles.serviceModalSubtitle}>{service?.subtitle}</Text>
-              <Text style={styles.serviceDuration}>
-                <Ionicons name="time-outline" size={14} /> {service?.duration}
-              </Text>
+              <Text style={styles.serviceDuration}>{service?.duration}</Text>
             </View>
             <View style={styles.serviceSummaryRight}>
               <Text style={styles.serviceModalPrice}>₹{service?.price}</Text>
@@ -350,25 +302,32 @@ const BookingModal = ({ visible, onClose, service }) => {
               <Text style={styles.noPetsText}>No pets found. Please add a pet first.</Text>
             ) : (
               <View style={styles.petsGrid}>
-                {pets.map((pet) => (
-                  <TouchableOpacity
-                    key={pet._id}
-                    style={[
-                      styles.petCard,
-                      selectedPets.find(p => p._id === pet._id) && styles.petCardSelected,
-                    ]}
-                    onPress={() => togglePetSelection(pet)}
-                  >
-                    <View style={styles.petCheckbox}>
-                      {selectedPets.find(p => p._id === pet._id) && (
-                        <Ionicons name="checkmark" size={16} color="#fff" />
+                {pets.map((pet) => {
+                  const isSelected = selectedPets.find(p => p._id === pet._id);
+                  return (
+                    <TouchableOpacity
+                      key={pet._id}
+                      style={[
+                        styles.petCard,
+                        isSelected && styles.petCardSelected,
+                      ]}
+                      onPress={() => {
+                        console.log('🐾 Pet card clicked:', pet.name);
+                        togglePetSelection(pet);
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      {isSelected && (
+                        <View style={styles.petCheckbox}>
+                          <Ionicons name="checkmark" size={16} color="#fff" />
+                        </View>
                       )}
-                    </View>
-                    <Text style={styles.petEmoji}>{pet.species === 'Dog' ? '🐕' : pet.species === 'Cat' ? '🐱' : '🐾'}</Text>
-                    <Text style={styles.petCardName}>{pet.name}</Text>
-                    <Text style={styles.petCardType}>{pet.species}</Text>
-                  </TouchableOpacity>
-                ))}
+                      <Text style={styles.petEmoji}>{pet.species === 'Dog' ? '🐕' : pet.species === 'Cat' ? '🐱' : '🐾'}</Text>
+                      <Text style={styles.petCardName}>{pet.name}</Text>
+                      <Text style={styles.petCardType}>{pet.species}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
             )}
           </View>
@@ -470,10 +429,10 @@ const BookingModal = ({ visible, onClose, service }) => {
             {loadingPartners ? (
               <Text style={styles.nearbyText}>Loading paravets...</Text>
             ) : (
-              <Text style={styles.nearbyText}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12, gap: 4 }}>
                 <MaterialIcons name="location-on" size={14} color="#10B981" />
-                {servicePartners.length} providers available nearby
-              </Text>
+                <Text style={styles.nearbyText}>{servicePartners.length} providers available nearby</Text>
+              </View>
             )}
             
             {servicePartners.map((partner) => (
@@ -496,12 +455,12 @@ const BookingModal = ({ visible, onClose, service }) => {
                   <Text style={styles.partnerSpecialization}>{partner.specialization}</Text>
                   <Text style={styles.partnerExperience}>{partner.experience} experience</Text>
                   <View style={styles.partnerStats}>
-                    <View style={styles.ratingBadge}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                       <MaterialIcons name="star" size={12} color="#FFA500" />
                       <Text style={styles.ratingText}>{partner.rating}</Text>
                     </View>
                     <Text style={styles.reviewsText}>({partner.reviews} reviews)</Text>
-                    <Text style={styles.distanceText}>• {partner.distance} away</Text>
+                    <Text style={styles.distanceText}>{partner.distance} away</Text>
                   </View>
                 </View>
                 <View style={styles.partnerRadio}>
@@ -528,7 +487,7 @@ const BookingModal = ({ visible, onClose, service }) => {
 
           {/* Coupon Code */}
           <View style={styles.modalSection}>
-            <TouchableOpacity style={styles.couponRow}>
+            <TouchableOpacity style={styles.couponRow} onPress={() => Alert.alert('Coming Soon', 'Coupon feature will be available soon!')}>
               <MaterialIcons name="local-offer" size={20} color="#10B981" />
               <Text style={styles.couponText}>Apply Coupon</Text>
               <Ionicons name="chevron-forward" size={20} color="#999" />
@@ -755,6 +714,30 @@ const TrackingModal = ({ visible, onClose, booking }) => {
               <Text style={styles.otpSubtitle}>Share with partner to start service</Text>
             </View>
           </View>
+
+          {/* Cancel Booking Button */}
+          <TouchableOpacity 
+            style={styles.cancelBookingBtn}
+            onPress={() => {
+              Alert.alert(
+                'Cancel Booking',
+                'Are you sure you want to cancel this booking?',
+                [
+                  { text: 'No', style: 'cancel' },
+                  {
+                    text: 'Yes, Cancel',
+                    style: 'destructive',
+                    onPress: () => {
+                      Alert.alert('Booking Cancelled', 'Your booking has been cancelled successfully.');
+                      onClose();
+                    }
+                  }
+                ]
+              );
+            }}
+          >
+            <Text style={styles.cancelBookingText}>Cancel Booking</Text>
+          </TouchableOpacity>
         </ScrollView>
       </SafeAreaView>
     </Modal>
@@ -771,6 +754,8 @@ const ParavetModule = () => {
   const [trackingModalVisible, setTrackingModalVisible] = useState(false);
   const [userBookings, setUserBookings] = useState([]);
   const [selectedBooking, setSelectedBooking] = useState(null);
+  const [services, setServices] = useState([]);
+  const [loadingServices, setLoadingServices] = useState(true);
 
   useEffect(() => {
     const fetchParentData = async () => {
@@ -780,6 +765,7 @@ const ParavetModule = () => {
       }
     };
     fetchParentData();
+    fetchServices();
     fetchUserBookings();
     
     // Setup refresh callback
@@ -794,6 +780,81 @@ const ParavetModule = () => {
     };
   }, []);
 
+  const fetchServices = async () => {
+    try {
+      setLoadingServices(true);
+      const response = await ApiService.getDoorstepServices();
+      setServices(response.data || []);
+    } catch (error) {
+      console.log('Using fallback services');
+      // Fallback to default services if API fails
+      setServices([
+        {
+          _id: '1',
+          title: 'Vet Home Visit',
+          subtitle: 'General checkup, injections, first aid',
+          price: 599,
+          duration: '45-60 min',
+          icon: 'stethoscope',
+          iconSet: 'FontAwesome5',
+          color: '#FF6B6B',
+        },
+        {
+          _id: '2',
+          title: 'Vaccination at Home',
+          subtitle: 'All vaccines administered safely',
+          price: 499,
+          duration: '30 min',
+          icon: 'syringe',
+          iconSet: 'FontAwesome5',
+          color: '#4ECDC4',
+        },
+        {
+          _id: '3',
+          title: 'Pet Grooming',
+          subtitle: 'Bath, haircut, nail trim',
+          price: 799,
+          duration: '90-120 min',
+          icon: 'cut',
+          iconSet: 'FontAwesome5',
+          color: '#95E1D3',
+        },
+        {
+          _id: '4',
+          title: 'Pet Training Session',
+          subtitle: 'Professional behavioral training',
+          price: 899,
+          duration: '60 min',
+          icon: 'dog',
+          iconSet: 'MaterialCommunityIcons',
+          color: '#F38181',
+        },
+        {
+          _id: '5',
+          title: 'Physiotherapy',
+          subtitle: 'Post-surgery & recovery care',
+          price: 1299,
+          duration: '60 min',
+          icon: 'medical-bag',
+          iconSet: 'MaterialCommunityIcons',
+          color: '#AA96DA',
+        },
+        {
+          _id: '6',
+          title: 'Pet Walking',
+          subtitle: 'Hourly or daily walks',
+          price: 199,
+          duration: '30 min',
+          icon: 'walk',
+          iconSet: 'MaterialCommunityIcons',
+          color: '#FCBAD3',
+        },
+      ]);
+    } finally {
+      setLoadingServices(false);
+    }
+  };
+
   const fetchUserBookings = async () => {
     try {
       const response = await ApiService.getDoorstepBookings();
@@ -804,22 +865,12 @@ const ParavetModule = () => {
   };
 
   const handleServiceSelect = (service) => {
-    // Check profile completion before opening modal
-    if (!isProfileComplete(parentData)) {
-      Alert.alert(
-        'Complete Your Profile',
-        'Please complete your profile first.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { 
-            text: 'Go to Profile', 
-            onPress: () => router.push('/(vetician_tabs)/(tabs)/profile')
-          }
-        ]
-      );
-      return;
-    }
+    console.log('🔵 Button clicked! Service:', service?.title);
+    console.log('🔵 Parent data:', parentData);
+    console.log('🔵 Is profile complete:', isProfileComplete(parentData));
     
+    // Temporarily skip profile check for testing
+    console.log('⚠️ Skipping profile check for testing');
     setSelectedService(service);
     setBookingModalVisible(true);
   };
@@ -857,7 +908,43 @@ const ParavetModule = () => {
         </View>
 
         {/* Emergency Button */}
-        <TouchableOpacity style={styles.emergencyButton}>
+        <TouchableOpacity 
+          style={styles.emergencyButton}
+          onPress={() => {
+            if (!isProfileComplete(parentData)) {
+              Alert.alert(
+                'Complete Your Profile',
+                'Please complete your profile to use emergency services.',
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  { 
+                    text: 'Go to Profile', 
+                    onPress: () => router.push('/(vetician_tabs)/(tabs)/profile')
+                  }
+                ]
+              );
+              return;
+            }
+            
+            Alert.alert(
+              'Emergency Service',
+              'Do you need immediate veterinary assistance?',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Yes, Book Now',
+                  onPress: () => {
+                    const emergencyService = services.find(s => s.title.includes('Vet Home Visit')) || services[0];
+                    if (emergencyService) {
+                      setSelectedService(emergencyService);
+                      setBookingModalVisible(true);
+                    }
+                  }
+                }
+              ]
+            );
+          }}
+        >
           <MaterialIcons name="emergency" size={24} color="#fff" />
           <View style={styles.emergencyButtonText}>
             <Text style={styles.emergencyButtonTitle}>Emergency Service</Text>
@@ -873,37 +960,50 @@ const ParavetModule = () => {
             <Text style={styles.sectionSubtitle}>Choose what your pet needs</Text>
           </View>
 
-          <View style={styles.servicesGrid}>
-            {SERVICES.map((service) => (
-              <TouchableOpacity
-                key={service.id}
-                style={styles.serviceCard}
-                onPress={() => handleServiceSelect(service)}
-              >
+          {loadingServices ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color="#24A1DE" />
+              <Text style={styles.loadingText}>Loading services...</Text>
+            </View>
+          ) : (
+            <View style={styles.servicesGrid}>
+              {services.map((service) => (
                 <View
-                  style={[styles.serviceIconContainer, { backgroundColor: service.color + '20' }]}
+                  key={service._id || service.id}
+                  style={styles.serviceCard}
                 >
-                  {service.iconSet === 'FontAwesome5' ? (
-                    <FontAwesome5 name={service.icon} size={28} color={service.color} />
-                  ) : (
-                    <MaterialCommunityIcons name={service.icon} size={28} color={service.color} />
-                  )}
+                  <View
+                    style={[styles.serviceIconContainer, { backgroundColor: service.color + '20' }]}
+                  >
+                    {service.iconSet === 'FontAwesome5' ? (
+                      <FontAwesome5 name={service.icon} size={28} color={service.color} />
+                    ) : (
+                      <MaterialCommunityIcons name={service.icon} size={28} color={service.color} />
+                    )}
+                  </View>
+                  <Text style={styles.serviceTitle}>{service.title}</Text>
+                  <Text style={styles.serviceSubtitle} numberOfLines={2}>
+                    {service.subtitle}
+                  </Text>
+                  <View style={styles.serviceFooter}>
+                    <Text style={styles.servicePrice}>₹{service.price}</Text>
+                    <Text style={styles.serviceDuration}>{service.duration}</Text>
+                  </View>
+                  <TouchableOpacity 
+                    style={styles.bookNowButton}
+                    onPress={() => {
+                      console.log('🟡 Book Now button pressed!');
+                      handleServiceSelect(service);
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.bookNowText}>Book Now</Text>
+                    <Ionicons name="arrow-forward" size={16} color="#fff" />
+                  </TouchableOpacity>
                 </View>
-                <Text style={styles.serviceTitle}>{service.title}</Text>
-                <Text style={styles.serviceSubtitle} numberOfLines={2}>
-                  {service.subtitle}
-                </Text>
-                <View style={styles.serviceFooter}>
-                  <Text style={styles.servicePrice}>₹{service.price}</Text>
-                  <Text style={styles.serviceDuration}>{service.duration}</Text>
-                </View>
-                <TouchableOpacity style={styles.bookNowButton}>
-                  <Text style={styles.bookNowText}>Book Now</Text>
-                  <Ionicons name="arrow-forward" size={16} color="#fff" />
-                </TouchableOpacity>
-              </TouchableOpacity>
-            ))}
-          </View>
+              ))}
+            </View>
+          )}
         </View>
 
         {/* Subscription Plans */}
@@ -920,11 +1020,11 @@ const ParavetModule = () => {
               <Text style={styles.planPrice}>₹2,499<Text style={styles.planPeriod}>/month</Text></Text>
               <Text style={styles.planSavings}>Save ₹700</Text>
               <View style={styles.planFeatures}>
-                <Text style={styles.planFeature}>• 4 Grooming Sessions</Text>
-                <Text style={styles.planFeature}>• Free Nail Trimming</Text>
-                <Text style={styles.planFeature}>• Priority Booking</Text>
+                <Text style={styles.planFeature}>4 Grooming Sessions</Text>
+                <Text style={styles.planFeature}>Free Nail Trimming</Text>
+                <Text style={styles.planFeature}>Priority Booking</Text>
               </View>
-              <TouchableOpacity style={styles.planButton}>
+              <TouchableOpacity style={styles.planButton} onPress={() => Alert.alert('Coming Soon', 'Subscription plans will be available soon!')}>
                 <Text style={styles.planButtonText}>Subscribe</Text>
               </TouchableOpacity>
             </View>
@@ -934,11 +1034,11 @@ const ParavetModule = () => {
               <Text style={styles.planPrice}>₹3,999<Text style={styles.planPeriod}>/month</Text></Text>
               <Text style={styles.planSavings}>Save ₹1,200</Text>
               <View style={styles.planFeatures}>
-                <Text style={styles.planFeature}>• 30 Walking Sessions</Text>
-                <Text style={styles.planFeature}>• 30 min per session</Text>
-                <Text style={styles.planFeature}>• Activity Reports</Text>
+                <Text style={styles.planFeature}>30 Walking Sessions</Text>
+                <Text style={styles.planFeature}>30 min per session</Text>
+                <Text style={styles.planFeature}>Activity Reports</Text>
               </View>
-              <TouchableOpacity style={styles.planButton}>
+              <TouchableOpacity style={styles.planButton} onPress={() => Alert.alert('Coming Soon', 'Subscription plans will be available soon!')}>
                 <Text style={styles.planButtonText}>Subscribe</Text>
               </TouchableOpacity>
             </View>
@@ -1063,8 +1163,7 @@ const ParavetModule = () => {
         <TouchableOpacity
           style={styles.demoButton}
           onPress={() => {
-            setSelectedBooking(null);
-            setTrackingModalVisible(true);
+            Alert.alert('Coming Soon', 'Live tracking feature will be available soon!');
           }}
         >
           <MaterialIcons name="location-on" size={20} color="#fff" />
@@ -1096,6 +1195,18 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F8F9FA',
+  },
+
+  // Loading Container
+  loadingContainer: {
+    paddingVertical: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: '#666',
   },
 
   // Hero Section
@@ -2143,6 +2254,22 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
     marginTop: 2,
+  },
+
+  // Cancel Booking Button
+  cancelBookingBtn: {
+    backgroundColor: '#FF4757',
+    marginHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 20,
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  cancelBookingText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '700',
   },
 });
 

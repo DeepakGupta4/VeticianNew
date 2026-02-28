@@ -25,7 +25,15 @@ export default function BoardingFormScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <CommonHeader title="Book a Hostel" />
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+      
+      {/* Coming Soon Overlay */}
+      <View style={styles.comingSoonOverlay}>
+        <MaterialIcons name="hotel" size={60} color="#24A1DE" />
+        <Text style={styles.comingSoonTitle}>Coming Soon!</Text>
+        <Text style={styles.comingSoonText}>Pet boarding facilities are being set up. Safe & comfortable stay for your pets.</Text>
+      </View>
+      
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.scrollContent, {opacity: 0.3}]}>
         
         {/* SECTION 1: DATES SELECTION */}
         <View style={styles.section}>
@@ -136,6 +144,32 @@ export default function BoardingFormScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F5F7FB' },
+  
+  comingSoonOverlay: {
+    position: 'absolute',
+    top: 100,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+    paddingHorizontal: 40
+  },
+  comingSoonTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#24A1DE',
+    marginTop: 20,
+    marginBottom: 10
+  },
+  comingSoonText: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: 24
+  },
   scrollContent: { padding: 16 },
   
   section: { backgroundColor: '#fff', borderRadius: 12, padding: 16, marginBottom: 16, elevation: 1 },

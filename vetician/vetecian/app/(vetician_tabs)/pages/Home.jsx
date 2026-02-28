@@ -986,6 +986,7 @@ export default function Home() {
   const [sidebarVisible, setSidebarVisible] = useState(false);
   const [notificationCount, setNotificationCount] = useState(0);
   const [userLocation, setUserLocation] = useState(null);
+  const [locationPermissionDenied, setLocationPermissionDenied] = useState(false);
   const [incomingCall, setIncomingCall] = useState(null);
   const [showIncomingCall, setShowIncomingCall] = useState(false);
   const [inVideoCall, setInVideoCall] = useState(false);
@@ -997,17 +998,20 @@ export default function Home() {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        console.log('⚠️ Location permission denied');
-        return;
+        setLocationPermissionDenied(true);
+        return null;
       }
       const location = await Location.getCurrentPositionAsync({});
-      setUserLocation({
+      const userLoc = {
         latitude: location.coords.latitude,
         longitude: location.coords.longitude,
-      });
-      console.log('📍 User Location:', location.coords.latitude, location.coords.longitude);
+      };
+      setUserLocation(userLoc);
+      setLocationPermissionDenied(false);
+      return userLoc;
     } catch (error) {
-      console.error('❌ Error getting location:', error);
+      setLocationPermissionDenied(true);
+      return null;
     }
   };
 
@@ -1032,7 +1036,6 @@ export default function Home() {
         }
       }
     } catch (err) {
-      console.error('❌ Parent data fetch failed:', err.message);
     }
   };
 
@@ -1044,24 +1047,21 @@ export default function Home() {
         setDashboard(data);
       }
     } catch (err) {
-      console.error('❌ Dashboard fetch failed:', err.message);
     }
   };
 
 
 
   // Fetch Nearby Clinics
-  const fetchClinics = async () => {
+  const fetchClinics = async (location = null) => {
     try {
-      console.log('🔍 Dashboard: Fetching clinics with location:', userLocation);
-      
-      const locationParams = userLocation ? {
-        userLat: userLocation.latitude,
-        userLon: userLocation.longitude
+      const loc = location || userLocation;
+      const locationParams = loc ? {
+        userLat: loc.latitude,
+        userLon: loc.longitude
       } : {};
       
       const data = await ApiService.getAllVerifiedClinics(locationParams);
-      console.log('📦 Raw API Response:', JSON.stringify(data, null, 2));
       
       const clinicsList = Array.isArray(data) ? data : (data?.data || []);
       
@@ -1069,15 +1069,24 @@ export default function Home() {
         const distance = clinic.clinicDetails?.distance || 'N/A';
         const clinicId = clinic.clinicDetails?.clinicId || clinic.clinicDetails?._id || clinic._id;
         
-        // HARDCODED FIX: Map clinic IDs to vet IDs
         const clinicToVetMap = {
-          '699c3adfa1d9bd9c5e8f7316': '699bdb473b40fb36af74467e', // Deepak's Clinic -> Deepak's Vet ID
-          '699748685c663a0a76a231cb': '699bdb473b40fb36af74467e'  // TestClinic -> Same Vet ID
+          '699c3adfa1d9bd9c5e8f7316': '699bdb473b40fb36af74467e',
+          '699748685c663a0a76a231cb': '699bdb473b40fb36af74467e'
         };
         
         const vetId = clinic.veterinarianDetails?.vetId || clinicToVetMap[clinicId] || clinicId;
         
-        console.log(`🏥 Clinic: ${clinic.clinicDetails?.clinicName}, Clinic ID: ${clinicId}, Vet ID: ${vetId}`);
+        // Try multiple sources for profile photo
+        let profilePhoto = null;
+        if (clinic.veterinarianDetails?.profilePhotoUrl) {
+          profilePhoto = clinic.veterinarianDetails.profilePhotoUrl;
+        } else if (clinic.clinicDetails?.profilePhotoUrl) {
+          profilePhoto = clinic.clinicDetails.profilePhotoUrl;
+        }
+        // If still no photo, use a default placeholder
+        if (!profilePhoto) {
+          profilePhoto = `https://ui-avatars.com/api/?name=${encodeURIComponent(clinic.clinicDetails?.clinicName || 'Clinic')}&size=200&background=4E8D7C&color=fff`;
+        }
         
         return { 
           ...clinic, 
@@ -1085,7 +1094,7 @@ export default function Home() {
           clinicName: clinic.clinicDetails?.clinicName || clinic.clinicName, 
           establishmentType: clinic.clinicDetails?.establishmentType || clinic.establishmentType, 
           city: clinic.clinicDetails?.city || clinic.city, 
-          profilePhotoUrl: clinic.veterinarian?.profilePhotoUrl || clinic.veterinarianDetails?.profilePhotoUrl, 
+          profilePhotoUrl: profilePhoto, 
           _id: clinicId,
           vetId: vetId
         };
@@ -1097,9 +1106,7 @@ export default function Home() {
         return distA - distB;
       });
       setClinics(clinicsWithDistance);
-      console.log(`📊 Dashboard: Total clinics loaded: ${clinicsWithDistance.length}`);
     } catch (err) {
-      console.error('❌ Dashboard clinics fetch failed:', err.message);
       setClinics([]);
     }
   };
@@ -1109,7 +1116,6 @@ export default function Home() {
     try {
       setAppointments([]);
     } catch (err) {
-      console.error('❌ Appointments fetch failed:', err.message);
     }
   };
 
@@ -1121,10 +1127,10 @@ export default function Home() {
     }
   };
 
-  const loadData = async () => {
+  const loadData = async (location = null) => {
     await Promise.all([
       fetchDashboard(),
-      fetchClinics(), // This will now use parentData
+      fetchClinics(location),
       fetchAppointments(),
       fetchNotificationCount(),
     ]);
@@ -1132,9 +1138,9 @@ export default function Home() {
 
   useEffect(() => {
     const init = async () => {
-      await getUserLocation();
+      const location = await getUserLocation();
       await fetchParentData();
-      await loadData();
+      await loadData(location);
       
       // Setup socket for incoming calls
       const userId = await AsyncStorage.getItem('userId');
@@ -1142,7 +1148,6 @@ export default function Home() {
         socketService.connect(userId, 'petparent');
         
         const handleIncomingCall = (callData) => {
-          console.log('📞 Incoming call received:', callData);
           setIncomingCall(callData);
           setShowIncomingCall(true);
         };
@@ -1159,21 +1164,6 @@ export default function Home() {
     };
   }, []);
 
-  useFocusEffect(
-    React.useCallback(() => {
-      // Pets Redux se automatically update ho jayenge
-      console.log('🔄 Dashboard focused - pets:', pets.length);
-    }, [pets])
-  );
-
-  useEffect(() => {
-    if (userLocation) {
-      fetchClinics();
-    }
-  }, [userLocation]);
-
-
-
   const onRefresh = async () => {
     setRefreshing(true);
     await loadData();
@@ -1188,10 +1178,6 @@ export default function Home() {
   };
 
   const handleClinicPress = (clinic) => {
-    console.log('👉 Clinic pressed:', clinic.clinicName);
-    console.log('👉 Clinic ID:', clinic._id);
-    console.log('👉 Vet ID:', clinic.vetId);
-    
     router.push({
       pathname: 'pages/ClinicDetailScreen',
       params: {
@@ -1580,6 +1566,30 @@ export default function Home() {
               <Text style={styles.seeAll}>View All</Text>
             </TouchableOpacity>
           </View>
+          
+          {locationPermissionDenied && (
+            <View style={styles.locationPermissionBanner}>
+              <View style={styles.locationBannerContent}>
+                <MaterialIcons name="location-off" size={24} color="#FF6B6B" />
+                <View style={styles.locationBannerText}>
+                  <Text style={styles.locationBannerTitle}>Location Permission Required</Text>
+                  <Text style={styles.locationBannerSubtitle}>Enable location to see accurate distances to clinics</Text>
+                </View>
+              </View>
+              <TouchableOpacity 
+                style={styles.enableLocationButton}
+                onPress={async () => {
+                  const location = await getUserLocation();
+                  if (location) {
+                    await fetchClinics(location);
+                  }
+                }}
+              >
+                <Text style={styles.enableLocationText}>Enable Location</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+          
           {clinics.length > 0 ? (
             <FlatList
               horizontal
@@ -2073,5 +2083,45 @@ const styles = StyleSheet.create({
   profileCardPhone: {
     fontSize: 13,
     color: '#666',
+  },
+  locationPermissionBanner: {
+    backgroundColor: '#FFF3E0',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#FFE0B2',
+  },
+  locationBannerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  locationBannerText: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  locationBannerTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#E65100',
+    marginBottom: 4,
+  },
+  locationBannerSubtitle: {
+    fontSize: 12,
+    color: '#F57C00',
+    lineHeight: 16,
+  },
+  enableLocationButton: {
+    backgroundColor: '#FF6B6B',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  enableLocationText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });

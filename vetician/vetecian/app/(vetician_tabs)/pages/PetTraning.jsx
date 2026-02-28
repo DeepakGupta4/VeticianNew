@@ -33,7 +33,15 @@ export default function PetTrainingScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <CommonHeader title="Pet Training" />
-      <ScrollView showsVerticalScrollIndicator={false}>
+      
+      {/* Coming Soon Overlay */}
+      <View style={styles.comingSoonOverlay}>
+        <MaterialIcons name="school" size={60} color="#24A1DE" />
+        <Text style={styles.comingSoonTitle}>Coming Soon!</Text>
+        <Text style={styles.comingSoonText}>Pet Training programs are being finalized. Professional trainers will be available soon.</Text>
+      </View>
+      
+      <ScrollView showsVerticalScrollIndicator={false} style={{opacity: 0.3}}>
         
         {/* --- Training Banner --- */}
         <View style={styles.headerBanner}>
@@ -121,6 +129,32 @@ export default function PetTrainingScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
+  
+  comingSoonOverlay: {
+    position: 'absolute',
+    top: 100,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+    paddingHorizontal: 40
+  },
+  comingSoonTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#24A1DE',
+    marginTop: 20,
+    marginBottom: 10
+  },
+  comingSoonText: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: 24
+  },
   headerBanner: { backgroundColor: '#E3F2FD', padding: 25, flexDirection: 'row', alignItems: 'center' },
   headerTextSide: { flex: 1 },
   headerTitle: { fontSize: 22, fontWeight: 'bold', color: '#333' },

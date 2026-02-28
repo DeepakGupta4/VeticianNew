@@ -12,6 +12,7 @@ import DayPlaySchool from '../pages/School';
 import PetTraining from '../pages/PetTraning';
 import Grooming from '../pages/Groming';
 import Notifications from '../pages/Notifications';
+import MyBookings from '../pages/MyBookings';
 
 const Drawer = createDrawerNavigator();
 
@@ -29,6 +30,11 @@ export default function AppDrawer() {
         name="Home"
         component={Home}
         options={{ headerShown: false, title: 'Dassboard' }}
+      />
+      <Drawer.Screen
+        name="MyBookings"
+        component={MyBookings}
+        options={{ headerShown: false, title: 'My Bookings' }}
       />
       <Drawer.Screen
         name="VideoCall"

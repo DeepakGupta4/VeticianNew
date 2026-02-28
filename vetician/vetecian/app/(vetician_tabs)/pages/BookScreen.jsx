@@ -122,18 +122,16 @@ export default function BookScreen() {
       const result = await response.json();
 
       if (response.ok) {
-        Alert.alert(
-          "Appointment Booked ✅",
-          `${selectedPet.name} | ${selectedService}\n${selectedClinic?.clinicName || 'Service'}\n${selectedDate} at ${selectedSlot}`,
-          [
-            {
-              text: 'OK',
-              onPress: () => {
-                router.replace('/(vetician_tabs)/pages/MyBookings');
-              }
-            }
-          ]
-        );
+        // Immediately redirect to MyBookings page
+        router.push('/(vetician_tabs)/pages/MyBookings');
+        
+        // Show success alert after navigation
+        setTimeout(() => {
+          Alert.alert(
+            "Appointment Booked ✅",
+            `${selectedPet.name} | ${selectedService}\n${selectedClinic?.clinicName || 'Service'}\n${selectedDate} at ${selectedSlot}`
+          );
+        }, 500);
       } else {
         console.error('Booking error:', result);
         Alert.alert('Error', result.message || 'Failed to book appointment');

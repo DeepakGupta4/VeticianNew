@@ -1806,16 +1806,12 @@ const BookingModal = ({ visible, onClose, clinic }) => {
 };
 
 // Clinic Card Component
-const ClinicCard = ({ clinic, onPress, onBookPress, userLocation, locationPermission }) => {
+const ClinicCard = ({ clinic, onPress, userLocation, locationPermission }) => {
   const { clinicDetails, veterinarianDetails: vet } = clinic;
 
   if (!clinicDetails) {
     return null;
   }
-
-  const handleCall = () => {
-    Linking.openURL(`tel:${clinicDetails.phoneNumber}`);
-  };
 
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.9}>
@@ -1840,7 +1836,11 @@ const ClinicCard = ({ clinic, onPress, onBookPress, userLocation, locationPermis
       {/* Doctor Information Section */}
       <View style={styles.doctorSection}>
         <Image
-          source={{ uri: vet?.profilePhotoUrl }}
+          source={{ 
+            uri: vet?.profilePhotoUrl && vet.profilePhotoUrl.startsWith('http') 
+              ? vet.profilePhotoUrl 
+              : 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?q=80&w=200&h=200&auto=format&fit=crop'
+          }}
           style={styles.profileImage}
         />
         <View style={styles.doctorInfo}>
@@ -1913,35 +1913,6 @@ const ClinicCard = ({ clinic, onPress, onBookPress, userLocation, locationPermis
               <Text style={styles.noFeeText}>No Booking Fee</Text>
             </View>
           </View>
-        </View>
-      </View>
-
-      {/* Action Buttons */}
-      <View style={styles.actionButtons}>
-        <TouchableOpacity
-          style={styles.bookButton}
-          onPress={onBookPress}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="calendar" size={18} color="white" />
-          <Text style={styles.bookButtonText}>Book Appointment</Text>
-        </TouchableOpacity>
-
-        <View style={styles.secondaryActions}>
-          <TouchableOpacity
-            style={styles.iconButton}
-            onPress={handleCall}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="call" size={20} color="#24A1DE" />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.iconButton}
-            onPress={() => router.push('/pages/VideoCall')}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="videocam" size={20} color="#24A1DE" />
-          </TouchableOpacity>
         </View>
       </View>
     </TouchableOpacity>
@@ -2152,11 +2123,24 @@ export default function ClinicListScreen() {
             locationPermission={locationPermission}
             onPress={() =>
               router.push({
-                pathname: '/pages/ClinicDetailScreen',
-                params: { clinic: JSON.stringify(item) },
+                pathname: 'pages/ClinicDetailScreen',
+                params: {
+                  clinicId: item.clinicDetails?._id || item._id,
+                  vetId: item.veterinarianDetails?.vetId || item.veterinarianDetails?._id || item.clinicDetails?._id,
+                  clinicName: item.clinicDetails?.clinicName,
+                  establishmentType: item.clinicDetails?.establishmentType,
+                  city: item.clinicDetails?.city,
+                  locality: item.clinicDetails?.locality,
+                  streetAddress: item.clinicDetails?.streetAddress,
+                  distance: item.clinicDetails?.distance || item.distance,
+                  profilePhotoUrl: item.veterinarianDetails?.profilePhotoUrl || item.profilePhotoUrl,
+                  fees: item.clinicDetails?.fees || '500',
+                  vetName: item.veterinarianDetails?.name || 'Veterinarian',
+                  specialization: item.veterinarianDetails?.specialization || 'General Practice',
+                  experience: item.veterinarianDetails?.experience || '5'
+                }
               })
             }
-            onBookPress={() => handleBookPress(item)}
           />
         )}
         keyExtractor={(item) => item.clinicDetails._id}
@@ -2526,47 +2510,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 
-  // Action Buttons
-  actionButtons: {
-    flexDirection: 'row',
-    padding: 16,
-    paddingTop: 12,
-    gap: 10,
-  },
-  bookButton: {
-    flex: 1,
-    flexDirection: 'row',
-    backgroundColor: '#24A1DE',
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 2,
-    shadowColor: '#24A1DE',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-  },
-  bookButtonText: {
-    color: 'white',
-    fontSize: 15,
-    fontWeight: '700',
-    marginLeft: 8,
-  },
-  secondaryActions: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  iconButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: '#24A1DE',
-    backgroundColor: 'white',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+
 
   // Empty State
   loadingContainer: {

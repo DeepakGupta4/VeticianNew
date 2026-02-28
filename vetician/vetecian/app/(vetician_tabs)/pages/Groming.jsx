@@ -33,7 +33,15 @@ export default function PetGroomingScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <CommonHeader title="Pet Grooming" />
-      <ScrollView showsVerticalScrollIndicator={false}>
+      
+      {/* Coming Soon Overlay */}
+      <View style={styles.comingSoonOverlay}>
+        <MaterialCommunityIcons name="content-cut" size={60} color="#24A1DE" />
+        <Text style={styles.comingSoonTitle}>Coming Soon!</Text>
+        <Text style={styles.comingSoonText}>Professional grooming services are launching soon. Your pet will look amazing!</Text>
+      </View>
+      
+      <ScrollView showsVerticalScrollIndicator={false} style={{opacity: 0.3}}>
         
         {/* --- Hero Banner --- */}
         <View style={styles.heroBanner}>
@@ -127,6 +135,32 @@ export default function PetGroomingScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f7fa' },
+  
+  comingSoonOverlay: {
+    position: 'absolute',
+    top: 100,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+    paddingHorizontal: 40
+  },
+  comingSoonTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#24A1DE',
+    marginTop: 20,
+    marginBottom: 10
+  },
+  comingSoonText: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: 24
+  },
   heroBanner: { backgroundColor: '#E0F2F1', padding: 25, flexDirection: 'row', alignItems: 'center', borderBottomLeftRadius: 25, borderBottomRightRadius: 25 },
   heroText: { flex: 1 },
   heroTitle: { fontSize: 24, fontWeight: 'bold', color: '#004D40' },

@@ -315,32 +315,22 @@ export default function Appointment() {
     
     const initSocket = async () => {
       const token = await AsyncStorage.getItem('token');
+      const userId = await AsyncStorage.getItem('userId');
       const apiUrl = process.env.EXPO_PUBLIC_API_URL || 'https://vetician-backend-kovk.onrender.com/api';
       
       try {
-        const response = await fetch(`${apiUrl}/auth/veterinarian/appointments`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
+        console.log('👨⚕️ Connecting socket for userId:', userId);
+        socketService.connect(userId, 'veterinarian');
         
-        if (response.ok) {
-          const data = await response.json();
-          
-          if (data.success && data.appointments && data.appointments.length > 0) {
-            const veterinarianId = data.appointments[0].veterinarianId;
-            console.log('👨⚕️ Connecting socket for veterinarian:', veterinarianId);
-            socketService.connect(veterinarianId, 'veterinarian');
-            
-            socketService.onNewAppointment((data) => {
-              console.log('🔔 Received new appointment notification:', data);
-              Alert.alert(
-                'New Appointment! 🔔',
-                `${data.message}`,
-                [{ text: 'View', onPress: () => fetchAppointments() }]
-              );
-              fetchAppointments();
-            });
-          }
-        }
+        socketService.onNewAppointment((data) => {
+          console.log('🔔 Received new appointment notification:', data);
+          Alert.alert(
+            'New Appointment! 🔔',
+            `${data.message}`,
+            [{ text: 'View', onPress: () => fetchAppointments() }]
+          );
+          fetchAppointments();
+        });
       } catch (error) {
         console.error('Error initializing socket:', error);
       }

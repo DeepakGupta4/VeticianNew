@@ -393,6 +393,8 @@ export const registerClinic = createAsyncThunk(
       const userId = await AsyncStorage.getItem('userId');
       if (!userId) throw new Error('User not authenticated');
       
+      console.log('📋 Final clinic data being sent:', JSON.stringify(clinicData, null, 2));
+      
       const BASE_URL = getApiBaseUrl();
       const headers = await getCommonHeaders(true);
       const res = await fetch(`${BASE_URL}/auth/register-clinic`, {
@@ -401,14 +403,24 @@ export const registerClinic = createAsyncThunk(
         body: JSON.stringify({ ...clinicData, userId }),
       });
       
+      const responseText = await res.text();
+      console.log('📡 Backend response:', responseText);
+      
       if (!res.ok) {
-        const errorText = await res.text();
-        const errorMessage = parseErrorMessage(errorText);
+        let errorMessage;
+        try {
+          const errorData = JSON.parse(responseText);
+          errorMessage = errorData.message || errorData.error || 'Registration failed';
+          console.log('❌ Parsed error:', errorData);
+        } catch (e) {
+          errorMessage = parseErrorMessage(responseText);
+        }
         return rejectWithValue({ error: { message: errorMessage } });
       }
       
-      return await res.json();
+      return JSON.parse(responseText);
     } catch (error) {
+      console.log('❌ Network error:', error);
       return rejectWithValue({ error: { message: error.message || 'Failed to register clinic' } });
     }
   }

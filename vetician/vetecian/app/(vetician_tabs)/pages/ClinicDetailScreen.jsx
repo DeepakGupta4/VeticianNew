@@ -953,21 +953,19 @@ const ClinicDetailScreen = () => {
       city: params.city,
       locality: params.locality,
       streetAddress: params.streetAddress,
-      fees: 500,
+      fees: params.fees || '500',
       verified: true
     },
     veterinarianDetails: {
       vetId: params.vetId && params.vetId !== 'undefined' ? params.vetId : params.clinicId,
-      name: 'Veterinarian',
+      name: params.vetName || 'Veterinarian',
       profilePhotoUrl: params.profilePhotoUrl,
-      specialization: 'General Practice',
-      experience: 5
+      specialization: params.specialization || 'General Practice',
+      experience: params.experience || '5'
     }
   };
 
-  console.log('👉 [CLINIC DETAIL] Params received:', JSON.stringify(params, null, 2));
-  console.log('👉 [CLINIC DETAIL] Clinic ID:', clinicData.clinicDetails.clinicId);
-  console.log('👉 [CLINIC DETAIL] Vet ID:', clinicData.veterinarianDetails.vetId);
+
 
   if (!params.clinicId) {
     return (
@@ -999,10 +997,7 @@ const ClinicDetailScreen = () => {
       
       const doctorId = clinicData.veterinarianDetails?.vetId;
       
-      console.log('🔵 [CALL] Starting call initiation...');
-      console.log('🔵 [CALL] Caller ID:', userId);
-      console.log('🔵 [CALL] Caller Name:', userName);
-      console.log('🔵 [CALL] Receiver ID (Doctor):', doctorId);
+
       
       const response = await fetch(`${apiUrl}/call/initiate`, {
         method: 'POST',
@@ -1040,7 +1035,7 @@ const ClinicDetailScreen = () => {
         Alert.alert('Error', data.message || 'Failed to initiate call');
       }
     } catch (error) {
-      console.error('🔴 [CALL] Exception:', error);
+
       Alert.alert('Error', 'Failed to start call: ' + error.message);
     }
   };
@@ -1064,7 +1059,13 @@ const ClinicDetailScreen = () => {
         {/* Top Doctor Profile Section (As per your Screenshot 3) */}
         <View style={styles.profileSection}>
           <View style={styles.profileRow}>
-            <Image source={{ uri: vet?.profilePhotoUrl }} style={styles.doctorImage} />
+            {vet?.profilePhotoUrl ? (
+              <Image source={{ uri: vet.profilePhotoUrl }} style={styles.doctorImage} />
+            ) : (
+              <View style={styles.doctorImage}>
+                        <MaterialIcons name="person" size={40} color="#999" style={{alignSelf: 'center', marginTop: 20}} />
+              </View>
+            )}
             <View style={styles.doctorMainInfo}>
               <Text style={styles.drName}>Dr. {vet.name} <Text style={styles.claimed}>Profile claimed</Text></Text>
               <Text style={styles.qualifications}>BVSc, MVSc - Veterinary Medicine</Text>
@@ -1216,7 +1217,7 @@ const styles = StyleSheet.create({
   // Profile Section
   profileSection: { padding: 15 },
   profileRow: { flexDirection: 'row' },
-  doctorImage: { width: 90, height: 90, borderRadius: 8 },
+  doctorImage: { width: 90, height: 90, borderRadius: 8, backgroundColor: '#f0f0f0' },
   doctorMainInfo: { flex: 1, marginLeft: 15 },
   drName: { fontSize: 20, fontWeight: 'bold', color: '#333' },
   claimed: { fontSize: 12, color: '#777', fontWeight: '400' },

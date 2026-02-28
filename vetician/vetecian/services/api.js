@@ -74,6 +74,13 @@ class ApiService {
     });
   }
 
+  put(endpoint, body = {}) {
+    return this.request(endpoint, {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    });
+  }
+
   delete(endpoint) {
     return this.request(endpoint, { method: 'DELETE' });
   }
@@ -141,6 +148,10 @@ class ApiService {
   /* =========================
      DOORSTEP SERVICE
   ========================= */
+
+  getDoorstepServices() {
+    return this.get('/doorstep/services');
+  }
 
   createDoorstepBooking(data) {
     return this.post('/doorstep/bookings', data);
