@@ -10,10 +10,16 @@ class SocketService {
   }
 
   connect(userId, userType) {
-    if (this.socket?.connected) return;
+    if (this.socket?.connected) {
+      console.log('⚠️ Socket already connected');
+      return;
+    }
 
     this.userId = userId;
     this.userType = userType;
+
+    console.log(`🔵 Connecting socket for ${userType}:`, userId);
+    console.log(`🌐 Socket URL:`, SOCKET_URL);
 
     this.socket = io(SOCKET_URL, {
       transports: ['websocket', 'polling'],
@@ -23,9 +29,12 @@ class SocketService {
     });
 
     this.socket.on('connect', () => {
+      console.log('🟢 Socket connected, joining rooms again');
       if (userType === 'veterinarian') {
+        console.log(`📤 Emitting join-veterinarian with userId: ${userId}`);
         this.socket.emit('join-veterinarian', userId);
       } else if (userType === 'petparent') {
+        console.log(`📤 Emitting join-petparent with userId: ${userId}`);
         this.socket.emit('join-petparent', userId);
       }
     });

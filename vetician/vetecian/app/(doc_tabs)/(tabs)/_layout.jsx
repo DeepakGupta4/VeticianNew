@@ -15,21 +15,32 @@ export default function RootLayout() {
 
   useEffect(() => {
     const initSocket = async () => {
-      const userId = await AsyncStorage.getItem('userId');
-      if (userId) {
-        console.log('🩺 Doctor layout - Connecting socket for userId:', userId);
-        socketService.connect(userId, 'veterinarian');
+      try {
+        const userId = await AsyncStorage.getItem('userId');
+        console.log('🩺 Doctor layout - userId from storage:', userId);
         
-        socketService.onIncomingCall((callData) => {
-          console.log('📞 Incoming call received:', callData);
-          setIncomingCall(callData);
-        });
+        if (userId) {
+          console.log('🩺 Doctor layout - Connecting socket for userId:', userId);
+          socketService.connect(userId, 'veterinarian');
+          
+          console.log('👂 Setting up incoming call listener...');
+          socketService.onIncomingCall((callData) => {
+            console.log('📞 Incoming call received in layout:', callData);
+            setIncomingCall(callData);
+          });
+          console.log('✅ Incoming call listener setup complete');
+        } else {
+          console.log('❌ No userId found in storage');
+        }
+      } catch (error) {
+        console.error('❌ Error initializing socket:', error);
       }
     };
 
     initSocket();
 
     return () => {
+      console.log('🔴 Cleaning up socket connection');
       socketService.disconnect();
     };
   }, []);
