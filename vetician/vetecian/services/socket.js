@@ -70,8 +70,15 @@ class SocketService {
   }
 
   onIncomingCall(callback) {
-    if (!this.socket) return;
-    this.socket.on('incoming-call', callback);
+    if (!this.socket) {
+      console.log('⚠️ Socket not initialized for onIncomingCall');
+      return;
+    }
+    console.log('👂 Listening for incoming-call events');
+    this.socket.on('incoming-call', (data) => {
+      console.log('📞 Received incoming-call event:', data);
+      callback(data);
+    });
   }
 
   emitCallResponse(response) {

@@ -1,11 +1,75 @@
-import { Tabs } from 'expo-router';
+import { Tabs, useRouter } from 'expo-router';
 import { Home, User, Users, Calendar } from 'lucide-react-native';
 import { View, Text } from 'react-native';
 import { Provider } from 'react-redux';
 import { PersistGate } from 'redux-persist/integration/react';
 import { store, persistor } from '../../../store/store';
+import { useEffect, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import socketService from '../../../services/socket';
+import IncomingCallScreen from '../../../components/IncomingCallScreen';
 
 export default function RootLayout() {
+  const router = useRouter();
+  const [incomingCall, setIncomingCall] = useState(null);
+
+  useEffect(() => {
+    const initSocket = async () => {
+      const userId = await AsyncStorage.getItem('userId');
+      if (userId) {
+        console.log('🩺 Doctor layout - Connecting socket for userId:', userId);
+        socketService.connect(userId, 'veterinarian');
+        
+        socketService.onIncomingCall((callData) => {
+          console.log('📞 Incoming call received:', callData);
+          setIncomingCall(callData);
+        });
+      }
+    };
+
+    initSocket();
+
+    return () => {
+      socketService.disconnect();
+    };
+  }, []);
+
+  const handleAcceptCall = () => {
+    if (!incomingCall) return;
+    
+    console.log('✅ Call accepted');
+    socketService.emitCallResponse({
+      callId: incomingCall.callId,
+      accepted: true
+    });
+
+    setIncomingCall(null);
+    
+    router.push({
+      pathname: '/pages/VideoCallScreen',
+      params: {
+        callId: incomingCall.callId,
+        roomName: incomingCall.roomName,
+        token: incomingCall.token || 'mock-token',
+        receiverId: incomingCall.callerId,
+        receiverName: incomingCall.callerData?.name || 'Pet Parent',
+        receiverImg: incomingCall.callerData?.img,
+        isInitiator: 'false'
+      }
+    });
+  };
+
+  const handleRejectCall = () => {
+    if (!incomingCall) return;
+    
+    console.log('❌ Call rejected');
+    socketService.emitCallResponse({
+      callId: incomingCall.callId,
+      accepted: false
+    });
+    
+    setIncomingCall(null);
+  };
   return (
     <Provider store={store}>
       <PersistGate loading={null} persistor={persistor}>
@@ -78,6 +142,14 @@ export default function RootLayout() {
           />
           <Tabs.Screen name="surgeries" options={{ href: null }} />
         </Tabs>
+        
+        {/* Incoming Call Screen */}
+        <IncomingCallScreen
+          visible={!!incomingCall}
+          callerData={incomingCall?.callerData}
+          onAccept={handleAcceptCall}
+          onReject={handleRejectCall}
+        />
       </PersistGate>
     </Provider>
   );
