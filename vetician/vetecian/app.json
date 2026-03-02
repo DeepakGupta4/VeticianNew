@@ -53,11 +53,9 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "gradleVersion": "8.8"
     },
-    "owner": "veticianadmin",
-    "hooks": {
-      "postPublish": []
-    }
+    "owner": "veticianadmin"
   }
 }
