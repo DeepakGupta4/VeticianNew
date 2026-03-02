@@ -25,10 +25,12 @@
       "distribution": "internal",
       "android": {
         "buildType": "apk",
-        "gradleCommand": ":app:assembleRelease"
+        "gradleCommand": ":app:assembleRelease",
+        "withoutCredentials": false
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://vetician-backend-kovk.onrender.com/api"
+        "EXPO_PUBLIC_API_URL": "https://vetician-backend-kovk.onrender.com/api",
+        "EAS_BUILD_GRADLE_VERSION": "8.8"
       },
       "cache": {
         "disabled": true

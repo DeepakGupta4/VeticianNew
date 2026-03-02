@@ -41,9 +41,6 @@
     },
     "android": {
       "package": "com.dkg12.vetician",
-      "compileSdkVersion": 35,
-      "targetSdkVersion": 35,
-      "buildToolsVersion": "35.0.0",
       "permissions": [
         "CAMERA",
         "RECORD_AUDIO",
@@ -58,6 +55,9 @@
         "backgroundColor": "#ffffff"
       }
     },
-    "owner": "veticianadmin"
+    "owner": "veticianadmin",
+    "hooks": {
+      "postPublish": []
+    }
   }
 }
