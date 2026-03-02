@@ -1,4 +1,4 @@
-package com.vetician.petcare
+package com.dkg12.vetician
 import expo.modules.splashscreen.SplashScreenManager
 
 import android.os.Build

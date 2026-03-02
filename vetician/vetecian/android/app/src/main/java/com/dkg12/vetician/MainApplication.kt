@@ -1,4 +1,4 @@
-package com.vetician.petcare
+package com.dkg12.vetician
 
 import android.app.Application
 import android.content.res.Configuration

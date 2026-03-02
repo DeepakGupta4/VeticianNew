@@ -4,7 +4,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, ActivityIn
 import { useSelector, useDispatch } from 'react-redux';
 import { useRouter } from 'expo-router';
 import { signOut, getParent, updateParent } from '../../../store/slices/authSlice';
-import { User, Mail, MapPin, Phone, LogOut, X, Star, HelpCircle, PawPrint, Heart, Stethoscope, Calendar as CalendarIcon, Package, Users, BookOpen, Bell, Settings, Gift } from 'lucide-react-native';
+import { User, Mail, MapPin, Phone, LogOut, X, Star, HelpCircle, PawPrint, Heart, Stethoscope, Calendar as CalendarIcon, Package, Users, BookOpen, Bell, Settings, Gift, Edit } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import PetDetailModal from '../../../components/petparent/home/PetDetailModal';
@@ -758,7 +758,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   bottomSpacing: {
-    height: 40,
+    height: 100,
   },
   modalOverlay: {
     flex: 1,

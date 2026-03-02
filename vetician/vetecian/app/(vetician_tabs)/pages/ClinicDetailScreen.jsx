@@ -969,9 +969,11 @@ const ClinicDetailScreen = () => {
 
   if (!params.clinicId) {
     return (
-      <View style={styles.center}>
-        <Text>Loading Profile...</Text>
-      </View>
+      <SafeAreaView style={styles.container}>
+        <View style={styles.center}>
+          <Text>Loading Profile...</Text>
+        </View>
+      </SafeAreaView>
     );
   }
 

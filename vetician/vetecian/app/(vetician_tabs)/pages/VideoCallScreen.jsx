@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import { io } from 'socket.io-client';
-import TwilioNativeVideoCall from '../../../components/TwilioNativeVideoCall';
+import VideoSDKCall from '../../../components/VideoSDKCall';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const SOCKET_URL = process.env.EXPO_PUBLIC_API_URL?.replace('/api', '') || 'https://vetician-backend-kovk.onrender.com';
@@ -114,7 +114,7 @@ export default function VideoCallScreen() {
 
   if (showVideoCall) {
     return (
-      <TwilioNativeVideoCall
+      <VideoSDKCall
         roomName={actualRoomName}
         userName={params.receiverName || 'Pet Parent'}
         onEndCall={handleEndCall}

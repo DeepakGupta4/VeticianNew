@@ -14,7 +14,8 @@
     "preview": {
       "distribution": "internal",
       "android": {
-        "buildType": "apk"
+        "buildType": "apk",
+        "gradleCommand": ":app:assembleRelease"
       },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://vetician-backend-kovk.onrender.com/api"
@@ -23,10 +24,14 @@
     "apk": {
       "distribution": "internal",
       "android": {
-        "buildType": "apk"
+        "buildType": "apk",
+        "gradleCommand": ":app:assembleRelease"
       },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://vetician-backend-kovk.onrender.com/api"
+      },
+      "cache": {
+        "disabled": true
       }
     },
     "production": {

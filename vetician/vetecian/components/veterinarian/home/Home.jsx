@@ -8,7 +8,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from "../../../services/api";
 import socketService from '../../../services/socket';
 import IncomingCallScreen from '../../IncomingCallScreen';
-import TwilioNativeVideoCall from '../../TwilioNativeVideoCall'; 
+import VideoSDKCall from '../../VideoSDKCall'; 
 
 export default function Home() {
     const { user } = useSelector(state => state.auth);
@@ -166,7 +166,7 @@ export default function Home() {
     if (inVideoCall && roomName) {
         console.log('🎥 Doctor joining video call with roomName:', roomName);
         return (
-            <TwilioNativeVideoCall
+            <VideoSDKCall
                 roomName={roomName}
                 userName={user?.name || 'Doctor'}
                 onEndCall={handleCallEnd}
