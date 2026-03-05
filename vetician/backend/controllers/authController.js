@@ -73,10 +73,13 @@ const register = catchAsync(async (req, res, next) => {
       const parent = new Parent({
         name: user.name,
         email: user.email,
+        phone: user.phone ? user.phone.replace(/\+/g, '') : '',
+        address: 'Not provided',
         user: user._id,
         gender: 'other'
       });
       await parent.save();
+      console.log('✅ Parent record created:', parent._id);
     } else if (userRole === 'paravet') {
       const paravet = new Paravet({
         userId: user._id.toString(),
@@ -96,6 +99,7 @@ const register = catchAsync(async (req, res, next) => {
       await paravet.save();
     }
   } catch (roleError) {
+    console.error('❌ Failed to create parent/paravet record:', roleError);
     // Continue with registration even if role-specific entry fails
   }
 
@@ -109,7 +113,7 @@ const register = catchAsync(async (req, res, next) => {
     message: 'User registered successfully',
     user: {
       ...user.getPublicProfile(),
-      role: user.role
+      role: user.role === 'vetician' ? 'Pet Parent' : user.role
     },
     token: accessToken,
     refreshToken,
@@ -225,6 +229,45 @@ const login = catchAsync(async (req, res, next) => {
     return next(new AppError('Invalid email or password', 401));
   }
 
+  // Auto-sync parent data for vetician users
+  if (loginType === 'vetician') {
+    console.log('🔍 Checking parent record for user:', user._id);
+    let parent = await Parent.findOne({ user: user._id });
+    if (!parent) {
+      console.log('➕ Creating new parent record...');
+      parent = new Parent({
+        name: user.name,
+        email: user.email,
+        phone: user.phone ? user.phone.replace(/\+/g, '') : '',
+        address: 'Not provided',
+        user: user._id,
+        gender: 'other'
+      });
+      await parent.save();
+      console.log('✅ Parent record created:', parent._id);
+    } else {
+      console.log('✅ Parent record found:', parent._id);
+      // Sync user data to parent if changed
+      let updated = false;
+      if (parent.email !== user.email) {
+        parent.email = user.email;
+        updated = true;
+      }
+      if (parent.name !== user.name) {
+        parent.name = user.name;
+        updated = true;
+      }
+      if (user.phone && parent.phone !== user.phone) {
+        parent.phone = user.phone;
+        updated = true;
+      }
+      if (updated) {
+        await parent.save();
+        console.log('🔄 Parent record updated');
+      }
+    }
+  }
+
   const { accessToken, refreshToken } = generateTokens(user._id);
   user.refreshTokens.push({ token: refreshToken });
   await user.save();
@@ -235,7 +278,7 @@ const login = catchAsync(async (req, res, next) => {
     message: 'Login successful',
     user: {
       ...user.getPublicProfile(),
-      role: user.role
+      role: user.role === 'vetician' ? 'Pet Parent' : user.role
     },
     token: accessToken,
     refreshToken,
@@ -1770,7 +1813,7 @@ const verifyOTP = catchAsync(async (req, res, next) => {
     message: 'OTP verified successfully',
     user: {
       ...user.getPublicProfile(),
-      role: user.role
+      role: user.role === 'vetician' ? 'Pet Parent' : user.role
     },
     token: accessToken,
     refreshToken

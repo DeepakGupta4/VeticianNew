@@ -71,13 +71,47 @@ export default function MyBookings() {
   const fetchBookings = async () => {
     try {
       const token = await AsyncStorage.getItem('token');
-      const response = await fetch(`${API_URL}/auth/petparent/appointments`, {
+      
+      // Fetch clinic appointments
+      const appointmentsRes = await fetch(`${API_URL}/auth/petparent/appointments`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      const data = await response.json();
-      if (data.success) {
-        setBookings(data.appointments || []);
+      const appointmentsData = await appointmentsRes.json();
+      
+      // Try to fetch doorstep bookings (may not exist on all servers)
+      let doorstepBookings = [];
+      try {
+        const doorstepRes = await fetch(`${API_URL}/doorstep`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (doorstepRes.ok) {
+          const doorstepData = await doorstepRes.json();
+          doorstepBookings = (doorstepData.data || []).map(booking => ({
+            ...booking,
+            _id: booking._id,
+            bookingType: booking.serviceType,
+            service: booking.serviceType,
+            date: booking.appointmentDate,
+            petName: booking.petIds?.[0]?.name || 'Pet',
+            clinicName: 'Doorstep Service',
+            doctorName: booking.servicePartnerName,
+            isDoorstep: true
+          }));
+        }
+      } catch (doorstepError) {
+        console.log('⚠️ Doorstep bookings not available:', doorstepError.message);
       }
+      
+      const allBookings = [
+        ...(appointmentsData.appointments || []),
+        ...doorstepBookings
+      ];
+      
+      // Sort by date
+      allBookings.sort((a, b) => new Date(b.date) - new Date(a.date));
+      
+      setBookings(allBookings);
     } catch (error) {
       console.error('Error fetching bookings:', error);
     } finally {

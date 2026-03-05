@@ -10,11 +10,17 @@ class SocketService {
   }
 
   connect(userId, userType) {
-    if (this.socket?.connected) return;
+    console.log(`🔌 SocketService.connect called:`, { userId, userType, alreadyConnected: this.socket?.connected });
+    
+    if (this.socket?.connected) {
+      console.log('✅ Socket already connected, skipping...');
+      return;
+    }
 
     this.userId = userId;
     this.userType = userType;
 
+    console.log(`📡 Connecting to socket server: ${SOCKET_URL}`);
     this.socket = io(SOCKET_URL, {
       transports: ['websocket', 'polling'],
       reconnection: true,
@@ -23,13 +29,20 @@ class SocketService {
     });
 
     this.socket.on('connect', () => {
+      console.log(`✅ Socket connected! ID: ${this.socket.id}`);
+      
       if (userType === 'veterinarian') {
+        console.log(`📤 Emitting join-veterinarian: ${userId}`);
         this.socket.emit('join-veterinarian', userId);
       } else if (userType === 'petparent') {
+        console.log(`📤 Emitting join-petparent: ${userId}`);
         this.socket.emit('join-petparent', userId);
       } else if (userType === 'paravet') {
-        console.log(`📤 Emitting join-paravet with ID: ${userId}`);
+        console.log(`📤 Emitting join-paravet: ${userId}`);
         this.socket.emit('join-paravet', userId);
+      } else if (userType === 'user') {
+        console.log(`📤 Emitting join-user: ${userId}`);
+        this.socket.emit('join-user', userId);
       }
     });
 
@@ -145,6 +158,33 @@ class SocketService {
       this.socket.disconnect();
       this.socket = null;
     }
+  }
+
+  // Generic event listeners
+  on(event, callback) {
+    if (!this.socket) {
+      console.log(`⚠️ Socket not initialized for ${event}`);
+      return;
+    }
+    this.socket.on(event, callback);
+  }
+
+  off(event, callback) {
+    if (!this.socket) return;
+    if (callback) {
+      this.socket.off(event, callback);
+    } else {
+      this.socket.off(event);
+    }
+  }
+
+  emit(event, data) {
+    this.ensureConnection();
+    if (!this.socket) {
+      console.log(`⚠️ Socket not initialized for emitting ${event}`);
+      return;
+    }
+    this.socket.emit(event, data);
   }
 }
 

@@ -76,6 +76,13 @@ class ApiService {
     });
   }
 
+  put(endpoint, body = {}) {
+    return this.request(endpoint, {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    });
+  }
+
   delete(endpoint) {
     return this.request(endpoint, { method: 'DELETE' });
   }
@@ -145,27 +152,23 @@ class ApiService {
   ========================= */
 
   createDoorstepBooking(data) {
-    return this.post('/doorstep/bookings', data);
+    return this.post('/doorstep', data);
   }
 
   getDoorstepBookings() {
-    return this.get('/doorstep/bookings');
+    return this.get('/doorstep');
   }
 
   getDoorstepBooking(id) {
-    return this.get(`/doorstep/bookings/${id}`);
+    return this.get(`/doorstep/${id}`);
   }
 
   cancelDoorstepBooking(id) {
-    return this.patch(`/doorstep/bookings/${id}/cancel`);
+    return this.patch(`/doorstep/${id}/cancel`);
   }
 
   updateBookingStatus(id, status) {
-    return this.patch(`/doorstep/bookings/${id}/status`, { status });
-  }
-
-  getParavetBookings() {
-    return this.get('/doorstep/paravet/bookings');
+    return this.put(`/doorstep/${id}/status`, { status });
   }
 
   getVerifiedParavets() {

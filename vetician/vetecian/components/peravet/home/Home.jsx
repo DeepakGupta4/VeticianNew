@@ -26,10 +26,11 @@ export default function Home() {
         onboardingStatus: 'pending' // pending, approved, rejected
     });
 
-    const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://vetician-backend-kovk.onrender.com/api';
+    const API_URL = __DEV__ 
+        ? 'http://localhost:3000/api'
+        : (process.env.EXPO_PUBLIC_API_URL || 'https://vetician-backend-kovk.onrender.com/api');
 
     useEffect(() => {
-        // Check if just completed onboarding
         const checkOnboardingComplete = async () => {
             const completed = await AsyncStorage.getItem('onboarding_completed');
             if (completed === 'true') {
@@ -39,11 +40,18 @@ export default function Home() {
         };
         checkOnboardingComplete();
         fetchDashboardData();
+        
+        // Poll for status updates every 10 seconds
+        const interval = setInterval(fetchDashboardData, 10000);
+        return () => clearInterval(interval);
     }, []);
     const fetchDashboardData = async () => {
         try {
             const userId = await AsyncStorage.getItem('userId');
             const token = await AsyncStorage.getItem('token');
+            
+            console.log('🔍 Fetching dashboard for userId:', userId);
+            console.log('🌐 API URL:', API_URL);
             
             if (!userId || !token) return;
 
@@ -54,8 +62,12 @@ export default function Home() {
                 }
             });
 
+            console.log('📡 Response status:', response.status);
+
             if (response.ok) {
                 const data = await response.json();
+                console.log('📊 Dashboard API Response:', data);
+                console.log('🔍 Onboarding Status:', data.onboardingStatus);
                 setDashboardData({
                     stats: {
                         totalPatients: data.totalPatients || 0,
@@ -66,6 +78,8 @@ export default function Home() {
                     recentActivities: data.recentActivities || [],
                     onboardingStatus: data.onboardingStatus || 'pending'
                 });
+            } else {
+                console.error('❌ Dashboard API Error:', response.status, response.statusText);
             }
         } catch (error) {
             console.error('Error fetching dashboard:', error);
@@ -152,7 +166,8 @@ export default function Home() {
                 </View>
             </View>
 
-            {/* Onboarding Banner */}
+            {/* Onboarding Banner - Only show if not submitted */}
+            {console.log('Current onboardingStatus:', dashboardData.onboardingStatus)}
             {dashboardData.onboardingStatus === 'pending' && (
                 <TouchableOpacity 
                     style={styles.onboardingBanner}
@@ -166,6 +181,32 @@ export default function Home() {
                         </View>
                     </View>
                 </TouchableOpacity>
+            )}
+
+            {/* Verification in Process Banner */}
+            {dashboardData.onboardingStatus === 'submitted' && (
+                <View style={styles.verificationBanner}>
+                    <View style={styles.bannerContent}>
+                        <Activity size={24} color="#FF9500" />
+                        <View style={styles.bannerText}>
+                            <Text style={styles.bannerTitle}>Your verification is in process</Text>
+                            <Text style={styles.bannerDescription}>We're reviewing your application. This usually takes 24-48 hours.</Text>
+                        </View>
+                    </View>
+                </View>
+            )}
+
+            {/* Approved Banner */}
+            {dashboardData.onboardingStatus === 'approved' && (
+                <View style={styles.approvedBanner}>
+                    <View style={styles.bannerContent}>
+                        <CheckCircle size={24} color="#34C759" />
+                        <View style={styles.bannerText}>
+                            <Text style={styles.bannerTitle}>Congratulations, your onboarding is completed</Text>
+                            <Text style={styles.bannerDescription}>You can now start accepting service requests!</Text>
+                        </View>
+                    </View>
+                </View>
             )}
 
             {/* Stats cards */}
@@ -274,6 +315,32 @@ const styles = StyleSheet.create({
         borderRadius: 12,
         borderLeftWidth: 4,
         borderLeftColor: '#00B0FF',
+        padding: 14,
+        flexDirection: 'row',
+        alignItems: 'center',
+        elevation: 2,
+    },
+    verificationBanner: {
+        marginHorizontal: 20,
+        marginTop: -20,
+        marginBottom: 12,
+        backgroundColor: '#FFF8E1',
+        borderRadius: 12,
+        borderLeftWidth: 4,
+        borderLeftColor: '#FF9500',
+        padding: 14,
+        flexDirection: 'row',
+        alignItems: 'center',
+        elevation: 2,
+    },
+    approvedBanner: {
+        marginHorizontal: 20,
+        marginTop: -20,
+        marginBottom: 12,
+        backgroundColor: '#E8F5E9',
+        borderRadius: 12,
+        borderLeftWidth: 4,
+        borderLeftColor: '#34C759',
         padding: 14,
         flexDirection: 'row',
         alignItems: 'center',

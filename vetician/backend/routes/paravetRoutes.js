@@ -23,6 +23,11 @@ router.get('/test', (req, res) => {
   res.json({ message: 'Paravet routes working!' });
 });
 
+// Test dashboard route
+router.get('/dashboard/test', (req, res) => {
+  res.json({ message: 'Dashboard route is accessible!', timestamp: new Date() });
+});
+
 // Test onboarding endpoint
 router.get('/onboarding/test', (req, res) => {
   res.json({ message: 'Onboarding endpoint is accessible', timestamp: new Date() });
@@ -31,6 +36,60 @@ router.get('/onboarding/test', (req, res) => {
 // User routes
 router.post('/initialize', auth, initializeParavetOnboarding);
 router.get('/profile/:userId', auth, getParavetProfile);
+
+// Get paravet dashboard data - MUST BE BEFORE OTHER GET ROUTES
+router.get('/dashboard/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const Paravet = require('../models/Paravet');
+    
+    console.log('📊 Dashboard request for userId:', userId);
+    const paravet = await Paravet.findOne({ userId });
+    
+    if (!paravet) {
+      console.log('⚠️ No paravet found, returning default pending status');
+      return res.json({
+        success: true,
+        totalPatients: 0,
+        upcomingAppointments: 0,
+        completedVaccinations: 0,
+        totalEarnings: 0,
+        recentActivities: [],
+        onboardingStatus: 'pending'
+      });
+    }
+    
+    console.log('📋 Paravet found:', {
+      submitted: paravet.applicationStatus?.submitted,
+      approvalStatus: paravet.applicationStatus?.approvalStatus
+    });
+    
+    let onboardingStatus = 'pending';
+    if (paravet.applicationStatus?.submitted) {
+      if (paravet.applicationStatus?.approvalStatus === 'approved') {
+        onboardingStatus = 'approved';
+      } else {
+        onboardingStatus = 'submitted';
+      }
+    }
+    
+    console.log('✅ Returning onboardingStatus:', onboardingStatus);
+    
+    res.json({
+      success: true,
+      totalPatients: 0,
+      upcomingAppointments: 0,
+      completedVaccinations: 0,
+      totalEarnings: 0,
+      recentActivities: [],
+      onboardingStatus
+    });
+  } catch (error) {
+    console.error('Dashboard error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 router.patch('/personal-info/:userId', auth, updatePersonalInfo);
 router.patch('/experience-skills/:userId', auth, updateExperienceSkills);
 router.patch('/payment-info/:userId', auth, updatePaymentInfo);
@@ -186,7 +245,6 @@ router.post('/onboarding/user/:userId', auth, async (req, res) => {
 
 // Admin routes
 router.get('/admin/unverified', getUnverifiedParavets);
-router.patch('/admin/verify/:id', verifyParavet);
 router.patch('/admin/verify-field/:id/:field', verifyParavetField);
 
 // Admin verify paravet endpoint
@@ -226,13 +284,33 @@ router.patch('/admin/verify/:id', async (req, res) => {
   }
 });
 
+// Admin delete paravet endpoint
+router.delete('/admin/delete/:id', async (req, res) => {
+  try {
+    const Paravet = require('../models/Paravet');
+    
+    const paravet = await Paravet.findByIdAndDelete(req.params.id);
+    
+    if (!paravet) {
+      return res.status(404).json({ success: false, message: 'Paravet not found' });
+    }
+    
+    console.log(`🗑️ Deleted paravet: ${paravet.personalInfo?.fullName?.value}`);
+    res.json({ success: true, message: 'Paravet deleted successfully' });
+  } catch (error) {
+    console.error('Delete error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // Get verified paravets for doorstep service
 router.get('/verified', async (req, res) => {
   try {
     const Paravet = require('../models/Paravet');
     const User = require('../models/User');
     
-    console.log('🔍 Fetching verified paravets...');
+    const { userLat, userLon } = req.query;
+    console.log('🔍 Fetching verified paravets with location:', { userLat, userLon });
     
     // Find all paravets that are approved and active
     const paravets = await Paravet.find({ 
@@ -242,62 +320,46 @@ router.get('/verified', async (req, res) => {
     
     console.log('📊 Found approved paravets:', paravets.length);
     
-    // Also find users with paravet role who don't have a Paravet document yet
-    const paravetUsers = await User.find({ role: 'paravet', isActive: true });
-    console.log('📊 Found paravet users:', paravetUsers.length);
-    
-    // Create a Set of userIds that already have Paravet documents
-    const existingParavetUserIds = new Set(paravets.map(p => p.userId));
-    
-    // Find users without Paravet documents
-    const usersWithoutParavetDoc = paravetUsers.filter(user => 
-      !existingParavetUserIds.has(user._id.toString())
-    );
-    
-    console.log('📊 Users without Paravet doc:', usersWithoutParavetDoc.length);
-    
-    // Create Paravet documents for users who don't have one
-    for (const user of usersWithoutParavetDoc) {
-      console.log('⚠️ Creating Paravet doc for user:', user._id, user.name);
-      const newParavet = new Paravet({
-        userId: user._id.toString(),
-        personalInfo: {
-          fullName: { value: user.name, verified: true },
-          email: { value: user.email, verified: true }
-        },
-        applicationStatus: {
-          currentStep: 1,
-          completionPercentage: 10,
-          submitted: false,
-          approvalStatus: 'approved',
-          approvedAt: new Date()
-        },
-        isActive: true
-      });
-      await newParavet.save();
-      paravets.push(newParavet);
-    }
+    // Calculate distance helper
+    const calculateDistance = (lat1, lon1, lat2, lon2) => {
+      const R = 6371;
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      const a = Math.sin(dLat/2) * Math.sin(dLat/2) + 
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+                Math.sin(dLon/2) * Math.sin(dLon/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      return (R * c).toFixed(1);
+    };
     
     const paravetData = await Promise.all(paravets.map(async (paravet) => {
       const user = await User.findById(paravet.userId);
-      console.log('👤 Paravet:', {
-        userId: paravet.userId,
-        name: paravet.personalInfo?.fullName?.value || user?.name,
-        status: paravet.applicationStatus?.approvalStatus
-      });
+      
+      let distance = 'N/A';
+      if (userLat && userLon && paravet.personalInfo?.location?.coordinates) {
+        const [lon, lat] = paravet.personalInfo.location.coordinates;
+        distance = calculateDistance(parseFloat(userLat), parseFloat(userLon), lat, lon);
+      }
       
       return {
+        _id: paravet._id,
         id: paravet.userId,
         name: paravet.personalInfo?.fullName?.value || user?.name || 'Unknown',
-        photo: paravet.documents?.profilePhoto?.url || 'https://via.placeholder.com/150',
+        photo: paravet.documents?.profilePhoto?.url || 'https://ui-avatars.com/api/?name=User&size=150&background=4E8D7C&color=fff',
         experience: `${paravet.experience?.yearsOfExperience?.value || 0} years`,
         rating: 4.5,
         reviews: 0,
         verified: true,
         specialization: paravet.experience?.areasOfExpertise?.value?.[0] || 'Paravet',
-        distance: '0 km',
+        distance,
         city: paravet.personalInfo?.city?.value || 'Unknown',
-        availability: paravet.experience?.availability || {}
+        availability: paravet.experience?.availability || {},
+        location: paravet.personalInfo?.location,
+        personalInfo: paravet.personalInfo,
+        documents: paravet.documents,
+        experience: paravet.experience,
+        paymentInfo: paravet.paymentInfo,
+        applicationStatus: paravet.applicationStatus
       };
     }));
     

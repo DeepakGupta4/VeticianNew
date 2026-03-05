@@ -554,42 +554,25 @@ export default function SignIn() {
   };
 
   const handlePostLoginRouting = async (type) => {
-    try {
-      switch(type) {
-        case 'vetician':
-          await handleUserLogin();
-          break;
-        case 'veterinarian':
-          router.replace('/(doc_tabs)');
-          break;
-        case 'paravet':
-          router.replace('/(peravet_tabs)/(tabs)');
-          break;
-        case 'pet_resort':
-          router.replace('/(pet_resort_tabs)');
-          break;
-        case 'admin':
-          router.replace('/(admin_tabs)');
-          break;
-        default:
-          router.replace('/(vetician_tabs)');
-      }
-    } catch (error) {
-      Alert.alert('Error', 'Navigation failed. Please restart the app.');
-    }
-  };
-
-  const handleUserLogin = async () => {
-    try {
-      const tourCompleted = await AsyncStorage.getItem('tourCompleted');
-      
-      if (!tourCompleted) {
-        router.replace('/(vetician_tabs)/pages/QuickTour');
-      } else {
+    switch(type) {
+      case 'vetician':
+        const tourCompleted = await AsyncStorage.getItem('tourCompleted');
+        router.replace(tourCompleted ? '/(vetician_tabs)' : '/(vetician_tabs)/pages/QuickTour');
+        break;
+      case 'veterinarian':
+        router.replace('/(doc_tabs)');
+        break;
+      case 'paravet':
+        router.replace('/(peravet_tabs)/(tabs)');
+        break;
+      case 'pet_resort':
+        router.replace('/(pet_resort_tabs)');
+        break;
+      case 'admin':
+        router.replace('/(admin_tabs)');
+        break;
+      default:
         router.replace('/(vetician_tabs)');
-      }
-    } catch (error) {
-      router.replace('/(vetician_tabs)');
     }
   };
 

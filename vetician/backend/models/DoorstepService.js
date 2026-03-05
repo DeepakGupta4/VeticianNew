@@ -9,7 +9,17 @@ const doorstepServiceSchema = new mongoose.Schema({
   serviceType: {
     type: String,
     required: true,
-    enum: ['Vet Home Visit', 'Vaccination at Home', 'Pet Grooming', 'Pet Training Session', 'Physiotherapy', 'Pet Walking']
+    enum: [
+      'Vet Home Visit', 
+      'Vaccination at Home', 
+      'Pet Grooming', 
+      'Pet Training Session', 
+      'Physiotherapy', 
+      'Pet Walking',
+      'Wound Care & Dressing',
+      'Blood Collection',
+      'Pre-operative Preparation'
+    ]
   },
   petIds: [{
     type: mongoose.Schema.Types.ObjectId,

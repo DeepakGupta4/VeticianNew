@@ -53,11 +53,15 @@ export const ParavetOnboardingProvider = ({ children }) => {
   });
 
   const updateFormData = useCallback((field, value) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
-    // Clear error for this field when user updates it
+    setFormData(prev => {
+      const updated = {
+        ...prev,
+        [field]: value
+      };
+      console.log(`📝 Updated ${field}:`, value);
+      return updated;
+    });
+    
     if (errors[field]) {
       setErrors(prev => {
         const newErrors = { ...prev };
@@ -227,24 +231,45 @@ export const ParavetOnboardingProvider = ({ children }) => {
         console.log('✅ Training saved:', trainingResult);
       }
       
-      // Upload documents with actual URLs
-      const docUpdates = {};
+      // Upload documents with actual URLs - use separate API calls for each document
+      console.log('📝 Document URLs before upload:');
+      console.log('  governmentIdUrl:', formData.governmentIdUrl);
+      console.log('  certificationProofUrl:', formData.certificationProofUrl);
+      console.log('  profilePhotoUrl:', formData.profilePhotoUrl);
+      
       if (formData.governmentIdUrl) {
-        docUpdates['documents.governmentId'] = { idType: 'uploaded', url: formData.governmentIdUrl, verified: false };
+        await api.patch(`/paravet/documents/${userId}`, {
+          'documents.governmentId': { 
+            idType: 'uploaded', 
+            url: formData.governmentIdUrl, 
+            verified: false 
+          }
+        });
+        console.log('✅ Government ID uploaded');
       }
+      
       if (formData.certificationProofUrl) {
-        docUpdates['documents.certificationProof'] = { url: formData.certificationProofUrl, certificationType: 'uploaded', verified: false };
+        await api.patch(`/paravet/documents/${userId}`, {
+          'documents.certificationProof': { 
+            url: formData.certificationProofUrl, 
+            certificationType: 'uploaded', 
+            verified: false 
+          }
+        });
+        console.log('✅ Certification proof uploaded');
       }
+      
       if (formData.profilePhotoUrl) {
-        docUpdates['documents.profilePhoto'] = { url: formData.profilePhotoUrl, verified: false };
+        await api.patch(`/paravet/documents/${userId}`, {
+          'documents.profilePhoto': { 
+            url: formData.profilePhotoUrl, 
+            verified: false 
+          }
+        });
+        console.log('✅ Profile photo uploaded');
       }
       
-      if (Object.keys(docUpdates).length > 0) {
-        await api.patch(`/paravet/documents/${userId}`, docUpdates);
-        console.log('✅ Documents uploaded:', Object.keys(docUpdates));
-      }
-      
-      console.log('✅ Documents uploaded');
+      console.log('✅ All documents uploaded');
       
       // Verify final state
       const currentState = await api.get(`/paravet/profile/${userId}`);

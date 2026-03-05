@@ -26,11 +26,17 @@ const parseErrorMessage = (responseText) => {
 };
 
 const getApiBaseUrl = () => {
-  // Priority: app.json extra config > .env > fallback
-  const apiUrl = process.env.EXPO_PUBLIC_API_URL || 'https://vetician-backend-kovk.onrender.com/api';
-  console.log('🚀 API URL:', apiUrl);
-  console.log('🔧 __DEV__:', __DEV__);
-  return apiUrl;
+  return process.env.EXPO_PUBLIC_API_URL || 'https://vetician-backend-kovk.onrender.com/api';
+};
+
+// Fetch with timeout
+const fetchWithTimeout = (url, options = {}, timeout = 10000) => {
+  return Promise.race([
+    fetch(url, options),
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Request timeout')), timeout)
+    )
+  ]);
 };
 
 // Debug helper function
@@ -65,30 +71,9 @@ const getCommonHeaders = async (includeAuth = false) => {
   };
   
   if (includeAuth) {
-    // Try to get token from AsyncStorage first
-    let token = await AsyncStorage.getItem('token');
-    console.log('🔍 Token from AsyncStorage:', token ? 'Found' : 'Not found');
-    
-    // If no token in AsyncStorage, try to get from Redux store (fallback)
-    if (!token) {
-      try {
-        // This is a fallback - ideally token should be in AsyncStorage
-        const storedState = await AsyncStorage.getItem('persist:auth');
-        if (storedState) {
-          const parsedState = JSON.parse(storedState);
-          token = parsedState.token ? JSON.parse(parsedState.token) : null;
-          console.log('🔍 Token from Redux persist:', token ? 'Found' : 'Not found');
-        }
-      } catch (e) {
-        console.log('❌ Error getting token from Redux persist:', e.message);
-      }
-    }
-    
+    const token = await AsyncStorage.getItem('token');
     if (token) {
       headers.Authorization = `Bearer ${token}`;
-      console.log('✅ Authorization header added');
-    } else {
-      console.log('❌ No token found anywhere - user might not be logged in');
     }
   }
   
@@ -139,37 +124,31 @@ export const signInUser = createAsyncThunk(
       const BASE_URL = getApiBaseUrl();
       const headers = await getCommonHeaders(false);
       
-      const requestBody = { email, password, loginType };
-      
-      const res = await fetch(`${BASE_URL}/auth/login`, {
+      const res = await fetchWithTimeout(`${BASE_URL}/auth/login`, {
         method: 'POST',
         mode: 'cors',
         headers,
-        body: JSON.stringify(requestBody),
-      });
-      
-      const responseText = await res.text();
-      
-      if (responseText.includes('<!DOCTYPE') || responseText.includes('<html')) {
-        return rejectWithValue('Server error. Please check your internet connection and try again.');
-      }
+        body: JSON.stringify({ email, password, loginType }),
+      }, 15000);
       
       if (!res.ok) {
-        const errorMessage = parseErrorMessage(responseText);
-        return rejectWithValue(errorMessage);
+        const errorData = await res.json().catch(() => ({ message: 'Login failed' }));
+        return rejectWithValue(errorData.message || 'Invalid credentials');
       }
       
-      let data;
-      try {
-        data = JSON.parse(responseText);
-      } catch (parseError) {
-        return rejectWithValue('Unable to process server response');
+      const data = await res.json();
+      
+      // Store credentials in parallel
+      if (data.user?._id && data.token) {
+        await Promise.all([
+          AsyncStorage.setItem('userId', data.user._id),
+          AsyncStorage.setItem('token', data.token)
+        ]);
       }
       
-      if (data.user?._id) await AsyncStorage.setItem('userId', data.user._id);
       return data;
     } catch (error) {
-      return rejectWithValue(error.message || 'Network error. Please check your connection.');
+      return rejectWithValue(error.message || 'Network error');
     }
   }
 );
@@ -181,31 +160,30 @@ export const signUpUser = createAsyncThunk(
       const BASE_URL = getApiBaseUrl();
       const headers = await getCommonHeaders(false);
       
-      const requestBody = { name, email, phone, password, loginType };
-      
-      const res = await fetch(`${BASE_URL}/auth/register`, {
+      const res = await fetchWithTimeout(`${BASE_URL}/auth/register`, {
         method: 'POST',
         headers,
-        body: JSON.stringify(requestBody),
-      });
-      
-      const responseText = await res.text();
-      
-      if (responseText.includes('<!DOCTYPE') || responseText.includes('<html')) {
-        return rejectWithValue('Server error. Please try again later.');
-      }
+        body: JSON.stringify({ name, email, phone, password, loginType }),
+      }, 15000);
       
       if (!res.ok) {
-        const errorMessage = parseErrorMessage(responseText);
-        return rejectWithValue(errorMessage);
+        const errorData = await res.json().catch(() => ({ message: 'Registration failed' }));
+        return rejectWithValue(errorData.message || 'Unable to create account');
       }
       
-      const data = JSON.parse(responseText);
+      const data = await res.json();
       
-      if (data.user?._id) await AsyncStorage.setItem('userId', data.user._id);
+      // Store credentials in parallel
+      if (data.user?._id && data.token) {
+        await Promise.all([
+          AsyncStorage.setItem('userId', data.user._id),
+          AsyncStorage.setItem('token', data.token)
+        ]);
+      }
+      
       return data;
     } catch (error) {
-      return rejectWithValue(error.message || 'Network error. Please check your connection.');
+      return rejectWithValue(error.message || 'Network error');
     }
   }
 );
@@ -597,12 +575,6 @@ const authSlice = createSlice({
         state.token = action.payload.token;
         state.refreshToken = action.payload.refreshToken;
         state.isAuthenticated = true;
-        if (action.payload.token) {
-          AsyncStorage.setItem('token', action.payload.token);
-        }
-        if (action.payload.user?._id) {
-          AsyncStorage.setItem('userId', action.payload.user._id);
-        }
       })
       .addCase(signInUser.rejected, (state, action) => {
         state.isLoading = false;
@@ -617,12 +589,6 @@ const authSlice = createSlice({
         state.user = action.payload.user;
         state.token = action.payload.token;
         state.isAuthenticated = true;
-        if (action.payload.token) {
-          AsyncStorage.setItem('token', action.payload.token);
-        }
-        if (action.payload.user?._id) {
-          AsyncStorage.setItem('userId', action.payload.user._id);
-        }
       })
       .addCase(signUpUser.rejected, (state, action) => {
         state.isLoading = false;
@@ -701,6 +667,30 @@ const authSlice = createSlice({
         state.parentData.data = action.payload;
       })
       .addCase(parentUser.rejected, (state, action) => {
+        state.parentData.loading = false;
+        state.parentData.error = action.payload;
+      })
+      .addCase(getParent.pending, (state) => {
+        state.parentData.loading = true;
+        state.parentData.error = null;
+      })
+      .addCase(getParent.fulfilled, (state, action) => {
+        state.parentData.loading = false;
+        state.parentData.data = action.payload;
+      })
+      .addCase(getParent.rejected, (state, action) => {
+        state.parentData.loading = false;
+        state.parentData.error = action.payload;
+      })
+      .addCase(updateParent.pending, (state) => {
+        state.parentData.loading = true;
+        state.parentData.error = null;
+      })
+      .addCase(updateParent.fulfilled, (state, action) => {
+        state.parentData.loading = false;
+        state.parentData.data = action.payload;
+      })
+      .addCase(updateParent.rejected, (state, action) => {
         state.parentData.loading = false;
         state.parentData.error = action.payload;
       });

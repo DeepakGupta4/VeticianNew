@@ -263,12 +263,12 @@ export default function Profile() {
           <Text style={styles.fieldLabel}>Government ID</Text>
           <View style={styles.documentStatus}>
             <Ionicons 
-              name={profileData?.documents?.governmentId?.type ? 'checkmark-circle' : 'close-circle'} 
+              name={profileData?.documents?.governmentId?.url ? 'checkmark-circle' : 'close-circle'} 
               size={20} 
-              color={profileData?.documents?.governmentId?.type ? '#4CAF50' : '#F44336'} 
+              color={profileData?.documents?.governmentId?.url ? '#4CAF50' : '#F44336'} 
             />
             <Text style={styles.documentStatusText}>
-              {profileData?.documents?.governmentId?.type ? 'Uploaded' : 'Not uploaded'}
+              {profileData?.documents?.governmentId?.url ? 'Uploaded' : 'Not uploaded'}
             </Text>
           </View>
         </View>
@@ -276,12 +276,12 @@ export default function Profile() {
           <Text style={styles.fieldLabel}>Certification Proof</Text>
           <View style={styles.documentStatus}>
             <Ionicons 
-              name={profileData?.documents?.certificationProof?.type ? 'checkmark-circle' : 'close-circle'} 
+              name={profileData?.documents?.certificationProof?.url ? 'checkmark-circle' : 'close-circle'} 
               size={20} 
-              color={profileData?.documents?.certificationProof?.type ? '#4CAF50' : '#F44336'} 
+              color={profileData?.documents?.certificationProof?.url ? '#4CAF50' : '#F44336'} 
             />
             <Text style={styles.documentStatusText}>
-              {profileData?.documents?.certificationProof?.type ? 'Uploaded' : 'Not uploaded'}
+              {profileData?.documents?.certificationProof?.url ? 'Uploaded' : 'Not uploaded'}
             </Text>
           </View>
         </View>
@@ -289,12 +289,12 @@ export default function Profile() {
           <Text style={styles.fieldLabel}>Profile Photo</Text>
           <View style={styles.documentStatus}>
             <Ionicons 
-              name={profileData?.documents?.profilePhoto?.type ? 'checkmark-circle' : 'close-circle'} 
+              name={profileData?.documents?.profilePhoto?.url ? 'checkmark-circle' : 'close-circle'} 
               size={20} 
-              color={profileData?.documents?.profilePhoto?.type ? '#4CAF50' : '#F44336'} 
+              color={profileData?.documents?.profilePhoto?.url ? '#4CAF50' : '#F44336'} 
             />
             <Text style={styles.documentStatusText}>
-              {profileData?.documents?.profilePhoto?.type ? 'Uploaded' : 'Not uploaded'}
+              {profileData?.documents?.profilePhoto?.url ? 'Uploaded' : 'Not uploaded'}
             </Text>
           </View>
         </View>

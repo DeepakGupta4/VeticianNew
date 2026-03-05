@@ -49,8 +49,7 @@ export default function SignUp() {
     const newErrors = {};
     if (!formData.name.trim()) newErrors.name = 'Full name is required';
     if (!formData.email.trim() || !validateEmail(formData.email)) newErrors.email = 'Valid email is required';
-    if (!formData.phone.trim()) newErrors.phone = 'Phone number is required';
-    else if (formData.phone.length !== 10 || !/^\d{10}$/.test(formData.phone)) newErrors.phone = 'Enter valid 10-digit phone number';
+    if (!formData.phone.trim() || formData.phone.length !== 10 || !/^\d{10}$/.test(formData.phone)) newErrors.phone = 'Enter valid 10-digit phone number';
     if (!formData.password.trim() || formData.password.length < 6) newErrors.password = 'Password must be 6+ chars';
     if (formData.password !== formData.confirmPassword) newErrors.confirmPassword = 'Passwords do not match';
 
@@ -60,31 +59,22 @@ export default function SignUp() {
     }
 
     try {
-      const dispatchParams = {
+      await dispatch(signUpUser({
         name: formData.name.trim(),
         email: formData.email.trim(),
         phone: `+91${formData.phone.trim()}`,
         password: formData.password,
-        loginType: loginType,
+        loginType,
+      })).unwrap();
+
+      // Route based on login type
+      const routes = {
+        veterinarian: '/(doc_tabs)/onboarding/onboarding_conf',
+        pet_resort: '/(pet_resort_tabs)/(tabs)',
+        paravet: '/(peravet_tabs)/(tabs)',
+        vetician: '/(vetician_tabs)/onboarding/onboarding_conf'
       };
-
-      const result = await dispatch(signUpUser(dispatchParams)).unwrap();
-
-      if (result) {
-        switch (loginType) {
-          case 'veterinarian':
-            router.replace('/(doc_tabs)/onboarding/onboarding_conf');
-            break;
-          case 'pet_resort':
-            router.replace('/(pet_resort_tabs)/(tabs)');
-            break;
-          case 'paravet':
-            router.replace('/(peravet_tabs)/(tabs)');
-            break;
-          default:
-            router.replace('/(vetician_tabs)/onboarding/onboarding_conf');
-        }
-      }
+      router.replace(routes[loginType] || routes.vetician);
     } catch (error) {
       setErrors({ general: typeof error === 'string' ? error : (error.message || 'An error occurred') });
     }

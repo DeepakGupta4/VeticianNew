@@ -336,7 +336,7 @@ export default function Profile() {
         <View style={styles.profileCard}>
           <TouchableOpacity 
             style={styles.profileHeader}
-            onPress={() => router.push('ProfileDetails')}
+            onPress={() => setEditModalVisible(true)}
           >
             <View style={styles.profileLeft}>
               {parentData?.image ? (
@@ -353,6 +353,9 @@ export default function Profile() {
               <View style={styles.profileInfo}>
                 <Text style={styles.profileName}>{parentData?.name || user?.name || 'Pet Parent'}</Text>
                 <Text style={styles.profilePhone}>{parentData?.phone || 'Not provided'}</Text>
+                {!parentData?.address && (
+                  <Text style={styles.profileWarning}>⚠️ Address required</Text>
+                )}
               </View>
             </View>
             <View style={styles.chevronButton}>
@@ -657,6 +660,12 @@ const styles = StyleSheet.create({
   profilePhone: {
     fontSize: 14,
     color: '#64748B',
+  },
+  profileWarning: {
+    fontSize: 12,
+    color: '#EF4444',
+    marginTop: 4,
+    fontWeight: '500',
   },
   chevronButton: {
     width: 32,

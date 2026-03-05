@@ -215,7 +215,9 @@ export default function PetDetail() {
 
       if (result.success) {
         await dispatch(getPetsByUserId()).unwrap();
-        router.replace('pages/PetList');
+        Alert.alert('Success', 'Pet registered successfully!', [
+          { text: 'OK', onPress: () => router.replace('/(vetician_tabs)/(tabs)') }
+        ]);
       }
     } catch (error) {
       Alert.alert('Error', error.message || 'Failed to register pet');

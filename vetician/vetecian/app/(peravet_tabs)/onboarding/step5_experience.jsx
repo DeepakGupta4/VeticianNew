@@ -469,10 +469,50 @@ export default function Step5Experience() {
   const router = useRouter();
   const { formData, updateFormData, updateArrayField, errors, nextStep } = useParavetOnboarding();
 
-  const areasOfExpertiseOptions = [
-    'Wound Care', 'Injections', 'Vaccinations', 'Blood Collection',
-    'Post-op Care', 'Medication Administration', 'Pet Grooming', 'Basic Diagnostics',
-  ];
+  const [searchQuery, setSearchQuery] = useState('');
+  const [expandedCategories, setExpandedCategories] = useState({});
+
+  const expertiseCategories = {
+    'Clinical Care': [
+      'Wound Care & Dressing', 'Injection Administration (IV/IM/SC)', 'Vaccination Support',
+      'IV Fluid Therapy', 'Catheter Placement', 'Vital Signs Monitoring',
+      'Emergency First Aid', 'Medication Administration'
+    ],
+    'Diagnostic Support': [
+      'Blood Collection', 'Urine Sample Collection', 'Lab Sample Handling',
+      'X-ray Assistance', 'Ultrasound Assistance', 'ECG Assistance', 'Basic Diagnostics'
+    ],
+    'Surgical Assistance': [
+      'Pre-operative Preparation', 'OT Assistance', 'Post-operative Care',
+      'Anesthesia Monitoring Support', 'Sterilization & Instrument Handling'
+    ],
+    'Pet Care Services': [
+      'Pet Grooming', 'Nail Trimming', 'Ear Cleaning',
+      'Oral Hygiene Support', 'Tick & Flea Treatment', 'Deworming Support'
+    ],
+    'Home Visit Services': [
+      'Home Vaccination', 'Home Wound Dressing', 'Home IV Therapy', 'Elderly Pet Care Support'
+    ]
+  };
+
+  const toggleCategory = (category) => {
+    setExpandedCategories(prev => ({ ...prev, [category]: !prev[category] }));
+  };
+
+  const getFilteredSkills = () => {
+    if (!searchQuery) return expertiseCategories;
+    
+    const filtered = {};
+    Object.keys(expertiseCategories).forEach(category => {
+      const matchingSkills = expertiseCategories[category].filter(skill =>
+        skill.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+      if (matchingSkills.length > 0) {
+        filtered[category] = matchingSkills;
+      }
+    });
+    return filtered;
+  };
 
   const languagesOptions = [
     'English', 'Hindi', 'Marathi', 'Tamil',
@@ -562,28 +602,59 @@ export default function Step5Experience() {
         </View>
 
         {/* Areas of Expertise */}
-        <FormSection 
-          title="Areas of Expertise" 
-          count={formData.areasOfExpertise.length}
-          error={errors.areasOfExpertise}
-        >
-          <View style={styles.wrapContainer}>
-            {areasOfExpertiseOptions.map((area) => {
-              const isSelected = formData.areasOfExpertise.includes(area);
-              return (
-                <TouchableOpacity
-                  key={area}
-                  activeOpacity={0.7}
-                  style={[styles.pill, isSelected && styles.pillActive]}
-                  onPress={() => toggleArrayItem('areasOfExpertise', area)}
-                >
-                  {isSelected && <Check size={14} color="#FFF" style={styles.checkIcon} />}
-                  <Text style={[styles.pillText, isSelected && styles.pillTextActive]}>{area}</Text>
-                </TouchableOpacity>
-              );
-            })}
+        <View style={styles.card}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Areas of Expertise <Text style={styles.required}>*</Text></Text>
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>{formData.areasOfExpertise.length} selected</Text>
+            </View>
           </View>
-        </FormSection>
+          
+          {/* Search Bar */}
+          <View style={styles.searchContainer}>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search skills..."
+              placeholderTextColor={THEME.textSecondary}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+          </View>
+
+          {/* Categorized Skills */}
+          {Object.entries(getFilteredSkills()).map(([category, skills]) => (
+            <View key={category} style={styles.categoryContainer}>
+              <TouchableOpacity
+                style={styles.categoryHeader}
+                onPress={() => toggleCategory(category)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.categoryTitle}>{category}</Text>
+                <Text style={styles.categoryIcon}>{expandedCategories[category] ? '−' : '+'}</Text>
+              </TouchableOpacity>
+              
+              {expandedCategories[category] && (
+                <View style={styles.skillsContainer}>
+                  {skills.map((skill) => {
+                    const isSelected = formData.areasOfExpertise.includes(skill);
+                    return (
+                      <TouchableOpacity
+                        key={skill}
+                        activeOpacity={0.7}
+                        style={[styles.skillPill, isSelected && styles.skillPillActive]}
+                        onPress={() => toggleArrayItem('areasOfExpertise', skill)}
+                      >
+                        {isSelected && <Check size={14} color="#FFF" style={styles.checkIcon} />}
+                        <Text style={[styles.skillText, isSelected && styles.skillTextActive]}>{skill}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              )}
+            </View>
+          ))}
+          {errors.areasOfExpertise && <Text style={styles.errorText}>{errors.areasOfExpertise}</Text>}
+        </View>
 
         {/* Languages Spoken */}
         <FormSection 
@@ -850,6 +921,77 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   pillTextActive: {
+    color: '#FFF',
+    fontWeight: '600',
+  },
+
+  // Search
+  searchContainer: {
+    marginBottom: 16,
+  },
+  searchInput: {
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: THEME.border,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 15,
+    color: THEME.textMain,
+  },
+
+  // Categories
+  categoryContainer: {
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: THEME.border,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  categoryHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: '#F9FAFB',
+  },
+  categoryTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: THEME.textMain,
+  },
+  categoryIcon: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: THEME.primary,
+  },
+  skillsContainer: {
+    padding: 12,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    backgroundColor: '#FFF',
+  },
+  skillPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: THEME.border,
+  },
+  skillPillActive: {
+    backgroundColor: THEME.primary,
+    borderColor: THEME.primary,
+  },
+  skillText: {
+    fontSize: 13,
+    color: THEME.textMain,
+    fontWeight: '500',
+  },
+  skillTextActive: {
     color: '#FFF',
     fontWeight: '600',
   },

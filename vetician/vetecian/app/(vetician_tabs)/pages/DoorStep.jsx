@@ -20,7 +20,7 @@ import {
   MaterialCommunityIcons,
 } from '@expo/vector-icons';
 import { useSelector, useDispatch } from 'react-redux';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { getPetsByUserId, getParent } from '../../../store/slices/authSlice';
 import ApiService from '../../../services/api';
 import SocketService from '../../../services/socket';
@@ -29,70 +29,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import CommonHeader from '../../../components/CommonHeader';
 
 const { width } = Dimensions.get('window');
-
-// Mock Data
-const SERVICES = [
-  {
-    id: '1',
-    title: 'Vet Home Visit',
-    subtitle: 'General checkup, injections, first aid',
-    price: 599,
-    duration: '45-60 min',
-    icon: 'stethoscope',
-    iconSet: 'FontAwesome5',
-    color: '#FF6B6B',
-  },
-  {
-    id: '2',
-    title: 'Vaccination at Home',
-    subtitle: 'All vaccines administered safely',
-    price: 499,
-    duration: '30 min',
-    icon: 'syringe',
-    iconSet: 'FontAwesome5',
-    color: '#4ECDC4',
-  },
-  {
-    id: '3',
-    title: 'Pet Grooming',
-    subtitle: 'Bath, haircut, nail trim',
-    price: 799,
-    duration: '90-120 min',
-    icon: 'cut',
-    iconSet: 'FontAwesome5',
-    color: '#95E1D3',
-  },
-  {
-    id: '4',
-    title: 'Pet Training Session',
-    subtitle: 'Professional behavioral training',
-    price: 899,
-    duration: '60 min',
-    icon: 'dog',
-    iconSet: 'MaterialCommunityIcons',
-    color: '#F38181',
-  },
-  {
-    id: '5',
-    title: 'Physiotherapy',
-    subtitle: 'Post-surgery & recovery care',
-    price: 1299,
-    duration: '60 min',
-    icon: 'medical-bag',
-    iconSet: 'MaterialCommunityIcons',
-    color: '#AA96DA',
-  },
-  {
-    id: '6',
-    title: 'Pet Walking',
-    subtitle: 'Hourly or daily walks',
-    price: 199,
-    duration: '30 min',
-    icon: 'walk',
-    iconSet: 'MaterialCommunityIcons',
-    color: '#FCBAD3',
-  },
-];
 
 const generateTimeSlots = () => {
   const slots = [];
@@ -189,10 +125,20 @@ const BookingModal = ({ visible, onClose, service }) => {
       const response = await ApiService.getVerifiedParavets();
       console.log('✅ Paravets response:', response);
       console.log('📊 Paravets count:', response.data?.length || 0);
-      setServicePartners(response.data || []);
+      
+      if (response.data && response.data.length > 0) {
+        console.log('👤 First paravet:', response.data[0]);
+        setServicePartners(response.data);
+      } else {
+        console.log('⚠️ No paravets found in response');
+        setServicePartners([]);
+        Alert.alert('No Paravets Available', 'There are no verified paravets available at the moment. Please try again later.');
+      }
     } catch (error) {
       console.error('❌ Error fetching paravets:', error);
+      console.error('❌ Error details:', error.message);
       setServicePartners([]);
+      Alert.alert('Error', 'Failed to load service partners. Please try again.');
     } finally {
       setLoadingPartners(false);
     }
@@ -207,15 +153,33 @@ const BookingModal = ({ visible, onClose, service }) => {
   };
 
   const handleConfirmBooking = async () => {
-    // Check profile completion first
-    if (!isProfileComplete(parentData)) {
+    console.log('\n🎯 ========== BOOKING PROCESS START ==========');
+    console.log('📊 Redux State Check:');
+    console.log('  - parentData exists:', !!parentData);
+    console.log('  - parentData type:', typeof parentData);
+    console.log('  - parentData value:', parentData);
+    console.log('  - parentData keys:', parentData ? Object.keys(parentData) : 'N/A');
+    console.log('\n📋 Full parentData:', JSON.stringify(parentData, null, 2));
+    
+    console.log('\n📝 Booking Details:');
+    console.log('  - Selected date:', selectedDate);
+    console.log('  - Selected slot:', selectedSlot);
+    console.log('  - Selected partner:', selectedPartner?.name);
+    console.log('  - Selected pets count:', selectedPets.length);
+    
+    // Now run validation
+    const isComplete = isProfileComplete(parentData);
+    console.log('\n📋 Profile validation result:', isComplete);
+
+    if (!isComplete) {
+      const missingFields = getMissingFields(parentData);
       Alert.alert(
-        'Complete Your Profile',
-        'Please complete your profile first.',
+        'Incomplete Profile',
+        `Please complete the following fields: ${missingFields.join(', ')}`,
         [
           { text: 'Cancel', style: 'cancel' },
           { 
-            text: 'Go to Profile', 
+            text: 'Complete Profile', 
             onPress: () => {
               onClose();
               setTimeout(() => {
@@ -228,20 +192,25 @@ const BookingModal = ({ visible, onClose, service }) => {
       return;
     }
 
-    if (!selectedDate || !selectedSlot || !selectedPartner || selectedPets.length === 0) {
+    if (!selectedDate || (!isEmergency && !selectedSlot) || !selectedPartner || selectedPets.length === 0) {
+      console.log('❌ Missing required fields');
       Alert.alert('Incomplete Information', 'Please fill all required fields');
       return;
     }
 
     try {
+      const userId = await AsyncStorage.getItem('userId');
+      console.log('👤 User ID:', userId);
+      
       const bookingData = {
+        userId,
         serviceType: service.title,
         petIds: selectedPets.map(p => p._id),
-        servicePartnerId: selectedPartner.id,
-        servicePartnerName: selectedPartner.name,
+        paravetId: selectedPartner._id || selectedPartner.id,
+        paravetName: selectedPartner.name,
         appointmentDate: selectedDate.fullDate,
         timeSlot: selectedSlot.time,
-        address: {
+        address: parentData?.address || {
           street: '123 Main Street',
           city: 'Mumbai',
           state: 'Maharashtra',
@@ -256,34 +225,50 @@ const BookingModal = ({ visible, onClose, service }) => {
         basePrice: service.price,
         emergencyCharge: isEmergency ? 200 : 0,
         discount: couponCode ? 100 : 0,
-        totalAmount: calculateTotal()
+        totalAmount: calculateTotal(),
+        status: 'pending'
       };
 
-      console.log('📤 Sending booking:', bookingData);
+      console.log('📤 Sending booking:', JSON.stringify(bookingData, null, 2));
       const response = await ApiService.createDoorstepBooking(bookingData);
       console.log('✅ Booking response:', response);
 
-      // Connect socket and emit booking created event
-      SocketService.connect(user._id, 'user');
+      if (response.success) {
+        console.log('✅ Booking created successfully:', response.data);
+        console.log('📡 Attempting to emit socket event...');
+        console.log('  - Socket connected:', SocketService.socket?.connected);
+        console.log('  - Paravet ID:', selectedPartner._id || selectedPartner.id);
+        
+        SocketService.connect(userId, 'user');
+        SocketService.emit('booking:created', {
+          bookingId: response.data._id,
+          paravetId: selectedPartner._id || selectedPartner.id,
+          userId
+        });
+        console.log('✅ Socket event emitted: booking:created');
 
-      Alert.alert(
-        'Booking Confirmed! 🎉',
-        `Your ${service.title} is confirmed!\n\nDate: ${selectedDate.label}, ${selectedDate.month} ${selectedDate.date}\nTime: ${selectedSlot.time}\nService Partner: ${selectedPartner.name}\nPets: ${selectedPets.map(p => p.name).join(', ')}\nTotal: ₹${calculateTotal()}`,
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              onClose();
-              // Refresh bookings list in parent component
-              if (typeof window !== 'undefined' && window.refreshBookings) {
-                window.refreshBookings();
-              }
+        Alert.alert(
+          'Booking Request Sent! 🎉',
+          `Your booking request for ${service.title} has been sent to ${selectedPartner.name}.\n\nYou will be notified once the paravet accepts your request.\n\nDate: ${selectedDate.label}, ${selectedDate.month} ${selectedDate.date}\nTime: ${selectedSlot.time}\nTotal: ₹${calculateTotal()}`,
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                onClose();
+                if (typeof window !== 'undefined' && window.refreshBookings) {
+                  window.refreshBookings();
+                }
+              },
             },
-          },
-        ]
-      );
+          ]
+        );
+      } else {
+        console.log('❌ Booking failed:', response);
+        Alert.alert('Error', response.message || 'Failed to create booking');
+      }
     } catch (error) {
       console.error('❌ Booking error:', error);
+      console.error('❌ Error stack:', error.stack);
       Alert.alert('Error', error.message || 'Failed to create booking');
     }
   };
@@ -494,7 +479,11 @@ const BookingModal = ({ visible, onClose, service }) => {
                     )}
                   </View>
                   <Text style={styles.partnerSpecialization}>{partner.specialization}</Text>
-                  <Text style={styles.partnerExperience}>{partner.experience} experience</Text>
+                  <Text style={styles.partnerExperience}>
+                    {typeof partner.experience === 'string' 
+                      ? partner.experience 
+                      : `${partner.experience?.yearsOfExpertise?.value || 0}+ years`}
+                  </Text>
                   <View style={styles.partnerStats}>
                     <View style={styles.ratingBadge}>
                       <MaterialIcons name="star" size={12} color="#FFA500" />
@@ -614,7 +603,14 @@ const BookingModal = ({ visible, onClose, service }) => {
             <Text style={styles.bottomPrice}>₹{calculateTotal()}</Text>
             <Text style={styles.bottomPets}>{selectedPets.length} pet(s)</Text>
           </View>
-          <TouchableOpacity style={styles.confirmButton} onPress={handleConfirmBooking}>
+          <TouchableOpacity 
+            style={[
+              styles.confirmButton,
+              (!selectedDate || (!isEmergency && !selectedSlot) || !selectedPartner || selectedPets.length === 0) && { opacity: 0.5 }
+            ]} 
+            onPress={handleConfirmBooking}
+            disabled={!selectedDate || (!isEmergency && !selectedSlot) || !selectedPartner || selectedPets.length === 0}
+          >
             <Text style={styles.confirmButtonText}>Confirm Booking</Text>
           </TouchableOpacity>
         </View>
@@ -765,24 +761,52 @@ const TrackingModal = ({ visible, onClose, booking }) => {
 const ParavetModule = () => {
   const dispatch = useDispatch();
   const router = useRouter();
+  const params = useLocalSearchParams();
   const parentData = useSelector(state => state.auth?.parentData?.data?.parent?.[0]);
   const [selectedService, setSelectedService] = useState(null);
+  const [selectedParavet, setSelectedParavet] = useState(null);
   const [bookingModalVisible, setBookingModalVisible] = useState(false);
+  const [paravetSelectionVisible, setParavetSelectionVisible] = useState(false);
   const [trackingModalVisible, setTrackingModalVisible] = useState(false);
   const [userBookings, setUserBookings] = useState([]);
   const [selectedBooking, setSelectedBooking] = useState(null);
-
+  const [paravets, setParavets] = useState([]);
+  const [loadingParavets, setLoadingParavets] = useState(false);
+  
   useEffect(() => {
-    const fetchParentData = async () => {
+    fetchParavets();
+    fetchUserBookings();
+    // Auto-open paravet selection when page loads
+    setTimeout(() => setParavetSelectionVisible(true), 500);
+    
+    const setupSocketListeners = async () => {
       const userId = await AsyncStorage.getItem('userId');
-      if (userId && !parentData) {
-        dispatch(getParent(userId));
+      if (userId) {
+        SocketService.connect(userId, 'user');
+        
+        SocketService.on('booking:statusUpdated', (data) => {
+          console.log('🔔 Booking status updated:', data);
+          fetchUserBookings();
+          
+          if (data.status === 'accepted') {
+            Alert.alert(
+              'Booking Accepted! 🎉',
+              `${data.paravetName} has accepted your booking request for ${data.serviceType}.`,
+              [{ text: 'OK' }]
+            );
+          } else if (data.status === 'rejected') {
+            Alert.alert(
+              'Booking Declined',
+              `${data.paravetName} has declined your booking request. Please try booking with another paravet.`,
+              [{ text: 'OK' }]
+            );
+          }
+        });
       }
     };
-    fetchParentData();
-    fetchUserBookings();
     
-    // Setup refresh callback
+    setupSocketListeners();
+    
     if (typeof window !== 'undefined') {
       window.refreshBookings = fetchUserBookings;
     }
@@ -791,6 +815,7 @@ const ParavetModule = () => {
       if (typeof window !== 'undefined') {
         delete window.refreshBookings;
       }
+      SocketService.off('booking:statusUpdated');
     };
   }, []);
 
@@ -803,23 +828,62 @@ const ParavetModule = () => {
     }
   };
 
+  const fetchParavets = async () => {
+    try {
+      setLoadingParavets(true);
+      const response = await ApiService.getVerifiedParavets();
+      setParavets(response.data || []);
+    } catch (error) {
+      console.error('Error fetching paravets:', error);
+    } finally {
+      setLoadingParavets(false);
+    }
+  };
+
+  const handleParavetSelect = (paravet) => {
+    setSelectedParavet(paravet);
+    setParavetSelectionVisible(false);
+  };
+
+  const paravetServices = selectedParavet?.experience?.areasOfExpertise?.value || [];
+  
+  const serviceMapping = {
+    'Vet Home Visit': { id: '1', icon: 'stethoscope', iconSet: 'FontAwesome5', color: '#FF6B6B', subtitle: 'General checkup, injections, first aid', price: 599, duration: '45-60 min' },
+    'Vaccination at Home': { id: '2', icon: 'syringe', iconSet: 'FontAwesome5', color: '#4ECDC4', subtitle: 'All vaccines administered safely', price: 499, duration: '30 min' },
+    'Pet Grooming': { id: '3', icon: 'cut', iconSet: 'FontAwesome5', color: '#95E1D3', subtitle: 'Bath, haircut, nail trim', price: 799, duration: '90-120 min' },
+    'Pet Training Session': { id: '4', icon: 'dog', iconSet: 'MaterialCommunityIcons', color: '#F38181', subtitle: 'Professional behavioral training', price: 899, duration: '60 min' },
+    'Physiotherapy': { id: '5', icon: 'medical-bag', iconSet: 'MaterialCommunityIcons', color: '#AA96DA', subtitle: 'Post-surgery & recovery care', price: 1299, duration: '60 min' },
+    'Pet Walking': { id: '6', icon: 'walk', iconSet: 'MaterialCommunityIcons', color: '#FCBAD3', subtitle: 'Hourly or daily walks', price: 199, duration: '30 min' },
+    'Wound Care & Dressing': { id: '7', icon: 'bandage', iconSet: 'FontAwesome5', color: '#FF6B6B', subtitle: 'Professional wound care and dressing', price: 699, duration: '30-45 min' },
+    'Blood Collection': { id: '8', icon: 'syringe', iconSet: 'FontAwesome5', color: '#E74C3C', subtitle: 'Safe blood sample collection', price: 399, duration: '15-20 min' },
+    'Pre-operative Preparation': { id: '9', icon: 'hospital', iconSet: 'FontAwesome5', color: '#9B59B6', subtitle: 'Pre-surgery preparation and care', price: 899, duration: '45-60 min' },
+  };
+  
+  const availableServices = paravetServices.length > 0 
+    ? paravetServices.map((serviceName, index) => {
+        const mapped = serviceMapping[serviceName];
+        if (mapped) {
+          return { ...mapped, title: serviceName };
+        }
+        return {
+          id: `custom-${index}`,
+          title: serviceName,
+          icon: 'medical-services',
+          iconSet: 'MaterialIcons',
+          color: '#24A1DE',
+          subtitle: 'Professional pet care service',
+          price: 599,
+          duration: '30-60 min'
+        };
+      })
+    : [];
+
   const handleServiceSelect = (service) => {
-    // Check profile completion before opening modal
-    if (!isProfileComplete(parentData)) {
-      Alert.alert(
-        'Complete Your Profile',
-        'Please complete your profile first.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { 
-            text: 'Go to Profile', 
-            onPress: () => router.push('/(vetician_tabs)/(tabs)/profile')
-          }
-        ]
-      );
+    if (!selectedParavet) {
+      Alert.alert('Select Paravet', 'Please select a paravet first');
+      setParavetSelectionVisible(true);
       return;
     }
-    
     setSelectedService(service);
     setBookingModalVisible(true);
   };
@@ -827,7 +891,66 @@ const ParavetModule = () => {
   return (
     <SafeAreaView style={styles.container}>
       <CommonHeader title="Doorstep Service" />
+      
+      {/* Paravet Selection Modal */}
+      <Modal visible={paravetSelectionVisible} animationType="slide">
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity onPress={() => setParavetSelectionVisible(false)}>
+              <Ionicons name="close" size={28} color="#333" />
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Select Paravet</Text>
+            <View style={{ width: 28 }} />
+          </View>
+          
+          <ScrollView style={{ padding: 16 }}>
+            <Text style={styles.sectionSubtitle}>Choose a paravet to see their services</Text>
+            
+            {loadingParavets ? (
+              <Text style={styles.nearbyText}>Loading paravets...</Text>
+            ) : paravets.length === 0 ? (
+              <View style={styles.noServicesContainer}>
+                <MaterialIcons name="info-outline" size={48} color="#999" />
+                <Text style={styles.noServicesText}>No paravets available</Text>
+              </View>
+            ) : (
+              paravets.map((paravet) => (
+                <TouchableOpacity
+                  key={paravet._id || paravet.id}
+                  style={styles.partnerCard}
+                  onPress={() => handleParavetSelect(paravet)}
+                >
+                  <Image source={{ uri: paravet.photo }} style={styles.partnerPhoto} />
+                  <View style={styles.partnerInfo}>
+                    <Text style={styles.partnerName}>{paravet.name}</Text>
+                    <Text style={styles.partnerSpecialization}>{paravet.specialization}</Text>
+                    <Text style={styles.partnerExperience}>
+                      {paravet.experience?.areasOfExpertise?.value?.length || 0} services available
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={24} color="#24A1DE" />
+                </TouchableOpacity>
+              ))
+            )}
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+
       <ScrollView showsVerticalScrollIndicator={false}>
+        {/* Selected Paravet Banner */}
+        {selectedParavet && (
+          <TouchableOpacity 
+            style={styles.selectedParavetBanner}
+            onPress={() => setParavetSelectionVisible(true)}
+          >
+            <Image source={{ uri: selectedParavet.photo }} style={styles.bannerPhoto} />
+            <View style={{ flex: 1, marginLeft: 12 }}>
+              <Text style={styles.bannerName}>{selectedParavet.name}</Text>
+              <Text style={styles.bannerSubtext}>{paravetServices.length} services available</Text>
+            </View>
+            <Text style={styles.changeText}>Change</Text>
+          </TouchableOpacity>
+        )}
         {/* Hero Section */}
         <View style={styles.heroSection}>
           <View style={styles.heroContent}>
@@ -874,17 +997,20 @@ const ParavetModule = () => {
           </View>
 
           <View style={styles.servicesGrid}>
-            {SERVICES.map((service) => (
+            {availableServices.length > 0 ? availableServices.map((service) => (
               <TouchableOpacity
                 key={service.id}
                 style={styles.serviceCard}
                 onPress={() => handleServiceSelect(service)}
+                activeOpacity={0.7}
               >
                 <View
                   style={[styles.serviceIconContainer, { backgroundColor: service.color + '20' }]}
                 >
                   {service.iconSet === 'FontAwesome5' ? (
                     <FontAwesome5 name={service.icon} size={28} color={service.color} />
+                  ) : service.iconSet === 'MaterialIcons' ? (
+                    <MaterialIcons name={service.icon} size={28} color={service.color} />
                   ) : (
                     <MaterialCommunityIcons name={service.icon} size={28} color={service.color} />
                   )}
@@ -897,12 +1023,18 @@ const ParavetModule = () => {
                   <Text style={styles.servicePrice}>₹{service.price}</Text>
                   <Text style={styles.serviceDuration}>{service.duration}</Text>
                 </View>
-                <TouchableOpacity style={styles.bookNowButton}>
+                <View style={styles.bookNowButton}>
                   <Text style={styles.bookNowText}>Book Now</Text>
                   <Ionicons name="arrow-forward" size={16} color="#fff" />
-                </TouchableOpacity>
+                </View>
               </TouchableOpacity>
-            ))}
+            )) : (
+              <View style={styles.noServicesContainer}>
+                <MaterialIcons name="info-outline" size={48} color="#999" />
+                <Text style={styles.noServicesText}>No services available from {selectedParavet?.name || 'this paravet'}</Text>
+                <Text style={styles.noServicesSubtext}>Please select a different paravet or contact support</Text>
+              </View>
+            )}
           </View>
         </View>
 
@@ -1252,6 +1384,24 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 13,
     fontWeight: '700',
+  },
+  noServicesContainer: {
+    width: '100%',
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  noServicesText: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    marginTop: 16,
+    fontWeight: '600',
+  },
+  noServicesSubtext: {
+    fontSize: 14,
+    color: '#999',
+    textAlign: 'center',
+    marginTop: 8,
   },
 
   // Subscription Section
@@ -2143,6 +2293,37 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
     marginTop: 2,
+  },
+  
+  // Selected Paravet Banner
+  selectedParavetBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E3F2FD',
+    padding: 16,
+    marginHorizontal: 16,
+    marginTop: 16,
+    borderRadius: 12,
+  },
+  bannerPhoto: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+  },
+  bannerName: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1a1a1a',
+  },
+  bannerSubtext: {
+    fontSize: 13,
+    color: '#666',
+    marginTop: 2,
+  },
+  changeText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#24A1DE',
   },
 });
 
