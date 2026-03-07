@@ -97,6 +97,18 @@ class SocketService {
     });
   }
 
+  onBookingStatusUpdate(callback) {
+    if (!this.socket) {
+      console.log('⚠️ Socket not initialized for onBookingStatusUpdate');
+      return;
+    }
+    console.log('👂 Listening for booking-status-update events');
+    this.socket.on('booking-status-update', (data) => {
+      console.log('🔔 Received booking-status-update event:', data);
+      callback(data);
+    });
+  }
+
   onVerificationApproved(callback) {
     if (!this.socket) {
       console.log('⚠️ Socket not initialized for onVerificationApproved');

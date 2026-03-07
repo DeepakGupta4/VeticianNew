@@ -53,14 +53,15 @@ export default function Profile() {
 
   const handleEdit = (section) => {
     setEditingSection(section);
-    setEditData(profileData);
+    // Deep clone to avoid reference issues
+    setEditData(JSON.parse(JSON.stringify(profileData)));
   };
 
   const handleSave = async (section) => {
     try {
       const userId = await AsyncStorage.getItem('userId');
       
-      if (section === 'personal') {
+      if (section === 'personalInfo') {
         await api.patch(`/paravet/personal-info/${userId}`, {
           fullName: editData.personalInfo?.fullName?.value,
           mobileNumber: editData.personalInfo?.mobileNumber?.value,
@@ -74,7 +75,7 @@ export default function Profile() {
           areasOfExpertise: editData.experience?.areasOfExpertise?.value || [],
           languagesSpoken: editData.experience?.languagesSpoken?.value || [],
         });
-      } else if (section === 'payment') {
+      } else if (section === 'paymentInfo') {
         await api.patch(`/paravet/payment-info/${userId}`, {
           paymentMethod: editData.paymentInfo?.paymentMethod,
           accountHolderName: editData.paymentInfo?.accountHolderName?.value,
@@ -86,7 +87,8 @@ export default function Profile() {
       fetchProfile();
       Alert.alert('Success', 'Profile updated successfully');
     } catch (error) {
-      Alert.alert('Error', 'Failed to update profile');
+      console.error('Update error:', error);
+      Alert.alert('Error', error.message || 'Failed to update profile');
     }
   };
 
@@ -157,21 +159,40 @@ export default function Profile() {
     const isEditing = editingSection === section;
     const displayValue = value || 'Not set';
     
+    // Get the current edit value - handle nested .value structure
+    const getEditValue = () => {
+      const fieldData = editData[section]?.[field];
+      if (!fieldData) return '';
+      // If it has a .value property, use that, otherwise use the field itself
+      return typeof fieldData === 'object' && fieldData.value !== undefined 
+        ? fieldData.value 
+        : fieldData;
+    };
+    
     return (
       <View style={styles.field}>
         <Text style={styles.fieldLabel}>{label}</Text>
         {isEditing && editable ? (
           <TextInput
             style={styles.fieldInput}
-            value={editData[section]?.[field]?.value || editData[section]?.[field] || ''}
+            value={String(getEditValue())}
             onChangeText={(text) => {
-              setEditData(prev => ({
-                ...prev,
-                [section]: {
-                  ...prev[section],
-                  [field]: { ...prev[section]?.[field], value: text }
+              setEditData(prev => {
+                const newData = { ...prev };
+                if (!newData[section]) newData[section] = {};
+                
+                // Preserve the nested structure if it exists
+                if (prev[section]?.[field]?.value !== undefined) {
+                  newData[section][field] = { 
+                    ...prev[section][field], 
+                    value: text 
+                  };
+                } else {
+                  newData[section][field] = { value: text };
                 }
-              }));
+                
+                return newData;
+              });
             }}
             placeholder={`Enter ${label.toLowerCase()}`}
           />

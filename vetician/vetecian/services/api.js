@@ -159,6 +159,10 @@ class ApiService {
     return this.get('/doorstep');
   }
 
+  getParavetBookings(paravetId) {
+    return this.get(`/doorstep/paravet/${paravetId}`);
+  }
+
   getDoorstepBooking(id) {
     return this.get(`/doorstep/${id}`);
   }

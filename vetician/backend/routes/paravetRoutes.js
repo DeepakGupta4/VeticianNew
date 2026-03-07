@@ -42,19 +42,64 @@ router.get('/dashboard/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
     const Paravet = require('../models/Paravet');
+    const DoorstepService = require('../models/DoorstepService');
     
     console.log('📊 Dashboard request for userId:', userId);
     const paravet = await Paravet.findOne({ userId });
+    
+    // Calculate stats from confirmed bookings
+    let totalEarnings = 0;
+    let totalPatients = 0;
+    let recentActivities = [];
+    try {
+      const confirmedBookings = await DoorstepService.find({ 
+        servicePartnerId: userId,
+        status: 'confirmed'
+      })
+      .populate('userId', 'name phone')
+      .populate('petIds', 'name species')
+      .sort('-appointmentDate')
+      .limit(10);
+      
+      // Calculate total earnings
+      totalEarnings = confirmedBookings.reduce((sum, booking) => sum + (booking.totalAmount || 0), 0);
+      
+      // Calculate unique patients (unique userIds)
+      const uniqueUserIds = new Set(confirmedBookings.map(b => b.userId._id.toString()));
+      totalPatients = uniqueUserIds.size;
+      
+      // Format recent activities from confirmed bookings
+      recentActivities = confirmedBookings.map(booking => ({
+        _id: booking._id,
+        title: booking.serviceType,
+        description: `${booking.userId?.name || 'Patient'} - ${booking.petIds?.map(p => p.name).join(', ') || 'Pet'}`,
+        time: new Date(booking.appointmentDate).toLocaleDateString(),
+        color: '#5856D6',
+        patientName: booking.userId?.name,
+        patientPhone: booking.userId?.phone,
+        pets: booking.petIds,
+        appointmentDate: booking.appointmentDate,
+        timeSlot: booking.timeSlot,
+        address: booking.address,
+        specialInstructions: booking.specialInstructions
+      }));
+      
+      console.log('💰 Total earnings:', totalEarnings, 'from', confirmedBookings.length, 'confirmed bookings');
+      console.log('👥 Total patients:', totalPatients, 'unique users');
+      console.log('📋 Recent activities:', recentActivities.length);
+    } catch (err) {
+      console.error('Error calculating stats:', err);
+    }
     
     if (!paravet) {
       console.log('⚠️ No paravet found, returning default pending status');
       return res.json({
         success: true,
-        totalPatients: 0,
+        totalPatients,
         upcomingAppointments: 0,
         completedVaccinations: 0,
-        totalEarnings: 0,
-        recentActivities: [],
+        totalEarnings,
+        recentActivities,
         onboardingStatus: 'pending'
       });
     }
@@ -77,11 +122,11 @@ router.get('/dashboard/:userId', async (req, res) => {
     
     res.json({
       success: true,
-      totalPatients: 0,
+      totalPatients,
       upcomingAppointments: 0,
       completedVaccinations: 0,
-      totalEarnings: 0,
-      recentActivities: [],
+      totalEarnings,
+      recentActivities,
       onboardingStatus
     });
   } catch (error) {

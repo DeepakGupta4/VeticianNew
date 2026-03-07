@@ -41,8 +41,22 @@ export default function Home() {
         checkOnboardingComplete();
         fetchDashboardData();
         
-        // Poll for status updates every 10 seconds
-        const interval = setInterval(fetchDashboardData, 10000);
+        // Setup socket listeners for real-time updates
+        const setupSocketListeners = async () => {
+            const userId = await AsyncStorage.getItem('userId');
+            const SocketService = (await import('../../../services/socket')).default;
+            SocketService.connect(userId, 'paravet');
+            
+            // Listen for booking status updates to refresh earnings
+            SocketService.onBookingStatusUpdate(() => {
+                console.log('💰 Booking status updated, refreshing earnings...');
+                fetchDashboardData();
+            });
+        };
+        setupSocketListeners();
+        
+        // Poll for status updates every 30 seconds
+        const interval = setInterval(fetchDashboardData, 30000);
         return () => clearInterval(interval);
     }, []);
     const fetchDashboardData = async () => {
@@ -236,12 +250,15 @@ export default function Home() {
             <View style={styles.quickActions}>
                 <Text style={styles.sectionTitle}>Quick Tasks</Text>
                 <View style={styles.actionsGrid}>
-                    <TouchableOpacity style={[styles.actionCard, { borderLeftColor: '#5856D6' }]}>
+                    <TouchableOpacity 
+                        style={[styles.actionCard, { borderLeftColor: '#5856D6' }]}
+                        onPress={() => router.push('/(peravet_tabs)/(tabs)/bookings')}
+                    >
                         <View style={[styles.actionIcon, { backgroundColor: '#5856D620' }]}>
                             <ClipboardList size={20} color="#5856D6" />
                         </View>
-                        <Text style={styles.actionTitle}>New Patient</Text>
-                        <Text style={styles.actionDescription}>Register a new animal patient</Text>
+                        <Text style={styles.actionTitle}>View Bookings</Text>
+                        <Text style={styles.actionDescription}>See all your bookings</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity style={[styles.actionCard, { borderLeftColor: '#FF9500' }]}>
@@ -254,23 +271,34 @@ export default function Home() {
                 </View>
             </View>
 
-            {/* Recent activities */}
+            {/* Recent activities - Confirmed Bookings */}
             <View style={styles.recentActivity}>
-                <Text style={styles.sectionTitle}>Recent Cases</Text>
+                <Text style={styles.sectionTitle}>Recent Confirmed Bookings</Text>
                 <View style={styles.activityList}>
                     {dashboardData.recentActivities.length > 0 ? (
                         dashboardData.recentActivities.map((activity, index) => (
-                            <View key={index} style={styles.activityItem}>
+                            <TouchableOpacity 
+                                key={activity._id || index} 
+                                style={styles.activityItem}
+                                onPress={() => {
+                                    // Navigate to record vitals or show details
+                                    console.log('Booking selected:', activity);
+                                }}
+                            >
                                 <View style={[styles.activityDot, { backgroundColor: activity.color || '#5856D6' }]} />
                                 <View style={styles.activityContent}>
                                     <Text style={styles.activityTitle}>{activity.title}</Text>
-                                    <Text style={styles.activityTime}>{activity.description} - {activity.time}</Text>
+                                    <Text style={styles.activityTime}>{activity.description}</Text>
+                                    <Text style={styles.activitySubtext}>
+                                        {activity.timeSlot} • {activity.time}
+                                    </Text>
                                 </View>
-                            </View>
+                                <Activity size={18} color="#FF9500" />
+                            </TouchableOpacity>
                         ))
                     ) : (
                         <View style={styles.emptyState}>
-                            <Text style={styles.emptyText}>No recent activities</Text>
+                            <Text style={styles.emptyText}>No confirmed bookings yet</Text>
                         </View>
                     )}
                 </View>
@@ -511,6 +539,11 @@ const styles = StyleSheet.create({
     activityTime: {
         fontSize: 12,
         color: '#8E8E93',
+    },
+    activitySubtext: {
+        fontSize: 11,
+        color: '#999',
+        marginTop: 2,
     },
     modalOverlay: {
         flex: 1,

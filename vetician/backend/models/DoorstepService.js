@@ -10,15 +10,47 @@ const doorstepServiceSchema = new mongoose.Schema({
     type: String,
     required: true,
     enum: [
-      'Vet Home Visit', 
-      'Vaccination at Home', 
-      'Pet Grooming', 
-      'Pet Training Session', 
-      'Physiotherapy', 
-      'Pet Walking',
+      // Clinical Care
       'Wound Care & Dressing',
+      'Injection Administration (IV/IM/SC)',
+      'Vaccination Support',
+      'IV Fluid Therapy',
+      'Catheter Placement',
+      'Vital Signs Monitoring',
+      'Emergency First Aid',
+      'Medication Administration',
+      // Diagnostic Support
       'Blood Collection',
-      'Pre-operative Preparation'
+      'Urine Sample Collection',
+      'Lab Sample Handling',
+      'X-ray Assistance',
+      'Ultrasound Assistance',
+      'ECG Assistance',
+      'Basic Diagnostics',
+      // Surgical Assistance
+      'Pre-operative Preparation',
+      'OT Assistance',
+      'Post-operative Care',
+      'Anesthesia Monitoring Support',
+      'Sterilization & Instrument Handling',
+      // Pet Care Services
+      'Pet Grooming',
+      'Nail Trimming',
+      'Ear Cleaning',
+      'Oral Hygiene Support',
+      'Tick & Flea Treatment',
+      'Deworming Support',
+      // Home Visit Services
+      'Home Vaccination',
+      'Home Wound Dressing',
+      'Home IV Therapy',
+      'Elderly Pet Care Support',
+      // Legacy services
+      'Vet Home Visit',
+      'Vaccination at Home',
+      'Pet Training Session',
+      'Physiotherapy',
+      'Pet Walking'
     ]
   },
   petIds: [{

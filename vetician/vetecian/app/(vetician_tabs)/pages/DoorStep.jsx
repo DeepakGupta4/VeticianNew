@@ -206,7 +206,7 @@ const BookingModal = ({ visible, onClose, service }) => {
         userId,
         serviceType: service.title,
         petIds: selectedPets.map(p => p._id),
-        paravetId: selectedPartner._id || selectedPartner.id,
+        paravetId: selectedPartner.id || selectedPartner.userId || selectedPartner._id,
         paravetName: selectedPartner.name,
         appointmentDate: selectedDate.fullDate,
         timeSlot: selectedSlot.time,
@@ -230,6 +230,8 @@ const BookingModal = ({ visible, onClose, service }) => {
       };
 
       console.log('📤 Sending booking:', JSON.stringify(bookingData, null, 2));
+      console.log('👤 Paravet User ID being sent:', selectedPartner.id || selectedPartner.userId || selectedPartner._id);
+      console.log('🔍 Full selectedPartner object:', JSON.stringify(selectedPartner, null, 2));
       const response = await ApiService.createDoorstepBooking(bookingData);
       console.log('✅ Booking response:', response);
 
@@ -237,12 +239,12 @@ const BookingModal = ({ visible, onClose, service }) => {
         console.log('✅ Booking created successfully:', response.data);
         console.log('📡 Attempting to emit socket event...');
         console.log('  - Socket connected:', SocketService.socket?.connected);
-        console.log('  - Paravet ID:', selectedPartner._id || selectedPartner.id);
+        console.log('  - Paravet User ID:', selectedPartner.id || selectedPartner.userId || selectedPartner._id);
         
         SocketService.connect(userId, 'user');
         SocketService.emit('booking:created', {
           bookingId: response.data._id,
-          paravetId: selectedPartner._id || selectedPartner.id,
+          paravetId: selectedPartner.id || selectedPartner.userId || selectedPartner._id,
           userId
         });
         console.log('✅ Socket event emitted: booking:created');

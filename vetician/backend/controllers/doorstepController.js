@@ -30,6 +30,13 @@ exports.createBooking = catchAsync(async (req, res, next) => {
   }
 
   console.log('📦 Creating booking for paravet:', paravetId);
+  console.log('📊 Booking details:', {
+    userId: req.user._id,
+    paravetId,
+    paravetName,
+    serviceType
+  });
+  console.log('🔍 Full request body:', JSON.stringify(req.body, null, 2));
 
   const booking = await DoorstepService.create({
     userId: req.user._id,
@@ -52,17 +59,26 @@ exports.createBooking = catchAsync(async (req, res, next) => {
     status: status || 'pending'
   });
 
+  console.log('✅ Booking created in DB:', booking._id);
+  console.log('📋 Booking servicePartnerId:', booking.servicePartnerId);
+
   const populatedBooking = await DoorstepService.findById(booking._id)
     .populate('petIds')
     .populate('userId', 'name email phone');
 
   const io = req.app.get('io');
   if (io) {
-    io.to(`paravet-${paravetId}`).emit('booking:new', {
+    const roomName = `paravet-${paravetId}`;
+    console.log('📡 Emitting to room:', roomName);
+    console.log('📡 All socket rooms:', Array.from(io.sockets.adapter.rooms.keys()));
+    
+    io.to(roomName).emit('booking:new', {
       booking: populatedBooking,
       message: 'New booking request received'
     });
-    console.log('✅ Notification sent to paravet-' + paravetId);
+    console.log('✅ Notification sent to', roomName);
+  } else {
+    console.log('❌ Socket.io not available');
   }
 
   res.status(201).json({
@@ -92,10 +108,17 @@ exports.getUserBookings = catchAsync(async (req, res, next) => {
 exports.getParavetBookings = catchAsync(async (req, res, next) => {
   const { paravetId } = req.params;
   
+  console.log('📥 Fetching bookings for paravet:', paravetId);
+  
   const bookings = await DoorstepService.find({ servicePartnerId: paravetId })
     .populate('petIds')
     .populate('userId', 'name email phone')
     .sort('-createdAt');
+
+  console.log('✅ Found', bookings.length, 'bookings for paravet', paravetId);
+  if (bookings.length > 0) {
+    console.log('📋 First booking servicePartnerId:', bookings[0].servicePartnerId);
+  }
 
   res.status(200).json({
     success: true,
@@ -136,14 +159,25 @@ exports.updateBookingStatus = catchAsync(async (req, res, next) => {
 
   const io = req.app.get('io');
   if (io) {
+    // Notify user about status update
     io.to(`user-${booking.userId._id}`).emit('booking:statusUpdated', {
       bookingId: booking._id,
       status: booking.status,
       serviceType: booking.serviceType,
       paravetName: booking.servicePartnerName,
-      message: status === 'accepted' ? 'Booking accepted' : 'Booking rejected'
+      message: status === 'confirmed' ? 'Booking confirmed' : status === 'cancelled' ? 'Booking cancelled' : 'Booking status updated'
     });
     console.log(`✅ Status update sent to user-${booking.userId._id}`);
+    
+    // Notify paravet to refresh earnings if status is confirmed
+    if (status === 'confirmed') {
+      io.to(`paravet-${booking.servicePartnerId}`).emit('booking-status-update', {
+        bookingId: booking._id,
+        status: booking.status,
+        totalAmount: booking.totalAmount
+      });
+      console.log(`💰 Earnings update sent to paravet-${booking.servicePartnerId}`);
+    }
   }
 
   res.status(200).json({
