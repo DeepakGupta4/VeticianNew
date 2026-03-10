@@ -28,6 +28,7 @@ export default function SignUp() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [errors, setErrors] = useState({});
   const [loginType, setLoginType] = useState('vetician'); // Default to 'vetician'
+  const [timeoutWarning, setTimeoutWarning] = useState(false);
 
   const router = useRouter();
   const dispatch = useDispatch();
@@ -44,6 +45,8 @@ export default function SignUp() {
  
 
   const handleSignUp = async () => {
+    if (isLoading) return; // Prevent multiple submissions
+    
     setErrors({});
 
     const newErrors = {};
@@ -59,23 +62,41 @@ export default function SignUp() {
     }
 
     try {
-      await dispatch(signUpUser({
+      const warningTimer = setTimeout(() => {
+        setTimeoutWarning(true);
+      }, 3000);
+      
+      const result = await dispatch(signUpUser({
         name: formData.name.trim(),
         email: formData.email.trim(),
         phone: `+91${formData.phone.trim()}`,
         password: formData.password,
         loginType,
-      })).unwrap();
-
-      // Route based on login type
-      const routes = {
-        veterinarian: '/(doc_tabs)/onboarding/onboarding_conf',
-        pet_resort: '/(pet_resort_tabs)/(tabs)',
-        paravet: '/(peravet_tabs)/(tabs)',
-        vetician: '/(vetician_tabs)/onboarding/onboarding_conf'
-      };
-      router.replace(routes[loginType] || routes.vetician);
+      }));
+      
+      clearTimeout(warningTimer);
+      setTimeoutWarning(false);
+      
+      console.log('📋 SignUp Result:', result);
+      console.log('✅ Is Fulfilled?', signUpUser.fulfilled.match(result));
+      
+      if (signUpUser.fulfilled.match(result)) {
+        console.log('✅ SignUp successful, navigating...');
+        const routes = {
+          veterinarian: '/(doc_tabs)/onboarding/onboarding_conf',
+          pet_resort: '/(pet_resort_tabs)/(tabs)',
+          paravet: '/(peravet_tabs)/(tabs)',
+          vetician: '/(vetician_tabs)/onboarding/onboarding_conf'
+        };
+        const targetRoute = routes[loginType] || routes.vetician;
+        console.log('🚀 Navigating to:', targetRoute);
+        router.replace(targetRoute);
+      } else {
+        console.log('❌ SignUp failed:', result.payload);
+        throw new Error(result.payload || 'Sign up failed');
+      }
     } catch (error) {
+      console.log('❌ SignUp error:', error);
       setErrors({ general: typeof error === 'string' ? error : (error.message || 'An error occurred') });
     }
   };
@@ -220,9 +241,14 @@ export default function SignUp() {
               )}
             </View>
 
-            {errors.general && (
+            {(errors.general || timeoutWarning) && (
               <View style={styles.errorContainer}>
-                <Text style={styles.errorText}>{errors.general}</Text>
+                {errors.general && <Text style={styles.errorText}>{errors.general}</Text>}
+                {timeoutWarning && (
+                  <Text style={styles.warningText}>
+                    Taking longer than usual... Please wait
+                  </Text>
+                )}
               </View>
             )}
 
@@ -428,6 +454,12 @@ const styles = StyleSheet.create({
     color: '#ff6b6b',
     fontSize: 14,
     marginTop: 8,
+  },
+  warningText: {
+    color: '#ff9500',
+    fontSize: 14,
+    marginTop: 8,
+    fontStyle: 'italic',
   },
   loginTypeContainer: {
     marginBottom: 20,

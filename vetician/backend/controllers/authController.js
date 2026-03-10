@@ -70,33 +70,53 @@ const register = catchAsync(async (req, res, next) => {
 
   try {
     if (userRole === 'vetician') {
-      const parent = new Parent({
-        name: user.name,
-        email: user.email,
-        phone: user.phone ? user.phone.replace(/\+/g, '') : '',
-        address: 'Not provided',
-        user: user._id,
-        gender: 'other'
+      // Check if parent already exists
+      let parent = await Parent.findOne({ 
+        $or: [
+          { user: user._id },
+          { email: user.email }
+        ]
       });
-      await parent.save();
-      console.log('✅ Parent record created:', parent._id);
+      
+      if (!parent) {
+        parent = new Parent({
+          name: user.name,
+          email: user.email,
+          phone: user.phone ? user.phone.replace(/\+/g, '') : '',
+          address: 'Not provided',
+          user: user._id,
+          gender: 'other'
+        });
+        await parent.save();
+        console.log('✅ Parent record created:', parent._id);
+      } else {
+        console.log('ℹ️ Parent record already exists:', parent._id);
+      }
     } else if (userRole === 'paravet') {
-      const paravet = new Paravet({
-        userId: user._id.toString(),
-        personalInfo: {
-          fullName: { value: user.name, verified: true },
-          email: { value: user.email, verified: true }
-        },
-        applicationStatus: {
-          currentStep: 1,
-          completionPercentage: 10,
-          submitted: false,
-          approvalStatus: 'approved',
-          approvedAt: new Date()
-        },
-        isActive: true
-      });
-      await paravet.save();
+      // Check if paravet already exists
+      let paravet = await Paravet.findOne({ userId: user._id.toString() });
+      
+      if (!paravet) {
+        paravet = new Paravet({
+          userId: user._id.toString(),
+          personalInfo: {
+            fullName: { value: user.name, verified: true },
+            email: { value: user.email, verified: true }
+          },
+          applicationStatus: {
+            currentStep: 1,
+            completionPercentage: 10,
+            submitted: false,
+            approvalStatus: 'approved',
+            approvedAt: new Date()
+          },
+          isActive: true
+        });
+        await paravet.save();
+        console.log('✅ Paravet record created:', paravet._id);
+      } else {
+        console.log('ℹ️ Paravet record already exists:', paravet._id);
+      }
     }
   } catch (roleError) {
     console.error('❌ Failed to create parent/paravet record:', roleError);

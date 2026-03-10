@@ -129,7 +129,7 @@ export const signInUser = createAsyncThunk(
         mode: 'cors',
         headers,
         body: JSON.stringify({ email, password, loginType }),
-      }, 15000);
+      }, 8000); // Reduced from 15000 to 8000ms
       
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({ message: 'Login failed' }));
@@ -160,29 +160,40 @@ export const signUpUser = createAsyncThunk(
       const BASE_URL = getApiBaseUrl();
       const headers = await getCommonHeaders(false);
       
+      console.log('📤 SignUp Request:', { name, email, phone, loginType });
+      
       const res = await fetchWithTimeout(`${BASE_URL}/auth/register`, {
         method: 'POST',
         headers,
         body: JSON.stringify({ name, email, phone, password, loginType }),
-      }, 15000);
+      }, 8000);
+      
+      console.log('📡 SignUp Response Status:', res.status);
       
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({ message: 'Registration failed' }));
+        console.log('❌ SignUp Error:', errorData);
         return rejectWithValue(errorData.message || 'Unable to create account');
       }
       
       const data = await res.json();
+      console.log('✅ SignUp Success Response:', data);
       
-      // Store credentials in parallel
+      // Store credentials
       if (data.user?._id && data.token) {
+        console.log('💾 Storing credentials:', { userId: data.user._id, hasToken: !!data.token });
         await Promise.all([
           AsyncStorage.setItem('userId', data.user._id),
           AsyncStorage.setItem('token', data.token)
         ]);
+        console.log('✅ Credentials stored successfully');
+      } else {
+        console.log('⚠️ Missing user ID or token in response:', { hasUser: !!data.user, hasUserId: !!data.user?._id, hasToken: !!data.token });
       }
       
       return data;
     } catch (error) {
+      console.log('❌ SignUp Exception:', error);
       return rejectWithValue(error.message || 'Network error');
     }
   }
@@ -507,6 +518,36 @@ export const updatePet = createAsyncThunk(
       return await res.json();
     } catch (error) {
       return rejectWithValue(error.message || 'Failed to update pet');
+    }
+  }
+);
+
+/* =========================
+    Pet Resort Thunks
+========================= */
+export const petResortDetail = createAsyncThunk(
+  'auth/petResortDetail',
+  async (resortData, { rejectWithValue }) => {
+    try {
+      const userId = await AsyncStorage.getItem('userId');
+      if (!userId) throw new Error('User not authenticated');
+      
+      const BASE_URL = getApiBaseUrl();
+      const headers = await getCommonHeaders(true);
+      const res = await fetch(`${BASE_URL}/resorts`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ ...resortData, userId }),
+      });
+      
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`HTTP ${res.status}: ${errorText}`);
+      }
+      
+      return await res.json();
+    } catch (error) {
+      return rejectWithValue(error.message || 'Failed to create pet resort');
     }
   }
 );

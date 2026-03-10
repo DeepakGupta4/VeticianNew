@@ -1,302 +1,254 @@
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, ActivityIndicator, RefreshControl, Alert } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
 import { useRouter } from 'expo-router';
-import { signOut } from '../../../store/slices/authSlice';
-import { User, Mail, Calendar, MapPin, Phone, CreditCard as Edit, LogOut, Menu } from 'lucide-react-native';
-import { DrawerActions } from '@react-navigation/native';
-import { useNavigation } from '@react-navigation/native';
+import { signOutUser } from '../../../store/slices/authSlice';
+import { MapPin, Phone, Mail, Clock, LogOut } from 'lucide-react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import api from '../../../services/api';
 
-export default function Profile() {
+export default function ResortProfile() {
   const { user } = useSelector(state => state.auth);
   const dispatch = useDispatch();
   const router = useRouter();
-  const navigation = useNavigation();
+  
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [resortData, setResortData] = useState(null);
 
-  const handleSignOut = () => {
-    Alert.alert(
-      'Sign Out',
-      'Are you sure you want to sign out?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Sign Out',
-          style: 'destructive',
-          onPress: () => {
-            dispatch(signOut());
-            router.replace('/(auth)/signin');
-          },
+  useEffect(() => {
+    fetchResortProfile();
+  }, []);
+
+  const fetchResortProfile = async () => {
+    try {
+      const userId = await AsyncStorage.getItem('userId');
+      const response = await api.get(`/resorts/profile/${userId}`);
+      setResortData(response.data);
+    } catch (error) {
+      console.error('Error fetching resort profile:', error);
+      Alert.alert('Error', 'Failed to load resort profile');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  const handleSignOut = async () => {
+    Alert.alert('Sign Out', 'Are you sure?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Sign Out',
+        onPress: async () => {
+          await AsyncStorage.multiRemove(['token', 'userId']);
+          dispatch(signOutUser());
+          router.replace('/(auth)/signin');
         },
-      ]
+      },
+    ]);
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#10B981" />
+        <Text style={{ marginTop: 10, color: '#666' }}>Loading profile...</Text>
+      </View>
     );
+  }
+
+  if (!resortData) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text style={{ color: '#666', fontSize: 16 }}>No resort data found</Text>
+        <TouchableOpacity 
+          style={{ marginTop: 20, backgroundColor: '#10B981', padding: 12, borderRadius: 8 }}
+          onPress={() => router.push('/(pet_resort_tabs)/onboarding/pet_resort')}
+        >
+          <Text style={{ color: '#FFF', fontWeight: 'bold' }}>Create Resort</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  const serviceLabels = {
+    cafe: 'Cafe',
+    grooming: 'Grooming',
+    swimming: 'Swimming',
+    boarding_indoor: 'Boarding (Indoor)',
+    boarding_outdoor: 'Boarding (Outdoor)',
+    playground: 'Playground',
+    veterinary: 'Veterinary on Premises'
   };
 
-  const openDrawer = () => {
-    navigation.dispatch(DrawerActions.openDrawer());
+  const facilityLabels = {
+    ac_rooms: 'AC Rooms',
+    cctv: 'CCTV Monitoring',
+    outdoor_play: 'Outdoor Play Area',
+    staff_24x7: '24x7 Staff',
+    training_area: 'Pet Training Area'
   };
-
-  const profileStats = [
-    { icon: User, label: 'Activities', value: '12', color: '#FF9500' },
-    { icon: Calendar, label: 'Member Since', value: user?.createdAt ? new Date(user.createdAt).getFullYear() : '2023', color: '#5856D6' },
-    { icon: MapPin, label: 'Location', value: user?.location ? user.location.split(',')[0] : 'Unknown', color: '#34C759' },
-  ];
-
-  const profileInfo = [
-    { icon: Mail, label: 'Email', value: user?.email || 'Not provided' },
-    { icon: Phone, label: 'Phone', value: user?.phone || 'Not provided' },
-  ];
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <ScrollView 
+      style={styles.container}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchResortProfile(); }} />}
+    >
+      {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={openDrawer} style={styles.menuButton}>
-          <Menu size={24} color="#fff" />
-        </TouchableOpacity>
         <View>
-          <Text style={styles.greeting}>Your Profile</Text>
-          <Text style={styles.subtitle}>Manage your account details</Text>
+          <Text style={styles.headerTitle}>{resortData.resortName}</Text>
+          <Text style={styles.headerSubtitle}>{resortData.brandName}</Text>
+        </View>
+        <TouchableOpacity onPress={handleSignOut}>
+          <LogOut size={24} color="#FFF" />
+        </TouchableOpacity>
+      </View>
+
+      {/* Logo & Status */}
+      <View style={styles.logoSection}>
+        <Image source={{ uri: resortData.logo }} style={styles.logo} />
+        <View style={[styles.statusBadge, { backgroundColor: resortData.isVerified ? '#10B981' : '#F59E0B' }]}>
+          <Text style={styles.statusText}>{resortData.isVerified ? 'Verified' : 'Pending Verification'}</Text>
         </View>
       </View>
 
-      <View style={styles.profileHeader}>
-        <View style={styles.avatarContainer}>
-          <View style={styles.avatar}>
-            <User size={40} color="#FF9500" />
-          </View>
-          <TouchableOpacity style={styles.editButton}>
-            <Edit size={16} color="#FF9500" />
-          </TouchableOpacity>
+      {/* Description */}
+      {resortData.description && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>About</Text>
+          <Text style={styles.description}>{resortData.description}</Text>
         </View>
-        <Text style={styles.name}>{user?.name || 'User Name'}</Text>
-      </View>
+      )}
 
-      <View style={styles.statsContainer}>
-        {profileStats.map((stat, index) => (
-          <View key={index} style={[styles.statCard, { borderTopColor: stat.color }]}>
-            <View style={[styles.statIcon, { backgroundColor: `${stat.color}20` }]}>
-              <stat.icon size={20} color={stat.color} />
-            </View>
-            <Text style={styles.statValue}>{stat.value}</Text>
-            <Text style={styles.statLabel}>{stat.label}</Text>
-          </View>
-        ))}
-      </View>
-
-      <View style={styles.profileInfo}>
+      {/* Contact Information */}
+      <View style={styles.section}>
         <Text style={styles.sectionTitle}>Contact Information</Text>
-        <View style={styles.infoList}>
-          {profileInfo.map((info, index) => (
-            <View key={index} style={styles.infoItem}>
-              <View style={[styles.infoIcon, { backgroundColor: `${info.icon === Mail ? '#007AFF20' : '#FF950020'}` }]}>
-                <info.icon size={20} color={info.icon === Mail ? '#007AFF' : '#FF9500'} />
-              </View>
-              <View style={styles.infoContent}>
-                <Text style={styles.infoLabel}>{info.label}</Text>
-                <Text style={styles.infoValue}>{info.value}</Text>
-              </View>
+        <View style={styles.contactItem}>
+          <MapPin size={20} color="#6B7280" />
+          <Text style={styles.contactText}>{resortData.address}</Text>
+        </View>
+        <View style={styles.contactItem}>
+          <Phone size={20} color="#6B7280" />
+          <Text style={styles.contactText}>Resort: {resortData.resortPhone}</Text>
+        </View>
+        <View style={styles.contactItem}>
+          <Phone size={20} color="#6B7280" />
+          <Text style={styles.contactText}>Owner: {resortData.ownerPhone}</Text>
+        </View>
+        {resortData.email && (
+          <View style={styles.contactItem}>
+            <Mail size={20} color="#6B7280" />
+            <Text style={styles.contactText}>{resortData.email}</Text>
+          </View>
+        )}
+      </View>
+
+      {/* Services */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Services Offered</Text>
+        <View style={styles.tagContainer}>
+          {resortData.services.map(service => (
+            <View key={service} style={styles.tag}>
+              <Text style={styles.tagText}>{serviceLabels[service]}</Text>
             </View>
           ))}
         </View>
       </View>
 
-      <View style={styles.actionsSection}>
-        <Text style={styles.sectionTitle}>Account Actions</Text>
-        <View style={styles.actionsGrid}>
-          <TouchableOpacity style={[styles.actionCard, { backgroundColor: '#5856D610' }]}>
-            <View style={[styles.actionIcon, { backgroundColor: '#5856D620' }]}>
-              <Edit size={20} color="#5856D6" />
-            </View>
-            <Text style={styles.actionTitle}>Edit Profile</Text>
-            <Text style={styles.actionDescription}>Update your personal details</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={[styles.actionCard, { backgroundColor: '#FF3B3010' }]}
-            onPress={handleSignOut}
-          >
-            <View style={[styles.actionIcon, { backgroundColor: '#FF3B3020' }]}>
-              <LogOut size={20} color="#FF3B30" />
-            </View>
-            <Text style={styles.actionTitle}>Sign Out</Text>
-            <Text style={styles.actionDescription}>Log out of your account</Text>
-          </TouchableOpacity>
+      {/* Facilities */}
+      {resortData.facilities && resortData.facilities.length > 0 && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Facilities</Text>
+          <View style={styles.tagContainer}>
+            {resortData.facilities.map(facility => (
+              <View key={facility} style={[styles.tag, styles.facilityTag]}>
+                <Text style={styles.tagText}>{facilityLabels[facility]}</Text>
+              </View>
+            ))}
+          </View>
         </View>
+      )}
+
+      {/* Opening Hours */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Opening Hours</Text>
+        {resortData.openingHours.map(day => (
+          <View key={day.day} style={styles.hourRow}>
+            <Text style={styles.dayText}>{day.day}</Text>
+            <Text style={styles.timeText}>
+              {day.closed ? 'Closed' : `${day.open} - ${day.close}`}
+            </Text>
+          </View>
+        ))}
       </View>
+
+      {/* Special Notice */}
+      {(resortData.holidays || resortData.rules) && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Special Notice</Text>
+          {resortData.holidays && (
+            <View style={styles.noticeItem}>
+              <Text style={styles.noticeLabel}>Holidays:</Text>
+              <Text style={styles.noticeText}>{resortData.holidays}</Text>
+            </View>
+          )}
+          {resortData.rules && (
+            <View style={styles.noticeItem}>
+              <Text style={styles.noticeLabel}>Important Rules:</Text>
+              <Text style={styles.noticeText}>{resortData.rules}</Text>
+            </View>
+          )}
+        </View>
+      )}
+
+      {/* Gallery */}
+      {resortData.gallery && resortData.gallery.length > 0 && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Gallery</Text>
+          <View style={styles.galleryGrid}>
+            {resortData.gallery.map((img, index) => (
+              <Image key={index} source={{ uri: img }} style={styles.galleryImage} />
+            ))}
+          </View>
+        </View>
+      )}
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F9F9F9',
-  },
+  container: { flex: 1, backgroundColor: '#F9FAFB' },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F9FAFB' },
   header: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 24,
-    paddingTop: 60,
-    backgroundColor: '#FF9500',
-    borderBottomRightRadius: 24,
-    borderBottomLeftRadius: 24,
-  },
-  menuButton: {
-    marginRight: 20,
-  },
-  greeting: {
-    fontSize: 22,
-    fontWeight: '600',
-    color: '#fff',
-    marginBottom: 4,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.9)',
-  },
-  profileHeader: {
-    alignItems: 'center',
-    padding: 24,
-    marginTop: -30,
-  },
-  avatarContainer: {
-    position: 'relative',
-    marginBottom: 16,
-  },
-  avatar: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: '#FF950020',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 3,
-    borderColor: '#FF9500',
-  },
-  editButton: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#fff',
-    borderWidth: 2,
-    borderColor: '#FF9500',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  name: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
-    marginBottom: 4,
-  },
-  statsContainer: {
-    flexDirection: 'row',
+    backgroundColor: '#10B981',
     padding: 20,
-    gap: 12,
+    paddingTop: 50,
   },
-  statCard: {
-    flex: 1,
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 16,
-    borderTopWidth: 4,
-    elevation: 2,
-    alignItems: 'center',
-  },
-  statIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  statValue: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#1a1a1a',
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: '#666',
-    fontWeight: '500',
-  },
-  profileInfo: {
-    padding: 20,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1a1a1a',
-    marginBottom: 16,
-  },
-  infoList: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    elevation: 1,
-  },
-  infoItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f1f1f5',
-  },
-  infoIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  infoContent: {
-    flex: 1,
-  },
-  infoLabel: {
-    fontSize: 12,
-    color: '#8E8E93',
-    marginBottom: 2,
-  },
-  infoValue: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#1a1a1a',
-  },
-  actionsSection: {
-    padding: 20,
-    paddingTop: 0,
-  },
-  actionsGrid: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  actionCard: {
-    flex: 1,
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 16,
-    elevation: 1,
-  },
-  actionIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  actionTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#1a1a1a',
-    marginBottom: 6,
-  },
-  actionDescription: {
-    fontSize: 12,
-    color: '#666',
-    lineHeight: 18,
-  },
+  headerTitle: { fontSize: 24, fontWeight: '700', color: '#FFF' },
+  headerSubtitle: { fontSize: 16, color: 'rgba(255,255,255,0.9)', marginTop: 4 },
+  logoSection: { alignItems: 'center', padding: 20, backgroundColor: '#FFF', marginBottom: 16 },
+  logo: { width: 120, height: 120, borderRadius: 60, marginBottom: 12 },
+  statusBadge: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20 },
+  statusText: { color: '#FFF', fontSize: 14, fontWeight: '600' },
+  section: { backgroundColor: '#FFF', padding: 16, marginBottom: 16 },
+  sectionTitle: { fontSize: 18, fontWeight: '600', color: '#111827', marginBottom: 12 },
+  description: { fontSize: 15, color: '#6B7280', lineHeight: 22 },
+  contactItem: { flexDirection: 'row', alignItems: 'center', marginBottom: 12, gap: 12 },
+  contactText: { fontSize: 15, color: '#374151', flex: 1 },
+  tagContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  tag: { backgroundColor: '#10B981', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16 },
+  facilityTag: { backgroundColor: '#3B82F6' },
+  tagText: { color: '#FFF', fontSize: 13, fontWeight: '500' },
+  hourRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
+  dayText: { fontSize: 15, fontWeight: '500', color: '#374151' },
+  timeText: { fontSize: 15, color: '#6B7280' },
+  noticeItem: { marginBottom: 12 },
+  noticeLabel: { fontSize: 14, fontWeight: '600', color: '#374151', marginBottom: 4 },
+  noticeText: { fontSize: 14, color: '#6B7280', lineHeight: 20 },
+  galleryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  galleryImage: { width: 110, height: 110, borderRadius: 8 },
 });

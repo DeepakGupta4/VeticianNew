@@ -4,7 +4,8 @@ const {
   getVerifiedPetResorts,
   getUnverifiedPetResorts,
   verifyPetResort,
-  unverifyPetResort
+  unverifyPetResort,
+  getResortProfile
 } = require('../controllers/resortController');
 const { auth } = require('../middleware/auth');
 
@@ -12,6 +13,7 @@ const router = express.Router();
 
 router.post('/', auth, createPetResort);
 router.get('/', getVerifiedPetResorts);
+router.get('/profile/:userId', auth, getResortProfile);
 
 // Admin routes
 router.get('/admin/unverified', getUnverifiedPetResorts);
