@@ -165,26 +165,7 @@ const HealthTipsScreen = () => {
         }
     };
 
-    // const shareTip = async (tip) => {
-    //     try {
-    //         const result = await Share.share({
-    //             message: `Pet Care Tip: ${tip.title}\n\n${tip.description}\n\nRead more in the PetCare app!`,
-    //             title: tip.title
-    //         });
-
-    //         if (result.action === Share.sharedAction) {
-    //             if (result.activityType) {
-    //                 console.log('Shared with activity type:', result.activityType);
-    //             } else {
-    //                 console.log('Shared successfully');
-    //             }
-    //         } else if (result.action === Share.dismissedAction) {
-    //             console.log('Share dismissed');
-    //         }
-    //     } catch (error) {
-    //         Alert.alert('Error', error.message);
-    //     }
-    // };
+   
 
     const shareTip = async (tip) => {
         try {

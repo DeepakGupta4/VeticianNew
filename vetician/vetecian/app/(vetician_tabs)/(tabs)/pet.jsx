@@ -20,7 +20,7 @@ import {
   Provider as PaperProvider,
 } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useNavigation } from '@react-navigation/native';
+import { useRouter } from 'expo-router';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { registerPet } from '../../../store/slices/authSlice';
 import { useDispatch, useSelector } from 'react-redux';
@@ -40,14 +40,7 @@ const theme = {
 const PRIMARY_GREEN = '#7CB342';
 const DARK_GREEN = '#558B2F';
 
-interface MenuItem {
-  id: string;
-  title: string;
-  subtitle: string;
-  icon: string;
-}
-
-const menuItems: MenuItem[] = [
+const menuItems = [
   {
     id: 'details',
     title: 'Profile Details',
@@ -86,7 +79,6 @@ const menuItems: MenuItem[] = [
   },
 ];
 
-// PetDetail Form Component
 function PetDetailForm({ onClose, onSuccess }) {
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
@@ -527,9 +519,8 @@ function PetDetailForm({ onClose, onSuccess }) {
   );
 }
 
-// Main Profile Page Component
-const ProfilePage = () => {
-  const navigation = useNavigation();
+export default function PetTab() {
+  const router = useRouter();
   const [selectedPet, setSelectedPet] = useState('lebra');
   const [showForm, setShowForm] = useState(false);
 
@@ -537,6 +528,7 @@ const ProfilePage = () => {
     container: {
       flex: 1,
       backgroundColor: '#FFFFFF',
+      paddingBottom: 0,
     },
     headerSection: {
       paddingHorizontal: 20,
@@ -588,7 +580,8 @@ const ProfilePage = () => {
       gap: 8,
     },
     contentWrapper: {
-      paddingBottom: 20,
+      flexGrow: 1,
+      paddingBottom: 100,
     },
   });
 
@@ -597,9 +590,7 @@ const ProfilePage = () => {
       <PaperProvider theme={theme}>
         <PetDetailForm
           onClose={() => setShowForm(false)}
-          onSuccess={() => {
-            // Handle success - refresh profile or navigate
-          }}
+          onSuccess={() => {}}
         />
       </PaperProvider>
     );
@@ -611,9 +602,8 @@ const ProfilePage = () => {
         <ScrollView
           showsVerticalScrollIndicator={false}
           scrollEventThrottle={16}
-          style={styles.contentWrapper}
+          contentContainerStyle={styles.contentWrapper}
         >
-          {/* Header Section with Green Gradient Shadow */}
           <LinearGradient
             colors={['#558B2F', '#FFFFFF']}
             start={{ x: 0, y: 0 }}
@@ -625,7 +615,7 @@ const ProfilePage = () => {
             <View style={styles.headerActions}>
               <TouchableOpacity 
                 style={styles.actionButton}
-                onPress={() => navigation.goBack()}
+                onPress={() => router.replace('/(vetician_tabs)/(tabs)/index')}
               >
                 <MaterialCommunityIcons
                   name="arrow-left-right"
@@ -645,7 +635,6 @@ const ProfilePage = () => {
               </TouchableOpacity>
             </View>
 
-            {/* Profile Image */}
             <View style={styles.profileImageContainer}>
               <View style={styles.profileImage}>
                 <MaterialCommunityIcons
@@ -657,7 +646,6 @@ const ProfilePage = () => {
             </View>
           </LinearGradient>
 
-          {/* Menu Items using Card Component */}
           <View style={styles.contentSection}>
             {menuItems.map((item) => (
               <TouchableOpacity
@@ -703,15 +691,13 @@ const ProfilePage = () => {
             ))}
           </View>
 
-          {/* Bottom Spacing */}
-          <View style={{ height: 20 }} />
+          <View style={{ height: 100 }} />
         </ScrollView>
       </SafeAreaView>
     </PaperProvider>
   );
-};
+}
 
-// Form Styles
 const formStyles = StyleSheet.create({
   container: {
     flex: 1,
@@ -812,5 +798,3 @@ const formStyles = StyleSheet.create({
     marginLeft: 10,
   },
 });
-
-export default ProfilePage;

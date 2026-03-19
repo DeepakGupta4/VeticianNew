@@ -9,6 +9,17 @@ export default function TabLayout() {
         headerShown: false,
         tabBarActiveTintColor: '#4E8D7C',
         tabBarInactiveTintColor: '#999',
+        tabBarStyle: {
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          elevation: 8,
+          backgroundColor: '#FFFFFF',
+          height: 60,
+          paddingBottom: 8,
+          paddingTop: 8,
+        },
       }}>
       <Tabs.Screen 
         name="index" 
@@ -16,6 +27,24 @@ export default function TabLayout() {
           title: 'Home', 
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="home-outline" size={size} color={color} />
+          )
+        }} 
+      />
+      <Tabs.Screen 
+        name="clinic" 
+        options={{ 
+          title: 'Clinic', 
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="medical-outline" size={size} color={color} />
+          )
+        }} 
+      />
+      <Tabs.Screen 
+        name="pet" 
+        options={{ 
+          title: 'Pet', 
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="paw-outline" size={size} color={color} />
           )
         }} 
       />
@@ -29,6 +58,12 @@ export default function TabLayout() {
         }} 
       />
       <Tabs.Screen name="ProfileDetails" options={{ href: null }} />
+      <Tabs.Screen name="../pages/ClinicListScreen" options={{ href: null }} />
+      <Tabs.Screen name="../pages/ClinicDetailScreen" options={{ href: null }} />
+      <Tabs.Screen name="../pages/PetList" options={{ href: null }} />
+      <Tabs.Screen name="../pages/BookScreen" options={{ href: null }} />
+      <Tabs.Screen name="../pages/VideoConsultation" options={{ href: null }} />
+      <Tabs.Screen name="../pages/Hostel" options={{ href: null }} />
     </Tabs>
   );
 }

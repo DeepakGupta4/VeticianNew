@@ -6,7 +6,7 @@ import ClinicListScreen from '../pages/ClinicListScreen';
 import HealthTipsScreen from '../pages/HealthTipsScreen'
 import VideoCall from '../pages/VideoCall';
 import Doorstep from '../pages/DoorStep';
-import PetWatching from '../pages/PetWatching';
+import PetWatchingScreen from '../pages/PetWatching';
 import BookHostel from '../pages/Hostel';
 import DayPlaySchool from '../pages/School';
 import PetTraining from '../pages/PetTraning';
@@ -42,7 +42,7 @@ export default function AppDrawer() {
       />
       <Drawer.Screen
         name="PetWatching"
-        component={PetWatching}
+        component={PetWatchingScreen}
         options={{ headerShown: false, title: 'Pet Watching' }}
       />
       <Drawer.Screen

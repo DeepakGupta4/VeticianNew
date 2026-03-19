@@ -86,7 +86,7 @@ export default function SignUp() {
           veterinarian: '/(doc_tabs)/onboarding/onboarding_conf',
           pet_resort: '/(pet_resort_tabs)/(tabs)',
           paravet: '/(peravet_tabs)/(tabs)',
-          vetician: '/(vetician_tabs)/onboarding/onboarding_conf'
+          vetician: '/(vetician_tabs)/pages/VeticianWelcomeScreen'
         };
         const targetRoute = routes[loginType] || routes.vetician;
         console.log('🚀 Navigating to:', targetRoute);

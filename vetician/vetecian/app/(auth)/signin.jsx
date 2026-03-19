@@ -59,8 +59,7 @@ export default function SignIn() {
   const handlePostLoginRouting = async (type) => {
     switch(type) {
       case 'vetician':
-        const tourCompleted = await AsyncStorage.getItem('tourCompleted');
-        router.replace(tourCompleted ? '/(vetician_tabs)' : '/(vetician_tabs)/pages/QuickTour');
+        router.replace('/(vetician_tabs)/pages/VeticianWelcomeScreen');
         break;
       case 'veterinarian':
         router.replace('/(doc_tabs)');
@@ -75,7 +74,7 @@ export default function SignIn() {
         router.replace('/(admin_tabs)');
         break;
       default:
-        router.replace('/(vetician_tabs)');
+        router.replace('/(vetician_tabs)/pages/VeticianWelcomeScreen');
     }
   };
 
