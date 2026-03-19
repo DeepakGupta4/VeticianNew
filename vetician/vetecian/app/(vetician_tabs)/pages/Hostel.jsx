@@ -1,206 +1,153 @@
-import React, { useState } from 'react';
-import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  TextInput, SafeAreaView, Switch, Alert
-} from 'react-native';
-import { MaterialIcons, FontAwesome5, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import CommonHeader from '../../../components/CommonHeader';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { View, Text, ScrollView, StyleSheet, TextInput, TouchableOpacity, Animated, Alert } from 'react-native';
+import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { COLORS } from '../../../constant/theme';
+import { HOSTELS, fmtDate } from '../../../components/petparent/BookHostle/hostelData';
 
-export default function BoardingFormScreen() {
-  const [petName, setPetName] = useState('');
-  const [checkInDate, setCheckInDate] = useState('Select Date');
-  const [checkOutDate, setCheckOutDate] = useState('Select Date');
-  const [isAggressive, setIsAggressive] = useState(false);
-  const [medicine, setMedicine] = useState('');
-  const [diet, setDiet] = useState('');
+import SectionTitle   from '../../../components/petparent/BookHostle/SectionTitle';
+import PetSelector    from '../../../components/petparent/BookHostle/PetSelector';
+import HostelList     from '../../../components/petparent/BookHostle/HostelList';
+import FacilityList   from '../../../components/petparent/BookHostle/FacilityList';
+import RoomList       from '../../../components/petparent/BookHostle/RoomList';
+import SafetyCard     from '../../../components/petparent/BookHostle/SafetyCard';
+import DateTimePicker from '../../../components/petparent/BookHostle/DateTimePicker';
+import BookingSummary from '../../../components/petparent/BookHostle/BookingSummary';
 
-  const handleBooking = () => {
-    if(!petName || checkInDate === 'Select Date') {
-      Alert.alert("Error", "Please fill pet name and dates!");
+export default function BookHostelScreen() {
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const [search,     setSearch]     = useState('');
+  const [selPet,     setSelPet]     = useState(null);
+  const [selHostel,  setSelHostel]  = useState(null);
+  const [selRoom,    setSelRoom]    = useState(null);
+  const [checkin,    setCheckin]    = useState(null);
+  const [checkout,   setCheckout]   = useState(null);
+
+  const opacity = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(opacity, { toValue: 1, duration: 350, useNativeDriver: true }).start();
+  }, []);
+
+  const nights = checkin && checkout
+    ? Math.max(0, Math.round((checkout.date - checkin.date) / (1000 * 60 * 60 * 24)))
+    : 0;
+
+  const totalPrice = selRoom && nights > 0 ? selRoom.price * nights : selRoom ? selRoom.price : 0;
+  const isReady    = selPet && selHostel && selRoom && checkin && checkout;
+
+  const filtered = HOSTELS.filter(h => h.name.toLowerCase().includes(search.toLowerCase()));
+
+  const handleConfirm = useCallback(() => {
+    if (!isReady) {
+      Alert.alert('Incomplete', 'Please select a pet, hostel, room and dates.');
       return;
     }
-    Alert.alert("Form Submitted", "Your pet's boarding details have been saved.");
-  };
+    Alert.alert(
+      'Booking Confirmed!',
+      `${selPet.name} will stay at ${selHostel.name} in a ${selRoom.name}.\nCheck-in:  ${fmtDate(checkin.date)} at ${checkin.time}\nCheck-out: ${fmtDate(checkout.date)} at ${checkout.time}\n\nTotal: ₹${totalPrice.toLocaleString('en-IN')}`,
+      [{ text: 'Great!' }]
+    );
+  }, [isReady, selPet, selHostel, selRoom, checkin, checkout, totalPrice]);
 
   return (
-    <SafeAreaView style={styles.container}>
-      <CommonHeader title="Book a Hostel" />
-      
-      {/* Coming Soon Overlay */}
-      <View style={styles.comingSoonOverlay}>
-        <MaterialIcons name="hotel" size={60} color="#24A1DE" />
-        <Text style={styles.comingSoonTitle}>Coming Soon!</Text>
-        <Text style={styles.comingSoonText}>Pet boarding facilities are being set up. Safe & comfortable stay for your pets.</Text>
+    <Animated.View style={[styles.root, { opacity }]}>
+
+      {/* HEADER */}
+      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
+        <View style={styles.hRow}>
+          <TouchableOpacity style={styles.hBtn} activeOpacity={0.8} onPress={() => router.back()}>
+            <Icon name="arrow-left" size={22} color="#fff" />
+          </TouchableOpacity>
+          <View style={{ alignItems: 'center' }}>
+            <Text style={styles.hTitle}>Pet Hostel</Text>
+            <Text style={styles.hSub}>Vatecian</Text>
+          </View>
+          <TouchableOpacity style={styles.hBtn} activeOpacity={0.8}>
+            <Icon name="account-circle-outline" size={22} color="#fff" />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.searchBox}>
+          <Icon name="magnify" size={18} color="#1a1a1a" />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search hostels..."
+            placeholderTextColor="#aaa"
+            value={search}
+            onChangeText={setSearch}
+          />
+          {search.length > 0 && (
+            <TouchableOpacity onPress={() => setSearch('')}>
+              <Icon name="close-circle" size={16} color="#aaa" />
+            </TouchableOpacity>
+          )}
+        </View>
+
+        <View style={styles.locRow}>
+          <Icon name="map-marker-outline" size={13} color="rgba(255,255,255,0.9)" />
+          <Text style={styles.locText}>Hostels near you · Lucknow</Text>
+        </View>
       </View>
-      
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.scrollContent, {opacity: 0.3}]}>
-        
-        {/* SECTION 1: DATES SELECTION */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>1. Choose Boarding Dates</Text>
-          <View style={styles.dateRow}>
-            <TouchableOpacity style={styles.dateInputBox}>
-              <Text style={styles.label}>Check-in Date</Text>
-              <View style={styles.inputWithIcon}>
-                <MaterialCommunityIcons name="calendar-import" size={20} color="#24A1DE" />
-                <Text style={styles.dateValue}>{checkInDate}</Text>
-              </View>
-            </TouchableOpacity>
 
-            <TouchableOpacity style={styles.dateInputBox}>
-              <Text style={styles.label}>Check-out Date</Text>
-              <View style={styles.inputWithIcon}>
-                <MaterialCommunityIcons name="calendar-export" size={20} color="#24A1DE" />
-                <Text style={styles.dateValue}>{checkOutDate}</Text>
-              </View>
-            </TouchableOpacity>
-          </View>
-        </View>
+      {/* CONTENT */}
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
 
-        {/* SECTION 2: PET INFO & HABITS */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>2. Pet Habits & Nature</Text>
-          <Text style={styles.label}>Pet Name</Text>
-          <TextInput 
-            style={styles.textInput} 
-            placeholder="e.g. Milo" 
-            value={petName}
-            onChangeText={setPetName}
-          />
+        <SectionTitle title="Select Your Pet" sub="Who's staying with us?" />
+        <PetSelector selected={selPet} onSelect={setSelPet} />
 
-          <View style={styles.switchRow}>
-            <View style={{flex: 1}}>
-              <Text style={styles.boldLabel}>Friendly with other pets?</Text>
-              <Text style={styles.subLabel}>Helps us decide play-group</Text>
-            </View>
-            <Switch 
-              value={!isAggressive} 
-              onValueChange={(val) => setIsAggressive(!val)}
-              trackColor={{ false: "#ddd", true: "#24A1DE" }}
-            />
-          </View>
+        <SectionTitle title="Nearby Hostels" sub="Tap to select one for your pet" />
+        <HostelList hostels={filtered} selected={selHostel} onSelect={setSelHostel} />
 
-          <Text style={styles.label}>Any specific behavioral habits?</Text>
-          <TextInput 
-            style={[styles.textInput, styles.textArea]} 
-            placeholder="e.g. Scared of thunder, likes belly rubs..." 
-            multiline
-            numberOfLines={3}
-          />
-        </View>
+        <SectionTitle title="What's Included" sub="All hostels come with these" />
+        <FacilityList />
 
-        {/* SECTION 3: MEDICINE & DIET */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>3. Health & Nutrition</Text>
-          
-          <View style={styles.inputGroup}>
-            <View style={styles.labelRow}>
-              <MaterialCommunityIcons name="pill" size={18} color="#FF5252" />
-              <Text style={[styles.label, {marginLeft: 5}]}>Medicine Details (if any)</Text>
-            </View>
-            <TextInput 
-              style={[styles.textInput, styles.textArea]} 
-              placeholder="Dosage, Timing, Medicine Name..." 
-              value={medicine}
-              onChangeText={setMedicine}
-              multiline
-            />
-          </View>
+        <SectionTitle title="Room Type" sub="Pick what suits your pet best" />
+        <RoomList selected={selRoom} onSelect={setSelRoom} />
 
-          <View style={styles.inputGroup}>
-            <View style={styles.labelRow}>
-              <FontAwesome5 name="dog" size={16} color="#FBC02D" />
-              <Text style={[styles.label, {marginLeft: 8}]}>Dietary Requirements</Text>
-            </View>
-            <TextInput 
-              style={[styles.textInput, styles.textArea]} 
-              placeholder="e.g. Only dry food, twice a day, allergic to chicken..." 
-              value={diet}
-              onChangeText={setDiet}
-              multiline
-            />
-          </View>
-        </View>
+        <SectionTitle title="Safety & Care" sub="We treat your pet like family" />
+        <SafetyCard />
 
-        {/* Emergency Info */}
-        <View style={styles.emergencyNote}>
-          <MaterialIcons name="info" size={20} color="#666" />
-          <Text style={styles.emergencyText}>
-            Our in-house vet will monitor your pet 24/7. In case of emergency, we will contact you immediately.
-          </Text>
-        </View>
+        <SectionTitle title="Check-in & Check-out" sub="Select date and time for your stay" />
+        <DateTimePicker
+          checkin={checkin}
+          checkout={checkout}
+          nights={nights}
+          onCheckin={setCheckin}
+          onCheckout={setCheckout}
+        />
 
+        <SectionTitle title="Booking Summary" sub="Review before confirming" titleColor={COLORS.primary} />
+        <BookingSummary
+          selPet={selPet}
+          selHostel={selHostel}
+          selRoom={selRoom}
+          checkin={checkin}
+          checkout={checkout}
+          nights={nights}
+          totalPrice={totalPrice}
+          isReady={isReady}
+          onConfirm={handleConfirm}
+        />
+
+        <View style={{ height: 40 }} />
       </ScrollView>
-
-      {/* Footer Button */}
-      <View style={styles.footer}>
-        <TouchableOpacity style={styles.submitBtn} onPress={handleBooking}>
-          <Text style={styles.submitBtnText}>Confirm Boarding Request</Text>
-        </TouchableOpacity>
-      </View>
-    </SafeAreaView>
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F5F7FB' },
-  
-  comingSoonOverlay: {
-    position: 'absolute',
-    top: 100,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(255,255,255,0.95)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1000,
-    paddingHorizontal: 40
-  },
-  comingSoonTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#24A1DE',
-    marginTop: 20,
-    marginBottom: 10
-  },
-  comingSoonText: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-    lineHeight: 24
-  },
-  scrollContent: { padding: 16 },
-  
-  section: { backgroundColor: '#fff', borderRadius: 12, padding: 16, marginBottom: 16, elevation: 1 },
-  sectionTitle: { fontSize: 16, fontWeight: 'bold', color: '#24A1DE', marginBottom: 15 },
-  
-  label: { fontSize: 14, color: '#666', marginBottom: 8, fontWeight: '500' },
-  boldLabel: { fontSize: 15, fontWeight: 'bold', color: '#333' },
-  subLabel: { fontSize: 12, color: '#999' },
-  
-  dateRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  dateInputBox: { width: '48%', backgroundColor: '#F9F9F9', padding: 10, borderRadius: 8, borderWidth: 1, borderColor: '#eee' },
-  inputWithIcon: { flexDirection: 'row', alignItems: 'center', marginTop: 5 },
-  dateValue: { marginLeft: 8, color: '#333', fontWeight: 'bold' },
-
-  textInput: { 
-    backgroundColor: '#F9F9F9', borderRadius: 8, padding: 12, 
-    borderWidth: 1, borderColor: '#eee', fontSize: 15, color: '#333', marginBottom: 15 
-  },
-  textArea: { height: 80, textAlignVertical: 'top' },
-  
-  switchRow: { flexDirection: 'row', alignItems: 'center', marginVertical: 10, marginBottom: 20 },
-  inputGroup: { marginBottom: 10 },
-  labelRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
-
-  emergencyNote: { 
-    flexDirection: 'row', backgroundColor: '#E3F2FD', padding: 15, borderRadius: 10, 
-    marginBottom: 20, alignItems: 'center' 
-  },
-  emergencyText: { flex: 1, marginLeft: 10, fontSize: 12, color: '#555', lineHeight: 18 },
-
-  footer: { padding: 16, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#eee' },
-  submitBtn: { backgroundColor: '#24A1DE', padding: 16, borderRadius: 10, alignItems: 'center' },
-  submitBtnText: { color: '#fff', fontSize: 16, fontWeight: 'bold' }
+  root:   { flex: 1, backgroundColor: '#fff' },
+  header: { backgroundColor: COLORS.primary, paddingBottom: 16, paddingHorizontal: 18 },
+  hRow:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
+  hBtn:   { width: 38, height: 38, borderRadius: 11, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' },
+  hTitle: { fontSize: 17, fontWeight: '800', color: '#fff', textAlign: 'center' },
+  hSub:   { fontSize: 10, color: 'rgba(255,255,255,0.65)', textAlign: 'center', marginTop: 1 },
+  searchBox:   { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 10 },
+  searchInput: { flex: 1, fontSize: 14, color: '#1a1a1a', marginLeft: 8, marginRight: 4 },
+  locRow:  { flexDirection: 'row', alignItems: 'center' },
+  locText: { fontSize: 12, color: 'rgba(255,255,255,0.88)', fontWeight: '500', marginLeft: 5 },
+  scroll:  { flex: 1 },
+  content: { paddingHorizontal: 16, paddingTop: 22 },
 });
