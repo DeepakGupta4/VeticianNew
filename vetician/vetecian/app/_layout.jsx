@@ -5,6 +5,7 @@ import { PersistGate } from 'redux-persist/integration/react';
 import { store, persistor } from '../store/store';
 import { View, Text, StyleSheet } from 'react-native';
 import { useEffect, useState } from 'react';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 function LoadingScreen() {
   return (
@@ -54,14 +55,16 @@ function AuthGuard({ children }) {
 
 export default function RootLayout() {
   return (
-    <Provider store={store}>
-      <PersistGate loading={<LoadingScreen />} persistor={persistor}>
-        <AuthGuard>
-          <Slot />
-          <StatusBar style="auto" />
-        </AuthGuard>
-      </PersistGate>
-    </Provider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <Provider store={store}>
+        <PersistGate loading={<LoadingScreen />} persistor={persistor}>
+          <AuthGuard>
+            <Slot />
+            <StatusBar style="auto" />
+          </AuthGuard>
+        </PersistGate>
+      </Provider>
+    </GestureHandlerRootView>
   );
 }
 

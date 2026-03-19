@@ -1,196 +1,234 @@
+// screens/PetTrainingScreen.js
+// Vatecian App — Pet Training Main Screen
+
 import React, { useState } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  Image, SafeAreaView, FlatList
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  StyleSheet,
+  StatusBar,
+  FlatList,
+  Platform,
 } from 'react-native';
-import { MaterialIcons, FontAwesome5, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import CommonHeader from '../../../components/CommonHeader';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import { useRouter } from 'expo-router';
 
-export default function PetTrainingScreen() {
-  const [selectedCategory, setSelectedCategory] = useState('Behavior');
+import { COLORS, SPACING, RADIUS, SHADOWS } from '../../../constant/theme';
+import {
+  TRAINING_CATEGORIES,
+  FEATURED_TRAINER,
+  TRAINING_PROGRAMS,
+  PETS,
+} from '../../../constant/trainingData';
 
-  const COURSES = [
-    {
-      id: '1',
-      title: 'Basic Obedience',
-      duration: '4 Weeks',
-      sessions: '12 Sessions',
-      price: '₹4,999',
-      image: 'https://images.unsplash.com/photo-1583337130417-3346a1be7dee?q=80&w=400',
-      tags: ['Sit/Stay', 'Leash Walk']
-    },
-    {
-      id: '2',
-      title: 'Potty Training',
-      duration: '2 Weeks',
-      sessions: '6 Sessions',
-      price: '₹2,499',
-      image: 'https://images.unsplash.com/photo-1537151608828-ea2b11777ee8?q=80&w=400',
-      tags: ['House Breaking', 'Routine']
-    }
-  ];
+import TrainingCategoryCard from '../../../components/petparent/PetTraining/TrainingCategoryCard';
+import TrainerHighlightCard from '../../../components/petparent/PetTraining/TrainerHighlightCard';
+import TrainingProgramCard from '../../../components/petparent/PetTraining/TrainingProgramCard';
+import PetSelectorCard from '../../../components/petparent/PetTraining/PetSelectorCard';
+import TrainingProgressCard from '../../../components/petparent/PetTraining/TrainingProgressCard';
+import TrainingBookingSection from '../../../components/petparent/PetTraining/TrainingBookingSection';
+
+const SectionHeader = ({ title, subtitle }) => (
+  <View style={styles.sectionHeader}>
+    <Text style={styles.sectionTitle}>{title}</Text>
+    {subtitle ? <Text style={styles.sectionSubtitle}>{subtitle}</Text> : null}
+  </View>
+);
+
+const PetTrainingScreen = () => {
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const [selectedCategory, setSelectedCategory] = useState('1');
+  const [selectedPet, setSelectedPet] = useState('pet1');
+  const [selectedProgram, setSelectedProgram] = useState(null);
 
   return (
-    <SafeAreaView style={styles.container}>
-      <CommonHeader title="Pet Training" />
-      
-      {/* Coming Soon Overlay */}
-      <View style={styles.comingSoonOverlay}>
-        <MaterialIcons name="school" size={60} color="#24A1DE" />
-        <Text style={styles.comingSoonTitle}>Coming Soon!</Text>
-        <Text style={styles.comingSoonText}>Pet Training programs are being finalized. Professional trainers will be available soon.</Text>
-      </View>
-      
-      <ScrollView showsVerticalScrollIndicator={false} style={{opacity: 0.3}}>
-        
-        {/* --- Training Banner --- */}
-        <View style={styles.headerBanner}>
-          <View style={styles.headerTextSide}>
-            <Text style={styles.headerTitle}>Professional Training</Text>
-            <Text style={styles.headerSub}>Make your pet the best version of themselves.</Text>
-            <TouchableOpacity style={styles.consultBtn}>
-              <Text style={styles.consultText}>Free Consult</Text>
-            </TouchableOpacity>
-          </View>
-          <Image 
-            source={{ uri: 'https://cdn-icons-png.flaticon.com/512/3048/3048384.png' }} 
-            style={styles.headerImg} 
-          />
-        </View>
+    <View style={styles.root}>
+      <StatusBar backgroundColor={COLORS.primaryGreen} barStyle="light-content" translucent />
 
-        {/* --- Mode Selection --- */}
-        <View style={styles.modeContainer}>
-          <TouchableOpacity style={[styles.modeCard, styles.activeMode]}>
-            <MaterialIcons name="home" size={24} color="#fff" />
-            <Text style={styles.activeModeText}>At Home</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.modeCard}>
-            <MaterialIcons name="videocam" size={24} color="#24A1DE" />
-            <Text style={styles.modeText}>Online</Text>
-          </TouchableOpacity>
-        </View>
+      {/* ── Header (respects status bar inset) ── */}
+      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
+        <TouchableOpacity
+          style={styles.headerIcon}
+          onPress={() => router.back()}
+          activeOpacity={0.8}
+        >
+          <MaterialCommunityIcons name="arrow-left" size={22} color={COLORS.white} />
+        </TouchableOpacity>
 
-        {/* --- Training Courses --- */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Popular Programs</Text>
-          {COURSES.map((item) => (
-            <TouchableOpacity key={item.id} style={styles.courseCard}>
-              <Image source={{ uri: item.image }} style={styles.courseImg} />
-              <View style={styles.courseContent}>
-                <View style={styles.tagRow}>
-                  <Text style={styles.durationTag}>{item.duration}</Text>
-                  <Text style={styles.sessionTag}>{item.sessions}</Text>
-                </View>
-                <Text style={styles.courseTitle}>{item.title}</Text>
-                
-                <View style={styles.skillsRow}>
-                  {item.tags.map(tag => (
-                    <Text key={tag} style={styles.skillText}>• {tag}</Text>
-                  ))}
-                </View>
+        <Text style={styles.headerTitle}>Pet Training</Text>
 
-                <View style={styles.priceRow}>
-                  <Text style={styles.price}>{item.price}</Text>
-                  <TouchableOpacity style={styles.enrollBtn}>
-                    <Text style={styles.enrollText}>View Syllabus</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {/* --- Why Professional Training? --- */}
-        <View style={styles.infoBox}>
-           <Text style={styles.infoTitle}>Why professional training?</Text>
-           <View style={styles.infoItem}>
-              <Ionicons name="shield-checkmark" size={20} color="#10B981" />
-              <Text style={styles.infoText}>Reduces anxiety & destructive behavior</Text>
-           </View>
-           <View style={styles.infoItem}>
-              <Ionicons name="shield-checkmark" size={20} color="#10B981" />
-              <Text style={styles.infoText}>Improves social skills with other pets</Text>
-           </View>
-        </View>
-
-      </ScrollView>
-
-      {/* --- Footer Action --- */}
-      <View style={styles.footer}>
-        <TouchableOpacity style={styles.mainCallBtn}>
-          <Ionicons name="call" size={20} color="white" />
-          <Text style={styles.mainCallText}>Talk to Training Expert</Text>
+        <TouchableOpacity style={styles.headerIcon} activeOpacity={0.8}>
+          <MaterialCommunityIcons name="account-circle-outline" size={24} color={COLORS.white} />
         </TouchableOpacity>
       </View>
 
-    </SafeAreaView>
+      {/* ── Subtitle Banner ── */}
+      <View style={styles.subtitleBanner}>
+        <MaterialCommunityIcons name="information-outline" size={15} color={COLORS.white} />
+        <Text style={styles.subtitleText}>
+          Professional training to build better behavior and a stronger bond with your pet.
+        </Text>
+      </View>
+
+      {/* ── Scrollable Body ── */}
+      <ScrollView
+        style={styles.body}
+        contentContainerStyle={[styles.bodyContent, { paddingBottom: insets.bottom + 24 }]}
+        showsVerticalScrollIndicator={false}
+      >
+
+        {/* 1. Training Categories */}
+        <SectionHeader title="Training Categories" subtitle="Choose what your pet needs" />
+        <FlatList
+          data={TRAINING_CATEGORIES}
+          horizontal
+          keyExtractor={(item) => item.id}
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingLeft: SPACING.md, paddingRight: SPACING.sm }}
+          renderItem={({ item, index }) => (
+            <TrainingCategoryCard
+              item={item}
+              index={index}
+              isSelected={selectedCategory === item.id}
+              onPress={() => setSelectedCategory(item.id)}
+            />
+          )}
+          style={styles.horizontalList}
+        />
+
+        {/* 2. Featured Trainer */}
+        <View style={styles.section}>
+          <SectionHeader title="Featured Trainer" subtitle="Recommended by Vatecian" />
+          <TrainerHighlightCard trainer={FEATURED_TRAINER} />
+        </View>
+
+        {/* 3. Training Programs */}
+        <View style={styles.section}>
+          <SectionHeader title="Training Programs" subtitle="Choose the right plan" />
+          {TRAINING_PROGRAMS.map((program, index) => (
+            <TrainingProgramCard
+              key={program.id}
+              program={program}
+              index={index}
+              isSelected={selectedProgram === program.id}
+              onSelect={setSelectedProgram}
+              onEnroll={(p) => console.log('Enrolling in:', p.name)}
+            />
+          ))}
+        </View>
+
+        {/* 4. Select Your Pet */}
+        <View style={styles.section}>
+          <SectionHeader title="Select Your Pet" subtitle="Who is getting trained?" />
+          <FlatList
+            data={PETS}
+            horizontal
+            keyExtractor={(item) => item.id}
+            showsHorizontalScrollIndicator={false}
+            renderItem={({ item }) => (
+              <PetSelectorCard
+                pet={item}
+                isSelected={selectedPet === item.id}
+                onSelect={setSelectedPet}
+              />
+            )}
+          />
+        </View>
+
+        {/* 5. Training Progress */}
+        <View style={styles.section}>
+          <SectionHeader title="How We Track Progress" subtitle="Stay informed every week" />
+          <TrainingProgressCard />
+        </View>
+
+        {/* 6. Booking Section */}
+        <View style={styles.section}>
+          <SectionHeader title="Book a Session" subtitle="Schedule at your convenience" />
+          <TrainingBookingSection />
+        </View>
+
+      </ScrollView>
+    </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  
-  comingSoonOverlay: {
-    position: 'absolute',
-    top: 100,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(255,255,255,0.95)',
-    justifyContent: 'center',
+  root: {
+    flex: 1,
+    backgroundColor: COLORS.primaryGreen,
+  },
+  header: {
+    flexDirection: 'row',
     alignItems: 'center',
-    zIndex: 1000,
-    paddingHorizontal: 40
+    justifyContent: 'space-between',
+    backgroundColor: COLORS.primaryGreen,
+    paddingHorizontal: SPACING.md,
+    paddingBottom: SPACING.md,
   },
-  comingSoonTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#24A1DE',
-    marginTop: 20,
-    marginBottom: 10
+  headerIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  comingSoonText: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-    lineHeight: 24
+  headerTitle: {
+    fontSize: 19,
+    fontWeight: '800',
+    color: COLORS.white,
+    letterSpacing: 0.3,
   },
-  headerBanner: { backgroundColor: '#E3F2FD', padding: 25, flexDirection: 'row', alignItems: 'center' },
-  headerTextSide: { flex: 1 },
-  headerTitle: { fontSize: 22, fontWeight: 'bold', color: '#333' },
-  headerSub: { fontSize: 13, color: '#666', marginTop: 5 },
-  consultBtn: { backgroundColor: '#24A1DE', paddingVertical: 6, paddingHorizontal: 12, borderRadius: 20, alignSelf: 'flex-start', marginTop: 12 },
-  consultText: { color: '#fff', fontSize: 12, fontWeight: 'bold' },
-  headerImg: { width: 80, height: 80 },
-
-  modeContainer: { flexDirection: 'row', padding: 20, gap: 15 },
-  modeCard: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 12, borderRadius: 10, borderWidth: 1, borderColor: '#24A1DE' },
-  activeMode: { backgroundColor: '#24A1DE' },
-  modeText: { marginLeft: 8, fontWeight: 'bold', color: '#24A1DE' },
-  activeModeText: { marginLeft: 8, fontWeight: 'bold', color: '#fff' },
-
-  section: { padding: 20 },
-  sectionTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 15 },
-  courseCard: { backgroundColor: '#fff', borderRadius: 15, marginBottom: 20, elevation: 3, overflow: 'hidden', flexDirection: 'row' },
-  courseImg: { width: 120, height: '100%' },
-  courseContent: { flex: 1, padding: 15 },
-  tagRow: { flexDirection: 'row', gap: 8, marginBottom: 5 },
-  durationTag: { fontSize: 10, color: '#24A1DE', backgroundColor: '#E3F2FD', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, fontWeight: 'bold' },
-  sessionTag: { fontSize: 10, color: '#666', backgroundColor: '#eee', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
-  courseTitle: { fontSize: 16, fontWeight: 'bold', color: '#333' },
-  skillsRow: { marginTop: 8 },
-  skillText: { fontSize: 12, color: '#777', marginBottom: 2 },
-  priceRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 },
-  price: { fontSize: 17, fontWeight: 'bold', color: '#333' },
-  enrollBtn: { padding: 5 },
-  enrollText: { color: '#24A1DE', fontWeight: 'bold', fontSize: 12 },
-
-  infoBox: { margin: 20, padding: 20, backgroundColor: '#F9F9F9', borderRadius: 12 },
-  infoTitle: { fontWeight: 'bold', marginBottom: 10 },
-  infoItem: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
-  infoText: { marginLeft: 10, fontSize: 13, color: '#555' },
-
-  footer: { padding: 15, borderTopWidth: 1, borderTopColor: '#eee' },
-  mainCallBtn: { backgroundColor: '#24A1DE', padding: 15, borderRadius: 10, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
-  mainCallText: { color: '#fff', fontWeight: 'bold', fontSize: 16, marginLeft: 10 }
+  subtitleBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    backgroundColor: 'rgba(0,0,0,0.15)',
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 10,
+  },
+  subtitleText: {
+    flex: 1,
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.88)',
+    lineHeight: 19,
+  },
+  body: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+    borderTopLeftRadius: RADIUS.xl,
+    borderTopRightRadius: RADIUS.xl,
+    marginTop: 6,
+  },
+  bodyContent: {
+    paddingTop: SPACING.lg,
+    paddingHorizontal: SPACING.md,
+  },
+  sectionHeader: {
+    marginBottom: SPACING.md,
+  },
+  sectionTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: COLORS.textPrimary,
+  },
+  sectionSubtitle: {
+    fontSize: 13,
+    color: COLORS.textMuted,
+    marginTop: 2,
+  },
+  horizontalList: {
+    marginLeft: -SPACING.md,
+    marginRight: -SPACING.md,
+    marginBottom: SPACING.xs,
+  },
+  section: {
+    marginTop: SPACING.lg,
+  },
 });
+
+export default PetTrainingScreen;

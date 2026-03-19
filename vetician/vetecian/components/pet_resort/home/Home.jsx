@@ -3,6 +3,13 @@ import { useSelector } from 'react-redux';
 import { PawPrint, Dog, Cat, Calendar, HomeIcon, Menu } from 'lucide-react-native';
 import { DrawerActions } from '@react-navigation/native';
 import { useNavigation } from '@react-navigation/native';
+import Header from './Header';
+import HeroSection from '../Home/HeroSection';
+import HeroSection1 from '../Home/HeroSection1';
+import FeatureCard from '../Home/FeatureCard';
+import SectionHeader from '../Grooming/SectionHeader';
+import GroomingCard from '../Grooming/GroomingCard';
+import VetCareCard from '../Grooming/VetCareCard';
 
 export default function Home() {
     const { user } = useSelector(state => state.auth);
@@ -88,6 +95,34 @@ export default function Home() {
                         </View>
                     </View>
                 </View>
+                <Header />
+                <HeroSection />
+
+                <HeroSection1 />
+
+                <Text style={styles.title}>Everything at Your Fingertips</Text>
+
+                <View style={styles.grid}>
+                    <FeatureCard title="Book Stay" icon="calendar" />
+                    <FeatureCard title="Live Camera" icon="videocam" />
+                    <FeatureCard title="Health Reports" icon="heart" />
+                    <FeatureCard title="Emergency SOS" icon="warning" />
+                    <FeatureCard title="Grooming Add-on" icon="cut" />
+                    <FeatureCard title="Vet Supervision" icon="medkit" />
+                </View>
+
+
+
+                <SectionHeader />
+
+                <View style={styles.row}>
+                    <GroomingCard />
+                    <VetCareCard />
+                </View>
+
+
+
+
             </View>
         </ScrollView>
     );
@@ -227,5 +262,16 @@ const styles = StyleSheet.create({
     activityTime: {
         fontSize: 12,
         color: '#8E8E93',
+    },
+    title: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        marginVertical: 20,
+        textAlign: 'center',
+    },
+    grid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        justifyContent: 'space-between',
     },
 });

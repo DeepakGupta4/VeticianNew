@@ -19,7 +19,7 @@ export default function Sidebar({ visible, onClose }) {
     { icon: Hotel, label: 'Book a Hostel', route: 'pages/Hostel' },
     { icon: GraduationCap, label: 'Day/Play School', route: 'pages/School' },
     { icon: Briefcase, label: 'Pet Training', route: 'pages/PetTraning' },
-    { icon: Scissors, label: 'Pet Grooming', route: 'pages/Groming' },
+    { icon: Scissors, label: 'Pet Grooming', route: 'pages/Grooming' },
     { icon: Stethoscope, label: 'Find Clinics', route: 'pages/ClinicListScreen' },
     { icon: Bell, label: 'Notifications', route: 'pages/Notifications' },
     { icon: Heart, label: 'Pets', route: 'pages/PetList' },
