@@ -10,7 +10,7 @@ import PetWatching from '../pages/PetWatching';
 import BookHostel from '../pages/Hostel';
 import DayPlaySchool from '../pages/School';
 import PetTraining from '../pages/PetTraning';
-import Grooming from '../pages/Groming';
+import Grooming from '../pages/Grooming';
 import Notifications from '../pages/Notifications';
 import MyBookings from '../pages/MyBookings';
 

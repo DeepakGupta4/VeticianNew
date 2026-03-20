@@ -12,5 +12,5 @@
     ".expo/types/**/*.ts",
     "expo-env.d.ts",
     "nativewind-env.d.ts"
-, "app/(vetician_tabs)/(tabs)/profile.jsx"  ]
+, "app/(vetician_tabs)/(tabs)/profile.jsx", "components/petparent/BookHostle/StayDateSelector.jsx", "components/petparent/BookHostle/SafetyInfoCard.jsx", "components/petparent/BookHostle/RoomOptionCard.jsx", "components/petparent/BookHostle/PetSelectorCard.jsx", "components/petparent/BookHostle/HostelCard.jsx", "components/petparent/BookHostle/FacilityItem.jsx", "components/petparent/BookHostle/BookingSummaryCard.jsx", "components/petparent/BookHostle/AppDrawer.jsx"  ]
 }

@@ -275,7 +275,7 @@ export default function BookScreen() {
       {selectedDate && (
         <Section title="Select Time Slot">
           {(selectedClinic?.slots || ["9:00 AM", "11:00 AM", "2:00 PM", "4:00 PM", "6:00 PM"]).map((slot) => (
-            <Option
+            <SlotOption
               key={slot}
               label={slot}
               active={selectedSlot === slot}
@@ -344,5 +344,21 @@ const Option = ({ label, active, onPress }) => (
     }}
   >
     <Text style={{ color: active ? "#fff" : "#000" }}>{label}</Text>
+  </TouchableOpacity>
+);
+
+const SlotOption = ({ label, active, onPress }) => (
+  <TouchableOpacity
+    onPress={onPress}
+    style={{
+      padding: 14,
+      borderRadius: 12,
+      backgroundColor: "#fff",
+      marginBottom: 10,
+      borderWidth: active ? 2 : 1,
+      borderColor: active ? "#4CAF50" : "#ddd",
+    }}
+  >
+    <Text style={{ color: active ? "#4CAF50" : "#000", fontWeight: active ? "600" : "400" }}>{label}</Text>
   </TouchableOpacity>
 );
