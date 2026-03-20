@@ -186,7 +186,9 @@ const styles = StyleSheet.create({
     borderBottomColor: COLORS.border,
   },
   dropdownItemActive: {
-    backgroundColor: COLORS.lightGreen,
+    backgroundColor: '#fff',
+    borderLeftWidth: 3,
+    borderLeftColor: COLORS.primaryGreen,
   },
   dropdownText: {
     fontSize: 14,

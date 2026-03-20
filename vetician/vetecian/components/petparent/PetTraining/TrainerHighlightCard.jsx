@@ -4,13 +4,17 @@
 import React, { useEffect, useRef } from 'react';
 import {
   View, Text, Image, TouchableOpacity,
-  StyleSheet, Animated,
+  StyleSheet, Animated, Pressable,
 } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { COLORS, RADIUS, SPACING, SHADOWS } from '../../../constant/theme';
 
-const TrainerHighlightCard = ({ trainer }) => {
-  const fadeAnim = useRef(new Animated.Value(0)).current;
+const TrainerHighlightCard = ({ trainer, onViewProfile }) => {
+  const fadeAnim  = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  const handlePressIn  = () => Animated.spring(scaleAnim, { toValue: 0.96, useNativeDriver: true }).start();
+  const handlePressOut = () => Animated.spring(scaleAnim, { toValue: 1,    useNativeDriver: true }).start();
 
   useEffect(() => {
     Animated.timing(fadeAnim, {
@@ -55,10 +59,18 @@ const TrainerHighlightCard = ({ trainer }) => {
         ))}
       </View>
 
-      <TouchableOpacity style={styles.button} activeOpacity={0.85}>
-        <Text style={styles.buttonText}>View Profile</Text>
-        <MaterialCommunityIcons name="arrow-right" size={16} color={COLORS.primaryGreen} />
-      </TouchableOpacity>
+      <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+        <TouchableOpacity
+          style={styles.button}
+          onPressIn={handlePressIn}
+          onPressOut={handlePressOut}
+          onPress={onViewProfile}
+          activeOpacity={1}
+        >
+          <Text style={styles.buttonText}>View Profile</Text>
+          <MaterialCommunityIcons name="chevron-right" size={18} color={COLORS.white} />
+        </TouchableOpacity>
+      </Animated.View>
     </Animated.View>
   );
 };
@@ -152,19 +164,18 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   button: {
+    backgroundColor: COLORS.primaryGreen,
+    borderRadius: RADIUS.md,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: COLORS.primaryGreen,
-    borderRadius: RADIUS.md,
-    paddingVertical: 10,
-    gap: 6,
+    paddingVertical: 11,
+    gap: 4,
   },
   buttonText: {
-    fontSize: 14,
+    color: COLORS.white,
     fontWeight: '700',
-    color: COLORS.primaryGreen,
+    fontSize: 14,
   },
 });
 

@@ -187,9 +187,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 8,
-    backgroundColor: 'rgba(0,0,0,0.15)',
+    backgroundColor: COLORS.primaryGreen,
     paddingHorizontal: SPACING.md,
-    paddingVertical: 10,
+    paddingTop: 4,
+    paddingBottom: 28,
   },
   subtitleText: {
     flex: 1,
@@ -199,10 +200,10 @@ const styles = StyleSheet.create({
   },
   body: {
     flex: 1,
-    backgroundColor: COLORS.background,
-    borderTopLeftRadius: RADIUS.xl,
-    borderTopRightRadius: RADIUS.xl,
-    marginTop: 6,
+    backgroundColor: '#ffffff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    marginTop: -20,
   },
   bodyContent: {
     paddingTop: SPACING.lg,
