@@ -1672,7 +1672,7 @@ const generateOTP = () => {
 };
 
 const sendOTP = catchAsync(async (req, res, next) => {
-  const { phoneNumber, email } = req.body;
+  const { phoneNumber, email, name, loginType } = req.body;
   
   if (!phoneNumber && !email) {
     return next(new AppError('Phone number or email is required', 400));
@@ -1688,8 +1688,48 @@ const sendOTP = catchAsync(async (req, res, next) => {
       ]
     });
     
+    // Auto-register new user with provided name and role
     if (!user) {
-      return next(new AppError('User not found. Please sign up first.', 404));
+      const digits = phoneNumber.replace(/\D/g, '').slice(-10);
+      const userRole = loginType || 'vetician';
+      const userName = name || 'Pet Parent';
+      user = new User({
+        name: userName,
+        email: `${digits}@vetician.app`,
+        phone: phoneNumber,
+        password: `vet${digits}${Date.now()}`,
+        role: userRole
+      });
+      await user.save();
+
+      if (userRole === 'vetician') {
+        const parent = new Parent({
+          name: userName,
+          email: user.email,
+          phone: phoneNumber,
+          address: 'Not provided',
+          user: user._id,
+          gender: 'other'
+        });
+        await parent.save();
+      } else if (userRole === 'paravet') {
+        const paravet = new Paravet({
+          userId: user._id.toString(),
+          personalInfo: {
+            fullName: { value: userName, verified: true },
+            email: { value: user.email, verified: true }
+          },
+          applicationStatus: {
+            currentStep: 1,
+            completionPercentage: 10,
+            submitted: false,
+            approvalStatus: 'approved',
+            approvedAt: new Date()
+          },
+          isActive: true
+        });
+        await paravet.save();
+      }
     }
   } else {
     user = await User.findOne({ email: email.toLowerCase() });
@@ -1823,7 +1863,13 @@ const verifyOTP = catchAsync(async (req, res, next) => {
   
   let user;
   if (phoneNumber) {
-    user = await User.findOne({ phone: phoneNumber });
+    user = await User.findOne({
+      $or: [
+        { phone: phoneNumber },
+        { phone: phoneNumber.replace('+91', '') },
+        { phone: phoneNumber.replace('+', '') }
+      ]
+    });
   } else {
     user = await User.findOne({ email: email.toLowerCase() });
   }

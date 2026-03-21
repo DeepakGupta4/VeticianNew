@@ -13,6 +13,9 @@ export default function Layout() {
       <Stack.Screen name="pages/EditPetScreen" options={{ headerShown: false }}/>
       <Stack.Screen name="pages/VideoCall" options={{ headerShown: false }}/>
       <Stack.Screen name="pages/DoorStep" options={{ headerShown: false }}/>
+      <Stack.Screen name="pages/clinic" options={{ headerShown: false }}/>
+      <Stack.Screen name="pages/profile" options={{ headerShown: false }}/>
+      <Stack.Screen name="pages/ProfileDetails" options={{ headerShown: false }}/>
       <Stack.Screen name="pages/PetWatching" options={{ headerShown: false }}/>
       <Stack.Screen name="pages/Hostel" options={{ headerShown: false }}/>
       <Stack.Screen name="pages/School" options={{ headerShown: false }}/>

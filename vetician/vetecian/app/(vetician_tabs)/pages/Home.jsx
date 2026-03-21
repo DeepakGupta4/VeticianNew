@@ -536,14 +536,14 @@ export default function VeticionHome() {
         }
       >
         {/* Header */}
-        <LinearGradient colors={['#7CB342', '#558B2F']} style={styles.header}>
+        <View style={styles.header}>
           <View style={styles.headerTop}>
             <TouchableOpacity onPress={() => setSidebarVisible(true)}>
-              <Menu size={24} color="#fff" />
+              <Menu size={24} color="#333" />
             </TouchableOpacity>
             <Text style={styles.appName}>Vetician</Text>
             <TouchableOpacity onPress={() => router.push('Profile')}>
-              <MaterialIcons name="person" size={24} color="#fff" />
+              <MaterialIcons name="person" size={24} color="#333" />
             </TouchableOpacity>
           </View>
 
@@ -559,7 +559,7 @@ export default function VeticionHome() {
             <Search size={16} color="#999" />
             <Text style={styles.searchPlaceholder}>Search for Clinics</Text>
           </TouchableOpacity>
-        </LinearGradient>
+        </View>
 
         {/* Best Services */}
         <Animated.View style={[styles.servicesSection, headerSlideStyle]}>
@@ -860,6 +860,9 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 20,
     paddingHorizontal: 16,
+    backgroundColor: '#ffffff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
   },
@@ -872,7 +875,7 @@ const styles = StyleSheet.create({
   appName: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#fff',
+    color: '#1A1A1A',
     letterSpacing: 0.5,
   },
   locationBar: {

@@ -162,7 +162,6 @@ const paravetSchema = new mongoose.Schema({
 });
 
 // Index for better query performance
-paravetSchema.index({ userId: 1 });
 paravetSchema.index({ 'personalInfo.email.value': 1 });
 paravetSchema.index({ 'applicationStatus.approvalStatus': 1 });
 

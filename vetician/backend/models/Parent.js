@@ -109,7 +109,6 @@ const parentSchema = new mongoose.Schema({
 });
 
 // Indexes for better query performance
-parentSchema.index({ email: 1 });
 parentSchema.index({ phone: 1 });
 parentSchema.index({ user: 1 });
 parentSchema.index({ createdAt: -1 });

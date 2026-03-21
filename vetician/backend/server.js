@@ -71,7 +71,9 @@ if (!process.env.MONGODB_URI) {
 
 mongoose
   .connect(process.env.MONGODB_URI)
-  .then(() => console.log('✅ MongoDB Connected'))
+  .then(() => {
+    console.log('✅ MongoDB Connected');
+  })
   .catch((error) => {
     console.error('❌ MongoDB connection failed', error.message);
     process.exit(1);
@@ -123,6 +125,8 @@ app.use(errorHandler);
 /* =========================
    Socket.io Connection (Updated)
 ========================= */
+const onlineDoctors = new Set();
+
 io.on('connection', (socket) => {
   console.log('✅ Client connected:', socket.id);
 
@@ -137,15 +141,21 @@ io.on('connection', (socket) => {
   });
 
   socket.on('join-veterinarian', (vetId) => {
-    socket.join(vetId);  // Join without prefix
+    socket.join(vetId);
+    socket.vetId = vetId;
+    onlineDoctors.add(vetId);
+    io.emit('doctor-status', { vetId, online: true });
+    io.emit('online-doctors', Array.from(onlineDoctors));
     console.log(`🩺 Veterinarian ${vetId} joined room: ${vetId}`);
-    console.log(`📊 Active rooms:`, Array.from(socket.rooms));
   });
 
   socket.on('join-petparent', (userId) => {
-    socket.join(userId);  // Join without prefix
+    socket.join(userId);
     console.log(`🐾 Pet Parent ${userId} joined room: ${userId}`);
-    console.log(`📊 Active rooms:`, Array.from(socket.rooms));
+  });
+
+  socket.on('get-online-doctors', () => {
+    socket.emit('online-doctors', Array.from(onlineDoctors));
   });
 
   socket.on('call-response', (data) => {
@@ -206,6 +216,11 @@ io.on('connection', (socket) => {
 
   socket.on('disconnect', () => {
     console.log('❌ Client disconnected:', socket.id);
+    if (socket.vetId) {
+      onlineDoctors.delete(socket.vetId);
+      io.emit('doctor-status', { vetId: socket.vetId, online: false });
+      io.emit('online-doctors', Array.from(onlineDoctors));
+    }
   });
 });
 

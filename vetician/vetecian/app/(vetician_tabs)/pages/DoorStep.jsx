@@ -4,13 +4,13 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
-  SafeAreaView,
   Dimensions,
   Alert,
   Modal,
   TextInput as RNTextInput,
   StyleSheet,
 } from 'react-native';
+import { Platform } from 'react-native';
 import {
   MaterialIcons,
   FontAwesome5,
@@ -51,7 +51,7 @@ const theme = {
     secondary: '#558B2F',
     tertiary: '#558B2F',
     error: '#EF4444',
-    background: '#F5F7FA',
+    background: '#ffffff',
   },
 };
 
@@ -309,7 +309,7 @@ const BookingModal = ({ visible, onClose, service }) => {
 
   return (
     <Modal visible={visible} animationType="slide" transparent={false}>
-      <SafeAreaView style={styles.modalContainer}>
+      <View style={styles.modalContainer}>
         <View style={styles.modalHeader}>
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
             <Ionicons name="close" size={28} color="#333" />
@@ -744,7 +744,7 @@ const BookingModal = ({ visible, onClose, service }) => {
             Confirm Booking
           </Button>
         </Surface>
-      </SafeAreaView>
+      </View>
     </Modal>
   );
 };
@@ -788,7 +788,7 @@ const TrackingModal = ({ visible, onClose, booking }) => {
 
   return (
     <Modal visible={visible} animationType="slide">
-      <SafeAreaView style={styles.trackingContainer}>
+      <View style={styles.trackingContainer}>
         <View style={styles.trackingHeader}>
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
             <Ionicons name="close" size={28} color="#333" />
@@ -911,7 +911,7 @@ const TrackingModal = ({ visible, onClose, booking }) => {
 
           <View style={{ height: 40 }} />
         </ScrollView>
-      </SafeAreaView>
+      </View>
     </Modal>
   );
 };
@@ -1076,12 +1076,13 @@ const ParavetModule = () => {
 
   return (
     <PaperProvider theme={theme}>
-      <SafeAreaView style={styles.container}>
+      <View style={styles.container}>
         <CommonHeader title="Doorstep Service" />
+        <View style={{ flex: 1 }}>
         
         {/* Paravet Selection Modal */}
         <Modal visible={paravetSelectionVisible} animationType="slide">
-          <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalContainer}>
             <View style={styles.modalHeader}>
               <TouchableOpacity onPress={() => setParavetSelectionVisible(false)} style={styles.closeButton}>
                 <Ionicons name="close" size={28} color="#333" />
@@ -1137,7 +1138,7 @@ const ParavetModule = () => {
                 ))
               )}
             </ScrollView>
-          </SafeAreaView>
+          </View>
         </Modal>
 
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollViewContent}>
@@ -1601,7 +1602,8 @@ const ParavetModule = () => {
           onClose={() => setTrackingModalVisible(false)}
           booking={selectedBooking}
         />
-      </SafeAreaView>
+      </View>
+      </View>
     </PaperProvider>
   );
 };
@@ -1609,7 +1611,8 @@ const ParavetModule = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
+    backgroundColor: '#fff',
+    paddingTop: 0,
   },
   scrollViewContent: {
     paddingBottom: 20,

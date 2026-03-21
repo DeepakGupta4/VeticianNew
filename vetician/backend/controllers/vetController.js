@@ -470,19 +470,20 @@ const getAllClinicsWithVets = catchAsync(async (req, res, next) => {
   const userIds = [...new Set(clinics.map(clinic => clinic.userId))];
 
   // 3. Fetch all veterinarians associated with these clinics
+  const userIdStrings = userIds.map(id => id.toString());
   const veterinarians = await Veterinarian.find({ 
-    userId: { $in: userIds } 
+    userId: { $in: userIdStrings } 
   }).lean();
   
   // 4. Create a map of userId -> veterinarian for quick lookup
   const vetMap = veterinarians.reduce((map, vet) => {
-    map[vet.userId] = vet;
+    map[vet.userId.toString()] = vet;
     return map;
   }, {});
-  
+
   // 5. Combine clinic and veterinarian data with distance calculation
   const responseData = clinics.map(clinic => {
-    const vet = vetMap[clinic.userId] || null;
+    const vet = vetMap[clinic.userId?.toString()] || null;
     
     console.log(`🏥 Processing clinic: ${clinic.clinicName}`);
     console.log(`📍 DB Coordinates: lat=${clinic.latitude}, lon=${clinic.longitude}`);

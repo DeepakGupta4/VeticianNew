@@ -28,7 +28,7 @@ function AuthGuard({ children }) {
     const inAuthGroup = segments[0] === '(auth)';
 
     if (!isAuthenticated && !inAuthGroup) {
-      router.replace('/(auth)/signin');
+      router.replace('/(auth)/consumer-login');
     } else if (isAuthenticated && inAuthGroup) {
       const role = user?.role || 'vetician';
       
