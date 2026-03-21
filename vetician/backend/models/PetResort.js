@@ -37,6 +37,10 @@ const PetResortSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
+  description: {
+    type: String,
+    trim: true
+  },
   logo: {
     type: String,
     required: true
@@ -54,6 +58,10 @@ const PetResortSchema = new mongoose.Schema({
   ownerPhone: {
     type: String,
     required: true,
+    trim: true
+  },
+  email: {
+    type: String,
     trim: true
   },
   services: {
@@ -75,6 +83,16 @@ const PetResortSchema = new mongoose.Schema({
       message: 'At least one service must be selected'
     }
   },
+  facilities: {
+    type: [String],
+    enum: [
+      'ac_rooms',
+      'cctv',
+      'outdoor_play',
+      'staff_24x7',
+      'training_area'
+    ]
+  },
   openingHours: {
     type: [OpeningHoursSchema],
     required: true,
@@ -84,6 +102,18 @@ const PetResortSchema = new mongoose.Schema({
       },
       message: 'Opening hours must be provided for all 7 days'
     }
+  },
+  holidays: {
+    type: String,
+    trim: true
+  },
+  rules: {
+    type: String,
+    trim: true
+  },
+  gallery: {
+    type: [String],
+    default: []
   },
   notice: {
     type: String,

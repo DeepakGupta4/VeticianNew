@@ -410,7 +410,7 @@
 //   },
 // });
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator, Platform
 } from 'react-native';
@@ -424,6 +424,19 @@ export default function Step4Documents() {
   const router = useRouter();
   const { formData, updateFormData } = useParavetOnboarding();
   const [isUploading, setIsUploading] = useState(null);
+  const [uploadedDocs, setUploadedDocs] = useState({
+    governmentId: false,
+    certificationProof: false,
+    profilePhoto: false,
+  });
+
+  useEffect(() => {
+    setUploadedDocs({
+      governmentId: !!formData.governmentIdUrl,
+      certificationProof: !!formData.certificationProofUrl,
+      profilePhoto: !!formData.profilePhotoUrl,
+    });
+  }, [formData.governmentIdUrl, formData.certificationProofUrl, formData.profilePhotoUrl]);
 
   const documents = [
     { id: 'governmentId', title: 'Government-Issued ID', required: true },
@@ -466,47 +479,62 @@ export default function Step4Documents() {
 
  const uploadFile = async (docId, asset) => {
   setIsUploading(docId);
+  console.log(`📤 Uploading ${docId}...`);
 
   try {
-    const userId = await AsyncStorage.getItem('userId');
+    const formDataToSend = new FormData();
     const token = await AsyncStorage.getItem('token');
-
-    if (!userId) {
-      Alert.alert('Error', 'User not found. Please restart onboarding.');
-      return;
-    }
-
-    // Simulate upload delay
-    await new Promise(resolve => setTimeout(resolve, 1500));
     
-    const mockUrl = `https://example.com/uploads/${docId}_${Date.now()}.jpg`;
-
-    // Save to database
-    const response = await fetch(
-      `https://usually-imposturous-sharri.ngrok-free.dev/api/paravet/upload-documents/${userId}`,
-      {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'ngrok-skip-browser-warning': 'true',
-          ...(token && { Authorization: `Bearer ${token}` })
-        },
-        body: JSON.stringify({
-          documentType: docId,
-          url: mockUrl
-        })
-      }
-    );
-
-    if (!response.ok) {
-      throw new Error('Failed to save to database');
+    const uploadUrl = __DEV__ 
+      ? 'http://localhost:3000/api/upload'
+      : 'https://vetician-backend-kovk.onrender.com/api/upload';
+    
+    if (Platform.OS === 'web') {
+      const response = await fetch(asset.uri);
+      const blob = await response.blob();
+      formDataToSend.append('file', blob, `${docId}_${Date.now()}.jpg`);
+    } else {
+      formDataToSend.append('file', {
+        uri: asset.uri,
+        type: asset.type || 'image/jpeg',
+        name: `${docId}_${Date.now()}.jpg`,
+      });
     }
+    
+    formDataToSend.append('documentType', docId);
+    
+    const uploadResponse = await fetch(uploadUrl, {
+      method: 'POST',
+      body: formDataToSend,
+      headers: {
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+    });
 
-    updateFormData(`${docId}Url`, mockUrl);
-    Alert.alert('Success', 'Document uploaded successfully!');
+    if (!uploadResponse.ok) {
+      const errorData = await uploadResponse.json().catch(() => ({}));
+      throw new Error(errorData.message || 'Upload failed');
+    }
+    
+    const data = await uploadResponse.json();
+    const uploadedUrl = data.url || data.fileUrl || asset.uri;
+    console.log(`✅ Upload successful for ${docId}:`, uploadedUrl);
+
+    // Force immediate UI update
+    setUploadedDocs(prev => {
+      const updated = { ...prev, [docId]: true };
+      console.log('📝 Updated uploadedDocs:', updated);
+      return updated;
+    });
+    
+    // Update context
+    updateFormData(`${docId}Url`, uploadedUrl);
+    console.log(`✅ Context updated for ${docId}Url`);
+    
+    Alert.alert('Success', 'Document uploaded!');
   } catch (err) {
-    console.error('Upload error:', err);
-    Alert.alert('Error', 'Upload failed. Please try again.');
+    console.error('❌ Upload error:', err);
+    Alert.alert('Error', err.message || 'Upload failed');
   } finally {
     setIsUploading(null);
   }
@@ -531,7 +559,7 @@ export default function Step4Documents() {
               <Text style={styles.documentTitle}>{doc.title}</Text>
             </View>
 
-            {formData[`${doc.id}Url`] ? (
+            {uploadedDocs[doc.id] ? (
               <View style={styles.successState}>
                 <Check size={18} color="#34C759" />
                 <Text style={{color: '#34C759', flex: 1, marginLeft: 8}}>Ready</Text>

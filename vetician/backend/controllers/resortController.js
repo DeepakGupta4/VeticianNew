@@ -1,5 +1,6 @@
 const PetResort = require('../models/PetResort');
 const { catchAsync } = require('../utils/catchAsync');
+const { AppError } = require('../utils/appError');
 
 
 
@@ -7,13 +8,18 @@ const createPetResort = catchAsync(async (req, res, next) => {
   const { 
     userId,
     resortName, 
-    brandName, 
+    brandName,
+    description,
     address, 
     resortPhone, 
-    ownerPhone, 
-    services, 
-    openingHours, 
-    notice 
+    ownerPhone,
+    email,
+    services,
+    facilities,
+    openingHours,
+    holidays,
+    rules,
+    gallery
   } = req.body;
   console.log(req.body);
 
@@ -33,19 +39,21 @@ const createPetResort = catchAsync(async (req, res, next) => {
     userId: userId,
     resortName: resortName.trim(),
     brandName: brandName.trim(),
+    description: description ? description.trim() : undefined,
     logo: req.body.logo,
     address: address.trim(),
     resortPhone: resortPhone.trim(),
     ownerPhone: ownerPhone.trim(),
+    email: email ? email.trim() : undefined,
     services,
+    facilities: facilities || [],
     openingHours,
-    notice: notice ? notice.trim() : undefined
+    holidays: holidays ? holidays.trim() : undefined,
+    rules: rules ? rules.trim() : undefined,
+    gallery: gallery || []
   });
 
   await petResort.save();
-
-  // Generate tokens
-  const { accessToken, refreshToken } = generateTokens(petResort._id);
 
   res.status(201).json({
     success: true,
@@ -57,9 +65,7 @@ const createPetResort = catchAsync(async (req, res, next) => {
       logo: petResort.logo,
       services: petResort.services,
       isVerified: petResort.isVerified
-    },
-    token: accessToken,
-    refreshToken
+    }
   });
 });
 
@@ -199,6 +205,22 @@ const unverifyPetResort = catchAsync(async (req, res, next) => {
   });
 });
 
+// Get pet resort profile by userId
+const getResortProfile = catchAsync(async (req, res, next) => {
+  const { userId } = req.params;
+
+  const petResort = await PetResort.findOne({ userId }).populate('userId', 'name email phone');
+  
+  if (!petResort) {
+    return next(new AppError('Pet resort not found', 404));
+  }
+
+  res.status(200).json({
+    success: true,
+    data: petResort
+  });
+});
+
 
 
 module.exports = {
@@ -206,5 +228,6 @@ module.exports = {
   getUnverifiedPetResorts,
   getVerifiedPetResorts,
   verifyPetResort,
-  unverifyPetResort
+  unverifyPetResort,
+  getResortProfile
 };

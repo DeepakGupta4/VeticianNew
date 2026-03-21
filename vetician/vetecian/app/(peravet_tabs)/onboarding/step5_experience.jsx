@@ -1,440 +1,4 @@
-// import React, { useState } from 'react';
-// import {
-//   View,
-//   Text,
-//   StyleSheet,
-//   ScrollView,
-//   TouchableOpacity,
-//   TextInput,
-//   Alert,
-// } from 'react-native';
-// import { useRouter } from 'expo-router';
-// import { ChevronDown, Check } from 'lucide-react-native';
-// import { useParavetOnboarding } from '../../../contexts/ParavetOnboardingContext';
 
-// export default function Step5Experience() {
-//   const router = useRouter();
-//   const { formData, updateFormData, updateArrayField, errors, nextStep } = useParavetOnboarding();
-//   const [expandedSection, setExpandedSection] = useState(null);
-
-//   const areasOfExpertiseOptions = [
-//     'Wound Care',
-//     'Injections',
-//     'Vaccinations',
-//     'Blood Collection',
-//     'Post-op Care',
-//     'Medication Administration',
-//     'Pet Grooming',
-//     'Basic Diagnostics',
-//   ];
-
-//   const languagesOptions = [
-//     'English',
-//     'Hindi',
-//     'Marathi',
-//     'Tamil',
-//     'Telugu',
-//     'Kannada',
-//     'Malayalam',
-//     'Bengali',
-//   ];
-
-//   const daysOfWeek = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-
-//   const toggleArrayItem = (field, value) => {
-//     if (formData[field]?.includes(value)) {
-//       updateArrayField(field, value, false);
-//     } else {
-//       updateArrayField(field, value, true);
-//     }
-//   };
-
-//   const handleNext = () => {
-//     if (nextStep()) {
-//       router.push('./step6_payment');
-//     }
-//   };
-
-//   const handleBack = () => {
-//     router.back();
-//   };
-
-//   const isFormValid = formData.yearsOfExperience &&
-//                       formData.areasOfExpertise.length > 0 &&
-//                       formData.languagesSpoken.length > 0 &&
-//                       formData.availabilityDays.length > 0;
-
-//   return (
-//     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-//       {/* Header */}
-//       <View style={styles.header}>
-//         <Text style={styles.title}>Step 5 of 9</Text>
-//         <Text style={styles.heading}>Experience & Skills</Text>
-//       </View>
-
-//       {/* Progress Bar */}
-//       <View style={styles.progressContainer}>
-//         <View style={[styles.progressBar, { width: '55%' }]} />
-//       </View>
-
-//       {/* Content */}
-//       <View style={styles.contentContainer}>
-//         {/* Years of Experience */}
-//         <View style={styles.formGroup}>
-//           <Text style={styles.label}>Years of Experience *</Text>
-//           <View style={styles.experienceContainer}>
-//             {[0, 1, 2, 3, 5, 10, 15, 20].map((year) => (
-//               <TouchableOpacity
-//                 key={year}
-//                 style={[
-//                   styles.experienceChip,
-//                   formData.yearsOfExperience === String(year) && styles.experienceChipActive,
-//                 ]}
-//                 onPress={() => updateFormData('yearsOfExperience', String(year))}
-//               >
-//                 <Text style={[
-//                   styles.experienceChipText,
-//                   formData.yearsOfExperience === String(year) && styles.experienceChipTextActive,
-//                 ]}>
-//                   {year === 0 ? 'Fresher' : year === 20 ? '20+' : `${year}yr`}
-//                 </Text>
-//               </TouchableOpacity>
-//             ))}
-//           </View>
-//           {errors.yearsOfExperience && <Text style={styles.errorText}>{errors.yearsOfExperience}</Text>}
-//         </View>
-
-//         {/* Areas of Expertise */}
-//         <View style={styles.formGroup}>
-//           <View style={styles.sectionHeader}>
-//             <Text style={styles.label}>Areas of Expertise *</Text>
-//             <Text style={styles.selectedCount}>{formData.areasOfExpertise.length} selected</Text>
-//           </View>
-//           <View style={styles.chipsContainer}>
-//             {areasOfExpertiseOptions.map((area) => (
-//               <TouchableOpacity
-//                 key={area}
-//                 style={[
-//                   styles.chip,
-//                   formData.areasOfExpertise.includes(area) && styles.chipActive,
-//                 ]}
-//                 onPress={() => toggleArrayItem('areasOfExpertise', area)}
-//               >
-//                 {formData.areasOfExpertise.includes(area) && (
-//                   <Check size={14} color="#fff" style={{ marginRight: 4 }} />
-//                 )}
-//                 <Text style={[
-//                   styles.chipText,
-//                   formData.areasOfExpertise.includes(area) && styles.chipTextActive,
-//                 ]}>
-//                   {area}
-//                 </Text>
-//               </TouchableOpacity>
-//             ))}
-//           </View>
-//           {errors.areasOfExpertise && <Text style={styles.errorText}>{errors.areasOfExpertise}</Text>}
-//         </View>
-
-//         {/* Languages Spoken */}
-//         <View style={styles.formGroup}>
-//           <View style={styles.sectionHeader}>
-//             <Text style={styles.label}>Languages Spoken *</Text>
-//             <Text style={styles.selectedCount}>{formData.languagesSpoken.length} selected</Text>
-//           </View>
-//           <View style={styles.chipsContainer}>
-//             {languagesOptions.map((lang) => (
-//               <TouchableOpacity
-//                 key={lang}
-//                 style={[
-//                   styles.chip,
-//                   formData.languagesSpoken.includes(lang) && styles.chipActive,
-//                 ]}
-//                 onPress={() => toggleArrayItem('languagesSpoken', lang)}
-//               >
-//                 {formData.languagesSpoken.includes(lang) && (
-//                   <Check size={14} color="#fff" style={{ marginRight: 4 }} />
-//                 )}
-//                 <Text style={[
-//                   styles.chipText,
-//                   formData.languagesSpoken.includes(lang) && styles.chipTextActive,
-//                 ]}>
-//                   {lang}
-//                 </Text>
-//               </TouchableOpacity>
-//             ))}
-//           </View>
-//           {errors.languagesSpoken && <Text style={styles.errorText}>{errors.languagesSpoken}</Text>}
-//         </View>
-
-//         {/* Availability */}
-//         <View style={styles.formGroup}>
-//           <View style={styles.sectionHeader}>
-//             <Text style={styles.label}>Availability - Days *</Text>
-//             <Text style={styles.selectedCount}>{formData.availabilityDays.length} selected</Text>
-//           </View>
-//           <View style={styles.daysContainer}>
-//             {daysOfWeek.map((day) => (
-//               <TouchableOpacity
-//                 key={day}
-//                 style={[
-//                   styles.dayChip,
-//                   formData.availabilityDays.includes(day) && styles.dayChipActive,
-//                 ]}
-//                 onPress={() => toggleArrayItem('availabilityDays', day)}
-//               >
-//                 <Text style={[
-//                   styles.dayChipText,
-//                   formData.availabilityDays.includes(day) && styles.dayChipTextActive,
-//                 ]}>
-//                   {day}
-//                 </Text>
-//               </TouchableOpacity>
-//             ))}
-//           </View>
-//           {errors.availabilityDays && <Text style={styles.errorText}>{errors.availabilityDays}</Text>}
-//         </View>
-
-//         {/* Time Range */}
-//         <View style={styles.formGroup}>
-//           <Text style={styles.label}>Availability - Time Range</Text>
-//           <View style={styles.timeContainer}>
-//             <View style={styles.timeInput}>
-//               <Text style={styles.timeLabel}>From</Text>
-//               <TextInput
-//                 style={styles.input}
-//                 placeholder="09:00"
-//                 value={formData.availabilityStartTime}
-//                 onChangeText={(value) => updateFormData('availabilityStartTime', value)}
-//               />
-//             </View>
-//             <View style={styles.timeInput}>
-//               <Text style={styles.timeLabel}>To</Text>
-//               <TextInput
-//                 style={styles.input}
-//                 placeholder="18:00"
-//                 value={formData.availabilityEndTime}
-//                 onChangeText={(value) => updateFormData('availabilityEndTime', value)}
-//               />
-//             </View>
-//           </View>
-//         </View>
-
-//         {/* Navigation Buttons */}
-//         <View style={styles.buttonContainer}>
-//           <TouchableOpacity style={styles.backButton} onPress={handleBack}>
-//             <Text style={styles.backButtonText}>BACK</Text>
-//           </TouchableOpacity>
-//           <TouchableOpacity
-//             style={[styles.nextButton, !isFormValid && styles.nextButtonDisabled]}
-//             onPress={handleNext}
-//             disabled={!isFormValid}
-//           >
-//             <Text style={styles.nextButtonText}>NEXT</Text>
-//           </TouchableOpacity>
-//         </View>
-//       </View>
-//     </ScrollView>
-//   );
-// }
-
-// const styles = StyleSheet.create({
-//   container: {
-//     flex: 1,
-//     backgroundColor: '#f8f9fa',
-//   },
-//   header: {
-//     paddingHorizontal: 24,
-//     paddingTop: 20,
-//     paddingBottom: 12,
-//     backgroundColor: '#fff',
-//     borderBottomWidth: 1,
-//     borderBottomColor: '#e1e5e9',
-//   },
-//   title: {
-//     fontSize: 12,
-//     fontWeight: '600',
-//     color: '#666',
-//     marginBottom: 4,
-//   },
-//   heading: {
-//     fontSize: 24,
-//     fontWeight: '700',
-//     color: '#1a1a1a',
-//   },
-//   progressContainer: {
-//     height: 4,
-//     backgroundColor: '#e1e5e9',
-//     width: '100%',
-//   },
-//   progressBar: {
-//     height: 4,
-//     backgroundColor: '#00B0FF',
-//   },
-//   contentContainer: {
-//     padding: 24,
-//     paddingBottom: 40,
-//   },
-//   formGroup: {
-//     marginBottom: 24,
-//   },
-//   label: {
-//     fontSize: 14,
-//     fontWeight: '600',
-//     color: '#1a1a1a',
-//     marginBottom: 12,
-//   },
-//   sectionHeader: {
-//     flexDirection: 'row',
-//     justifyContent: 'space-between',
-//     alignItems: 'center',
-//     marginBottom: 12,
-//   },
-//   selectedCount: {
-//     fontSize: 12,
-//     color: '#666',
-//     fontWeight: '500',
-//   },
-//   errorText: {
-//     color: '#FF3B30',
-//     fontSize: 12,
-//     marginTop: 8,
-//     fontWeight: '500',
-//   },
-//   experienceContainer: {
-//     flexDirection: 'row',
-//     flexWrap: 'wrap',
-//     gap: 8,
-//   },
-//   experienceChip: {
-//     paddingHorizontal: 14,
-//     paddingVertical: 10,
-//     borderRadius: 8,
-//     backgroundColor: '#fff',
-//     borderWidth: 1,
-//     borderColor: '#d0d5dc',
-//   },
-//   experienceChipActive: {
-//     backgroundColor: '#00B0FF',
-//     borderColor: '#00B0FF',
-//   },
-//   experienceChipText: {
-//     fontSize: 13,
-//     fontWeight: '600',
-//     color: '#333',
-//   },
-//   experienceChipTextActive: {
-//     color: '#fff',
-//   },
-//   chipsContainer: {
-//     flexDirection: 'row',
-//     flexWrap: 'wrap',
-//     gap: 8,
-//   },
-//   chip: {
-//     flexDirection: 'row',
-//     alignItems: 'center',
-//     paddingHorizontal: 12,
-//     paddingVertical: 8,
-//     borderRadius: 20,
-//     backgroundColor: '#fff',
-//     borderWidth: 1,
-//     borderColor: '#d0d5dc',
-//   },
-//   chipActive: {
-//     backgroundColor: '#00B0FF',
-//     borderColor: '#00B0FF',
-//   },
-//   chipText: {
-//     fontSize: 13,
-//     fontWeight: '500',
-//     color: '#333',
-//   },
-//   chipTextActive: {
-//     color: '#fff',
-//   },
-//   daysContainer: {
-//     flexDirection: 'row',
-//     flexWrap: 'wrap',
-//     gap: 8,
-//   },
-//   dayChip: {
-//     width: '24%',
-//     aspectRatio: 1,
-//     borderRadius: 8,
-//     backgroundColor: '#fff',
-//     borderWidth: 1,
-//     borderColor: '#d0d5dc',
-//     alignItems: 'center',
-//     justifyContent: 'center',
-//   },
-//   dayChipActive: {
-//     backgroundColor: '#34C759',
-//     borderColor: '#34C759',
-//   },
-//   dayChipText: {
-//     fontSize: 12,
-//     fontWeight: '600',
-//     color: '#333',
-//   },
-//   dayChipTextActive: {
-//     color: '#fff',
-//   },
-//   timeContainer: {
-//     flexDirection: 'row',
-//     gap: 12,
-//   },
-//   timeInput: {
-//     flex: 1,
-//   },
-//   timeLabel: {
-//     fontSize: 12,
-//     fontWeight: '600',
-//     color: '#666',
-//     marginBottom: 6,
-//   },
-//   input: {
-//     backgroundColor: '#fff',
-//     borderWidth: 1,
-//     borderColor: '#d0d5dc',
-//     borderRadius: 8,
-//     paddingHorizontal: 12,
-//     paddingVertical: 10,
-//     fontSize: 13,
-//     color: '#1a1a1a',
-//   },
-//   buttonContainer: {
-//     flexDirection: 'row',
-//     gap: 12,
-//     marginTop: 24,
-//   },
-//   backButton: {
-//     flex: 1,
-//     backgroundColor: '#f0f2f5',
-//     borderRadius: 8,
-//     paddingVertical: 14,
-//     alignItems: 'center',
-//   },
-//   backButtonText: {
-//     fontSize: 16,
-//     fontWeight: '600',
-//     color: '#333',
-//   },
-//   nextButton: {
-//     flex: 1,
-//     backgroundColor: '#00B0FF',
-//     borderRadius: 8,
-//     paddingVertical: 14,
-//     alignItems: 'center',
-//   },
-//   nextButtonDisabled: {
-//     backgroundColor: '#ccc',
-//   },
-//   nextButtonText: {
-//     fontSize: 16,
-//     fontWeight: '600',
-//     color: '#fff',
-//   },
-// });
 
 import React, { useState } from 'react';
 import {
@@ -469,10 +33,50 @@ export default function Step5Experience() {
   const router = useRouter();
   const { formData, updateFormData, updateArrayField, errors, nextStep } = useParavetOnboarding();
 
-  const areasOfExpertiseOptions = [
-    'Wound Care', 'Injections', 'Vaccinations', 'Blood Collection',
-    'Post-op Care', 'Medication Administration', 'Pet Grooming', 'Basic Diagnostics',
-  ];
+  const [searchQuery, setSearchQuery] = useState('');
+  const [expandedCategories, setExpandedCategories] = useState({});
+
+  const expertiseCategories = {
+    'Clinical Care': [
+      'Wound Care & Dressing', 'Injection Administration (IV/IM/SC)', 'Vaccination Support',
+      'IV Fluid Therapy', 'Catheter Placement', 'Vital Signs Monitoring',
+      'Emergency First Aid', 'Medication Administration'
+    ],
+    'Diagnostic Support': [
+      'Blood Collection', 'Urine Sample Collection', 'Lab Sample Handling',
+      'X-ray Assistance', 'Ultrasound Assistance', 'ECG Assistance', 'Basic Diagnostics'
+    ],
+    'Surgical Assistance': [
+      'Pre-operative Preparation', 'OT Assistance', 'Post-operative Care',
+      'Anesthesia Monitoring Support', 'Sterilization & Instrument Handling'
+    ],
+    'Pet Care Services': [
+      'Pet Grooming', 'Nail Trimming', 'Ear Cleaning',
+      'Oral Hygiene Support', 'Tick & Flea Treatment', 'Deworming Support'
+    ],
+    'Home Visit Services': [
+      'Home Vaccination', 'Home Wound Dressing', 'Home IV Therapy', 'Elderly Pet Care Support'
+    ]
+  };
+
+  const toggleCategory = (category) => {
+    setExpandedCategories(prev => ({ ...prev, [category]: !prev[category] }));
+  };
+
+  const getFilteredSkills = () => {
+    if (!searchQuery) return expertiseCategories;
+    
+    const filtered = {};
+    Object.keys(expertiseCategories).forEach(category => {
+      const matchingSkills = expertiseCategories[category].filter(skill =>
+        skill.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+      if (matchingSkills.length > 0) {
+        filtered[category] = matchingSkills;
+      }
+    });
+    return filtered;
+  };
 
   const languagesOptions = [
     'English', 'Hindi', 'Marathi', 'Tamil',
@@ -562,28 +166,59 @@ export default function Step5Experience() {
         </View>
 
         {/* Areas of Expertise */}
-        <FormSection 
-          title="Areas of Expertise" 
-          count={formData.areasOfExpertise.length}
-          error={errors.areasOfExpertise}
-        >
-          <View style={styles.wrapContainer}>
-            {areasOfExpertiseOptions.map((area) => {
-              const isSelected = formData.areasOfExpertise.includes(area);
-              return (
-                <TouchableOpacity
-                  key={area}
-                  activeOpacity={0.7}
-                  style={[styles.pill, isSelected && styles.pillActive]}
-                  onPress={() => toggleArrayItem('areasOfExpertise', area)}
-                >
-                  {isSelected && <Check size={14} color="#FFF" style={styles.checkIcon} />}
-                  <Text style={[styles.pillText, isSelected && styles.pillTextActive]}>{area}</Text>
-                </TouchableOpacity>
-              );
-            })}
+        <View style={styles.card}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Areas of Expertise <Text style={styles.required}>*</Text></Text>
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>{formData.areasOfExpertise.length} selected</Text>
+            </View>
           </View>
-        </FormSection>
+          
+          {/* Search Bar */}
+          <View style={styles.searchContainer}>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search skills..."
+              placeholderTextColor={THEME.textSecondary}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+          </View>
+
+          {/* Categorized Skills */}
+          {Object.entries(getFilteredSkills()).map(([category, skills]) => (
+            <View key={category} style={styles.categoryContainer}>
+              <TouchableOpacity
+                style={styles.categoryHeader}
+                onPress={() => toggleCategory(category)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.categoryTitle}>{category}</Text>
+                <Text style={styles.categoryIcon}>{expandedCategories[category] ? '−' : '+'}</Text>
+              </TouchableOpacity>
+              
+              {expandedCategories[category] && (
+                <View style={styles.skillsContainer}>
+                  {skills.map((skill) => {
+                    const isSelected = formData.areasOfExpertise.includes(skill);
+                    return (
+                      <TouchableOpacity
+                        key={skill}
+                        activeOpacity={0.7}
+                        style={[styles.skillPill, isSelected && styles.skillPillActive]}
+                        onPress={() => toggleArrayItem('areasOfExpertise', skill)}
+                      >
+                        {isSelected && <Check size={14} color="#FFF" style={styles.checkIcon} />}
+                        <Text style={[styles.skillText, isSelected && styles.skillTextActive]}>{skill}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              )}
+            </View>
+          ))}
+          {errors.areasOfExpertise && <Text style={styles.errorText}>{errors.areasOfExpertise}</Text>}
+        </View>
 
         {/* Languages Spoken */}
         <FormSection 
@@ -850,6 +485,77 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   pillTextActive: {
+    color: '#FFF',
+    fontWeight: '600',
+  },
+
+  // Search
+  searchContainer: {
+    marginBottom: 16,
+  },
+  searchInput: {
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: THEME.border,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 15,
+    color: THEME.textMain,
+  },
+
+  // Categories
+  categoryContainer: {
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: THEME.border,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  categoryHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: '#F9FAFB',
+  },
+  categoryTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: THEME.textMain,
+  },
+  categoryIcon: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: THEME.primary,
+  },
+  skillsContainer: {
+    padding: 12,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    backgroundColor: '#FFF',
+  },
+  skillPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: THEME.border,
+  },
+  skillPillActive: {
+    backgroundColor: THEME.primary,
+    borderColor: THEME.primary,
+  },
+  skillText: {
+    fontSize: 13,
+    color: THEME.textMain,
+    fontWeight: '500',
+  },
+  skillTextActive: {
     color: '#FFF',
     fontWeight: '600',
   },

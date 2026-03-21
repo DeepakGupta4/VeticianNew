@@ -10,17 +10,17 @@ class SocketService {
   }
 
   connect(userId, userType) {
+    console.log(`🔌 SocketService.connect called:`, { userId, userType, alreadyConnected: this.socket?.connected });
+    
     if (this.socket?.connected) {
-      console.log('⚠️ Socket already connected');
+      console.log('✅ Socket already connected, skipping...');
       return;
     }
 
     this.userId = userId;
     this.userType = userType;
 
-    console.log(`🔵 Connecting socket for ${userType}:`, userId);
-    console.log(`🌐 Socket URL:`, SOCKET_URL);
-
+    console.log(`📡 Connecting to socket server: ${SOCKET_URL}`);
     this.socket = io(SOCKET_URL, {
       transports: ['websocket', 'polling'],
       reconnection: true,
@@ -29,13 +29,20 @@ class SocketService {
     });
 
     this.socket.on('connect', () => {
-      console.log('🟢 Socket connected, joining rooms again');
+      console.log(`✅ Socket connected! ID: ${this.socket.id}`);
+      
       if (userType === 'veterinarian') {
-        console.log(`📤 Emitting join-veterinarian with userId: ${userId}`);
+        console.log(`📤 Emitting join-veterinarian: ${userId}`);
         this.socket.emit('join-veterinarian', userId);
       } else if (userType === 'petparent') {
-        console.log(`📤 Emitting join-petparent with userId: ${userId}`);
+        console.log(`📤 Emitting join-petparent: ${userId}`);
         this.socket.emit('join-petparent', userId);
+      } else if (userType === 'paravet') {
+        console.log(`📤 Emitting join-paravet: ${userId}`);
+        this.socket.emit('join-paravet', userId);
+      } else if (userType === 'user') {
+        console.log(`📤 Emitting join-user: ${userId}`);
+        this.socket.emit('join-user', userId);
       }
     });
 
@@ -78,16 +85,45 @@ class SocketService {
     });
   }
 
-  onIncomingCall(callback) {
+  onNewBooking(callback) {
     if (!this.socket) {
-      console.log('⚠️ Socket not initialized for onIncomingCall');
+      console.log('⚠️ Socket not initialized for onNewBooking');
       return;
     }
-    console.log('👂 Listening for incoming-call events');
-    this.socket.on('incoming-call', (data) => {
-      console.log('📞 Received incoming-call event:', data);
+    console.log('👂 Listening for new-booking events');
+    this.socket.on('new-booking', (data) => {
+      console.log('🔔 Received new-booking event:', data);
       callback(data);
     });
+  }
+
+  onBookingStatusUpdate(callback) {
+    if (!this.socket) {
+      console.log('⚠️ Socket not initialized for onBookingStatusUpdate');
+      return;
+    }
+    console.log('👂 Listening for booking-status-update events');
+    this.socket.on('booking-status-update', (data) => {
+      console.log('🔔 Received booking-status-update event:', data);
+      callback(data);
+    });
+  }
+
+  onVerificationApproved(callback) {
+    if (!this.socket) {
+      console.log('⚠️ Socket not initialized for onVerificationApproved');
+      return;
+    }
+    console.log('👂 Listening for verification-approved events');
+    this.socket.on('verification-approved', (data) => {
+      console.log('🔔 Received verification-approved event:', data);
+      callback(data);
+    });
+  }
+
+  onIncomingCall(callback) {
+    if (!this.socket) return;
+    this.socket.on('incoming-call', callback);
   }
 
   emitCallResponse(response) {
@@ -109,13 +145,13 @@ class SocketService {
 
   onCallAccepted(callback) {
     if (!this.socket) return;
-    this.socket.off('call-accepted'); // Remove old listeners
+    this.socket.off('call-accepted');
     this.socket.on('call-accepted', callback);
   }
 
   onCallRejected(callback) {
     if (!this.socket) return;
-    this.socket.off('call-rejected'); // Remove old listeners
+    this.socket.off('call-rejected');
     this.socket.on('call-rejected', callback);
   }
 
@@ -134,6 +170,33 @@ class SocketService {
       this.socket.disconnect();
       this.socket = null;
     }
+  }
+
+  // Generic event listeners
+  on(event, callback) {
+    if (!this.socket) {
+      console.log(`⚠️ Socket not initialized for ${event}`);
+      return;
+    }
+    this.socket.on(event, callback);
+  }
+
+  off(event, callback) {
+    if (!this.socket) return;
+    if (callback) {
+      this.socket.off(event, callback);
+    } else {
+      this.socket.off(event);
+    }
+  }
+
+  emit(event, data) {
+    this.ensureConnection();
+    if (!this.socket) {
+      console.log(`⚠️ Socket not initialized for emitting ${event}`);
+      return;
+    }
+    this.socket.emit(event, data);
   }
 }
 

@@ -15,10 +15,17 @@ export default function ParavetBookings() {
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
-    checkAuthAndFetch();
-  }, [user._id]);
+    if (user?._id) {
+      checkAuthAndFetch();
+    }
+  }, [user?._id]);
 
   const checkAuthAndFetch = async () => {
+    if (!user?._id) {
+      console.log('❌ No user ID found');
+      return;
+    }
+    
     const token = await AsyncStorage.getItem('token');
     if (!token) {
       Alert.alert('Session Expired', 'Please login again', [
@@ -45,8 +52,8 @@ export default function ParavetBookings() {
   const fetchBookings = async () => {
     try {
       setLoading(true);
-      console.log('📥 Fetching bookings from API...');
-      const response = await ApiService.getParavetBookings();
+      console.log('📥 Fetching bookings for paravet:', user._id);
+      const response = await ApiService.getParavetBookings(user._id);
       console.log('✅ RAW API Response:', JSON.stringify(response, null, 2));
       console.log('📋 response.success:', response.success);
       console.log('📋 response.data type:', typeof response.data);

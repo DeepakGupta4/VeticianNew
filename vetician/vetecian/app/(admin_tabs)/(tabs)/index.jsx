@@ -20,6 +20,8 @@ export default function AdminDashboard() {
     verifiedClinics: 0,
     unverifiedResorts: 0,
     verifiedResorts: 0,
+    unverifiedParavets: 0,
+    verifiedParavets: 0,
   });
 
   useEffect(() => {
@@ -31,13 +33,15 @@ export default function AdminDashboard() {
       const token = await AsyncStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
-      const [unverifiedVets, verifiedVets, unverifiedClinics, verifiedClinics, unverifiedResorts, verifiedResorts] = await Promise.all([
+      const [unverifiedVets, verifiedVets, unverifiedClinics, verifiedClinics, unverifiedResorts, verifiedResorts, unverifiedParavets, verifiedParavets] = await Promise.all([
         axios.post(`${API_URL}/admin/unverified`, {}, config),
         axios.post(`${API_URL}/admin/verified`, {}, config),
         axios.post(`${API_URL}/admin/unverified/clinic`, {}, config),
         axios.post(`${API_URL}/admin/verified/clinic`, {}, config),
         axios.post(`${API_URL}/admin/unverified/petresort`, {}, config),
         axios.post(`${API_URL}/admin/verified/petresort`, {}, config),
+        axios.get(`https://vetician-backend-kovk.onrender.com/api/paravet/admin/unverified`, config),
+        axios.get(`https://vetician-backend-kovk.onrender.com/api/paravet/verified`, config),
       ]);
 
       setStats({
@@ -47,6 +51,8 @@ export default function AdminDashboard() {
         verifiedClinics: verifiedClinics.data.count || 0,
         unverifiedResorts: unverifiedResorts.data.count || 0,
         verifiedResorts: verifiedResorts.data.count || 0,
+        unverifiedParavets: unverifiedParavets.data.data?.length || 0,
+        verifiedParavets: verifiedParavets.data.data?.length || 0,
       });
     } catch (error) {
       console.error('Error fetching stats:', error);
@@ -146,6 +152,14 @@ export default function AdminDashboard() {
           pending={stats.unverifiedResorts}
           onPress={() => router.push('/(admin_tabs)/(tabs)/petresorts')}
         />
+        <StatCard
+          title="Paravets"
+          count={stats.verifiedParavets}
+          icon="medical"
+          color="#9B59B6"
+          pending={stats.unverifiedParavets}
+          onPress={() => router.push('/(admin_tabs)/(tabs)/paravets')}
+        />
       </View>
 
       <View style={styles.quickActions}>
@@ -155,7 +169,7 @@ export default function AdminDashboard() {
           onPress={() => router.push('/(admin_tabs)/(tabs)/veterinarians')}
         >
           <Ionicons name="checkmark-circle-outline" size={24} color="#4E8D7C" />
-          <Text style={styles.actionText}>Pending Verifications: {stats.unverifiedVets + stats.unverifiedClinics + stats.unverifiedResorts}</Text>
+          <Text style={styles.actionText}>Pending Verifications: {stats.unverifiedVets + stats.unverifiedClinics + stats.unverifiedResorts + stats.unverifiedParavets}</Text>
           <Ionicons name="chevron-forward" size={20} color="#999" style={{ marginLeft: 'auto' }} />
         </TouchableOpacity>
         <TouchableOpacity 
@@ -172,6 +186,14 @@ export default function AdminDashboard() {
         >
           <Ionicons name="add-circle-outline" size={24} color="#FFF" />
           <Text style={[styles.actionText, { color: '#FFF' }]}>Create Clinic</Text>
+          <Ionicons name="chevron-forward" size={20} color="#FFF" style={{ marginLeft: 'auto' }} />
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={[styles.actionButton, { backgroundColor: '#9B59B6', marginTop: 10 }]}
+          onPress={() => router.push('/(admin_tabs)/create-paravet')}
+        >
+          <Ionicons name="medical-outline" size={24} color="#FFF" />
+          <Text style={[styles.actionText, { color: '#FFF' }]}>Create Paravet</Text>
           <Ionicons name="chevron-forward" size={20} color="#FFF" style={{ marginLeft: 'auto' }} />
         </TouchableOpacity>
       </View>

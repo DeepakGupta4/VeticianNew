@@ -1,19 +1,29 @@
-import { Stack, useRouter } from 'expo-router';
-import { useEffect } from 'react';
+import { Stack, useRouter, useSegments } from 'expo-router';
+import { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 
 export default function Layout() {
   const router = useRouter();
+  const segments = useSegments();
   const { user } = useSelector(state => state.auth);
+  const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
+    // Wait for router to be ready
+    const timer = setTimeout(() => setIsReady(true), 100);
+    return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!isReady) return;
+    
     if (user && user.role !== 'veterinarian') {
       // Use setTimeout to ensure navigation happens after mount
       setTimeout(() => {
         router.replace('/(auth)/signin');
       }, 0);
     }
-  }, [user]);
+  }, [user, isReady]);
 
   return (
     <Stack>

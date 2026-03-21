@@ -1,7 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// ✅ EXPO SAFE ENV
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://vetician-backend-kovk.onrender.com/api';
+// ✅ EXPO SAFE ENV - Use localhost for development
+const API_BASE_URL = __DEV__ 
+  ? 'http://localhost:3000/api'
+  : (process.env.EXPO_PUBLIC_API_URL || 'https://vetician-backend-kovk.onrender.com/api');
 
 console.log('API_BASE_URL:', API_BASE_URL);
 
@@ -154,31 +156,69 @@ class ApiService {
   }
 
   createDoorstepBooking(data) {
-    return this.post('/doorstep/bookings', data);
+    return this.post('/doorstep', data);
   }
 
   getDoorstepBookings() {
-    return this.get('/doorstep/bookings');
+    return this.get('/doorstep');
+  }
+
+  getParavetBookings(paravetId) {
+    return this.get(`/doorstep/paravet/${paravetId}`);
   }
 
   getDoorstepBooking(id) {
-    return this.get(`/doorstep/bookings/${id}`);
+    return this.get(`/doorstep/${id}`);
   }
 
   cancelDoorstepBooking(id) {
-    return this.patch(`/doorstep/bookings/${id}/cancel`);
+    return this.patch(`/doorstep/${id}/cancel`);
   }
 
   updateBookingStatus(id, status) {
-    return this.patch(`/doorstep/bookings/${id}/status`, { status });
-  }
-
-  getParavetBookings() {
-    return this.get('/doorstep/paravet/bookings');
+    return this.put(`/doorstep/${id}/status`, { status });
   }
 
   getVerifiedParavets() {
     return this.get('/paravet/verified');
+  }
+
+  /* =========================
+     PARAVET PROFILE
+  ========================= */
+
+  updateParavetProfile(userId, data) {
+    return this.patch(`/paravet/personal-info/${userId}`, data);
+  }
+
+  getParavetProfile(userId) {
+    return this.get(`/paravet/profile/${userId}`);
+  }
+
+  /* =========================
+     FILE UPLOAD
+  ========================= */
+
+  async uploadFile(file, documentType) {
+    const token = await this.getToken();
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('documentType', documentType);
+
+    const response = await fetch(`${this.baseURL}/upload`, {
+      method: 'POST',
+      body: formData,
+      headers: {
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.message || 'Upload failed');
+    }
+
+    return response.json();
   }
 
   /* =========================

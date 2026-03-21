@@ -3,14 +3,16 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
 
-export default function CommonHeader({ title }) {
+export default function CommonHeader({ title, showBack = true }) {
   const router = useRouter();
 
   return (
     <View style={styles.header}>
-      <TouchableOpacity onPress={() => router.push('/(vetician_tabs)/(tabs)')} style={styles.backButton}>
-        <ChevronLeft size={24} color="#fff" />
-      </TouchableOpacity>
+      {showBack && (
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <ChevronLeft size={24} color="#fff" />
+        </TouchableOpacity>
+      )}
       <Text style={styles.title}>{title}</Text>
       <View style={styles.placeholder} />
     </View>

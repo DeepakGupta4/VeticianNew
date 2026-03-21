@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
   View,
-  Text,
-  StyleSheet,
   ScrollView,
   TouchableOpacity,
   Image,
@@ -10,9 +8,8 @@ import {
   Dimensions,
   Alert,
   Modal,
-  TextInput,
-  Switch,
-  ActivityIndicator,
+  TextInput as RNTextInput,
+  StyleSheet,
 } from 'react-native';
 import {
   MaterialIcons,
@@ -21,15 +18,42 @@ import {
   MaterialCommunityIcons,
 } from '@expo/vector-icons';
 import { useSelector, useDispatch } from 'react-redux';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { getPetsByUserId, getParent } from '../../../store/slices/authSlice';
 import ApiService from '../../../services/api';
 import SocketService from '../../../services/socket';
 import { isProfileComplete, getMissingFields } from '../../../utils/profileValidation';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import CommonHeader from '../../../components/CommonHeader';
+import {
+  Card,
+  Text,
+  Button,
+  Switch,
+  TextInput,
+  SegmentedButtons,
+  Provider as PaperProvider,
+  MD3LightTheme as DefaultTheme,
+  Chip,
+  Surface,
+  Divider,
+  ActivityIndicator,
+  IconButton,
+} from 'react-native-paper';
 
 const { width } = Dimensions.get('window');
+
+const theme = {
+  ...DefaultTheme,
+  colors: {
+    ...DefaultTheme.colors,
+    primary: '#7CB342',
+    secondary: '#558B2F',
+    tertiary: '#558B2F',
+    error: '#EF4444',
+    background: '#F5F7FA',
+  },
+};
 
 const generateTimeSlots = () => {
   const slots = [];
@@ -126,10 +150,20 @@ const BookingModal = ({ visible, onClose, service }) => {
       const response = await ApiService.getVerifiedParavets();
       console.log('✅ Paravets response:', response);
       console.log('📊 Paravets count:', response.data?.length || 0);
-      setServicePartners(response.data || []);
+      
+      if (response.data && response.data.length > 0) {
+        console.log('👤 First paravet:', response.data[0]);
+        setServicePartners(response.data);
+      } else {
+        console.log('⚠️ No paravets found in response');
+        setServicePartners([]);
+        Alert.alert('No Paravets Available', 'There are no verified paravets available at the moment. Please try again later.');
+      }
     } catch (error) {
       console.error('❌ Error fetching paravets:', error);
+      console.error('❌ Error details:', error.message);
       setServicePartners([]);
+      Alert.alert('Error', 'Failed to load service partners. Please try again.');
     } finally {
       setLoadingPartners(false);
     }
@@ -144,54 +178,63 @@ const BookingModal = ({ visible, onClose, service }) => {
   };
 
   const handleConfirmBooking = async () => {
-    console.log('🔵 Confirm Booking clicked!');
-    console.log('🔵 Selected Date:', selectedDate);
-    console.log('🔵 Selected Slot:', selectedSlot);
-    console.log('🔵 Selected Partner:', selectedPartner);
-    console.log('🔵 Selected Pets:', selectedPets);
-    console.log('🔵 Is Emergency:', isEmergency);
+    console.log('\n🎯 ========== BOOKING PROCESS START ==========');
+    console.log('📊 Redux State Check:');
+    console.log('  - parentData exists:', !!parentData);
+    console.log('  - parentData type:', typeof parentData);
+    console.log('  - parentData value:', parentData);
+    console.log('  - parentData keys:', parentData ? Object.keys(parentData) : 'N/A');
+    console.log('\n📋 Full parentData:', JSON.stringify(parentData, null, 2));
     
-    if (!selectedDate || !selectedSlot || !selectedPartner || selectedPets.length === 0) {
-      console.log('❌ Missing required fields!');
-      Alert.alert('Incomplete Information', 'Please select date, time slot, service partner, and at least one pet');
+    console.log('\n📝 Booking Details:');
+    console.log('  - Selected date:', selectedDate);
+    console.log('  - Selected slot:', selectedSlot);
+    console.log('  - Selected partner:', selectedPartner?.name);
+    console.log('  - Selected pets count:', selectedPets.length);
+    
+    const isComplete = isProfileComplete(parentData);
+    console.log('\n📋 Profile validation result:', isComplete);
+
+    if (!isComplete) {
+      const missingFields = getMissingFields(parentData);
+      Alert.alert(
+        'Incomplete Profile',
+        `Please complete the following fields: ${missingFields.join(', ')}`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { 
+            text: 'Complete Profile', 
+            onPress: () => {
+              onClose();
+              setTimeout(() => {
+                router.push('/(vetician_tabs)/(tabs)/profile');
+              }, 300);
+            }
+          }
+        ]
+      );
       return;
     }
 
-    // Temporarily bypass profile check until backend is deployed
-    console.log('⚠️ Profile check bypassed - backend deployment pending');
-    // if (!isProfileComplete(parentData)) {
-    //   console.log('❌ Profile incomplete!');
-    //   const missingFields = getMissingFields(parentData);
-    //   const missingFieldsList = missingFields.map(field => `  ${field}`).join('\n');
-    //   
-    //   Alert.alert(
-    //     '⚠️ Complete Your Profile',
-    //     `Please complete these fields to book services:\n\n${missingFieldsList}`,
-    //     [
-    //       { text: 'Later', style: 'cancel' },
-    //       { 
-    //         text: 'Complete Now', 
-    //         onPress: () => {
-    //           onClose();
-    //           setTimeout(() => {
-    //             router.push('/(vetician_tabs)/(tabs)/profile');
-    //           }, 300);
-    //         }
-    //       }
-    //     ]
-    //   );
-    //   return;
-    // }
+    if (!selectedDate || (!isEmergency && !selectedSlot) || !selectedPartner || selectedPets.length === 0) {
+      console.log('❌ Missing required fields');
+      Alert.alert('Incomplete Information', 'Please fill all required fields');
+      return;
+    }
 
     try {
+      const userId = await AsyncStorage.getItem('userId');
+      console.log('👤 User ID:', userId);
+      
       const bookingData = {
+        userId,
         serviceType: service.title,
         petIds: selectedPets.map(p => p._id),
-        servicePartnerId: selectedPartner.id,
-        servicePartnerName: selectedPartner.name,
+        paravetId: selectedPartner.id || selectedPartner.userId || selectedPartner._id,
+        paravetName: selectedPartner.name,
         appointmentDate: selectedDate.fullDate,
         timeSlot: selectedSlot.time,
-        address: {
+        address: parentData?.address || {
           street: '123 Main Street',
           city: 'Mumbai',
           state: 'Maharashtra',
@@ -206,46 +249,60 @@ const BookingModal = ({ visible, onClose, service }) => {
         basePrice: service.price,
         emergencyCharge: isEmergency ? 200 : 0,
         discount: couponCode ? 100 : 0,
-        totalAmount: calculateTotal()
+        totalAmount: calculateTotal(),
+        status: 'pending'
       };
 
-      console.log('📤 Sending booking:', bookingData);
+      console.log('📤 Sending booking:', JSON.stringify(bookingData, null, 2));
+      console.log('👤 Paravet User ID being sent:', selectedPartner.id || selectedPartner.userId || selectedPartner._id);
+      console.log('🔍 Full selectedPartner object:', JSON.stringify(selectedPartner, null, 2));
       const response = await ApiService.createDoorstepBooking(bookingData);
       console.log('✅ Booking response:', response);
 
-      // Connect socket and emit booking created event
-      SocketService.connect(user._id, 'user');
+      if (response.success) {
+        console.log('✅ Booking created successfully:', response.data);
+        console.log('📡 Attempting to emit socket event...');
+        console.log('  - Socket connected:', SocketService.socket?.connected);
+        console.log('  - Paravet User ID:', selectedPartner.id || selectedPartner.userId || selectedPartner._id);
+        
+        SocketService.connect(userId, 'user');
+        SocketService.emit('booking:created', {
+          bookingId: response.data._id,
+          paravetId: selectedPartner.id || selectedPartner.userId || selectedPartner._id,
+          userId
+        });
+        console.log('✅ Socket event emitted: booking:created');
 
-      onClose();
-      Alert.alert(
-        'Booking Confirmed! 🎉',
-        `Your ${service.title} is confirmed!\n\nDate: ${selectedDate.label}, ${selectedDate.month} ${selectedDate.date}\nTime: ${selectedSlot.time}\nService Partner: ${selectedPartner.name}\nPets: ${selectedPets.map(p => p.name).join(', ')}\nTotal: ₹${calculateTotal()}`,
-        [
-          {
-            text: 'View Bookings',
-            onPress: () => {
-              router.push('/(vetician_tabs)/(tabs)/MyBookings');
+        Alert.alert(
+          'Booking Request Sent! 🎉',
+          `Your booking request for ${service.title} has been sent to ${selectedPartner.name}.\n\nYou will be notified once the paravet accepts your request.\n\nDate: ${selectedDate.label}, ${selectedDate.month} ${selectedDate.date}\nTime: ${selectedSlot.time}\nTotal: ₹${calculateTotal()}`,
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                onClose();
+                if (typeof window !== 'undefined' && window.refreshBookings) {
+                  window.refreshBookings();
+                }
+              },
             },
-          },
-          {
-            text: 'OK',
-            style: 'cancel',
-          },
-        ]
-      );
+          ]
+        );
+      } else {
+        console.log('❌ Booking failed:', response);
+        Alert.alert('Error', response.message || 'Failed to create booking');
+      }
     } catch (error) {
       console.error('❌ Booking error:', error);
+      console.error('❌ Error stack:', error.stack);
       Alert.alert('Error', error.message || 'Failed to create booking');
     }
   };
 
   const togglePetSelection = (pet) => {
-    console.log('🐾 Toggling pet:', pet.name, pet._id);
     if (selectedPets.find(p => p._id === pet._id)) {
-      console.log('❌ Removing pet from selection');
       setSelectedPets(selectedPets.filter(p => p._id !== pet._id));
     } else {
-      console.log('✅ Adding pet to selection');
       setSelectedPets([...selectedPets, pet]);
     }
   };
@@ -253,89 +310,113 @@ const BookingModal = ({ visible, onClose, service }) => {
   return (
     <Modal visible={visible} animationType="slide" transparent={false}>
       <SafeAreaView style={styles.modalContainer}>
-        {/* Header */}
         <View style={styles.modalHeader}>
-          <TouchableOpacity onPress={onClose}>
+          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
             <Ionicons name="close" size={28} color="#333" />
           </TouchableOpacity>
-          <Text style={styles.modalTitle}>Book {service?.title}</Text>
+          <Text variant="headlineSmall" style={styles.modalTitle}>
+            {service?.title}
+          </Text>
           <View style={{ width: 28 }} />
         </View>
 
-        <ScrollView showsVerticalScrollIndicator={false}>
-          {/* Service Summary */}
-          <View style={styles.serviceSummaryCard}>
-            <View style={styles.serviceSummaryLeft}>
-              <Text style={styles.serviceModalTitle}>{service?.title}</Text>
-              <Text style={styles.serviceModalSubtitle}>{service?.subtitle}</Text>
-              <Text style={styles.serviceDuration}>{service?.duration}</Text>
-            </View>
-            <View style={styles.serviceSummaryRight}>
-              <Text style={styles.serviceModalPrice}>₹{service?.price}</Text>
-              <Text style={styles.perVisit}>per visit</Text>
-            </View>
-          </View>
+        <ScrollView showsVerticalScrollIndicator={false} style={styles.modalScrollContent}>
+          {/* Service Summary Card */}
+          <Card style={styles.serviceSummaryCard}>
+            <Card.Content style={styles.serviceSummaryContent}>
+              <View style={styles.serviceSummaryLeft}>
+                <Text variant="headlineSmall" style={styles.serviceModalTitle}>
+                  {service?.title}
+                </Text>
+                <Text variant="bodySmall" style={styles.serviceModalSubtitle}>
+                  {service?.subtitle}
+                </Text>
+                <View style={styles.serviceDurationContainer}>
+                  <MaterialIcons name="schedule" size={14} color="#7CB342" />
+                  <Text variant="labelSmall" style={styles.serviceDuration}>
+                    {service?.duration}
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.serviceSummaryRight}>
+                <Text variant="displaySmall" style={styles.serviceModalPrice}>
+                  ₹{service?.price}
+                </Text>
+                <Text variant="labelSmall" style={styles.perVisit}>
+                  per visit
+                </Text>
+              </View>
+            </Card.Content>
+          </Card>
 
           {/* Emergency Booking */}
-          <View style={styles.modalSection}>
+          <Surface style={styles.modalSection}>
             <View style={styles.emergencyRow}>
               <View style={styles.emergencyLeft}>
-                <MaterialIcons name="emergency" size={24} color="#FF4757" />
+                <MaterialIcons name="emergency" size={24} color="#FF6B6B" />
                 <View style={styles.emergencyText}>
-                  <Text style={styles.emergencyTitle}>Emergency Booking</Text>
-                  <Text style={styles.emergencySubtitle}>Get service within 2 hours (+₹200)</Text>
+                  <Text variant="labelLarge" style={styles.emergencyTitle}>
+                    Emergency Booking
+                  </Text>
+                  <Text variant="labelSmall" style={styles.emergencySubtitle}>
+                    Get service within 2 hours (+₹200)
+                  </Text>
                 </View>
               </View>
               <Switch
                 value={isEmergency}
                 onValueChange={setIsEmergency}
-                trackColor={{ false: '#E0E0E0', true: '#FF4757' }}
-                thumbColor={isEmergency ? '#fff' : '#f4f3f4'}
+                color={theme.colors.primary}
               />
             </View>
-          </View>
+          </Surface>
 
           {/* Select Pets */}
-          <View style={styles.modalSection}>
-            <Text style={styles.sectionLabel}>Select Pets *</Text>
+          <Surface style={styles.modalSection}>
+            <Text variant="labelLarge" style={styles.sectionLabel}>
+              Select Pets <Text style={styles.required}>*</Text>
+            </Text>
             {pets.length === 0 ? (
-              <Text style={styles.noPetsText}>No pets found. Please add a pet first.</Text>
+              <Text variant="bodySmall" style={styles.noPetsText}>
+                No pets found. Please add a pet first.
+              </Text>
             ) : (
               <View style={styles.petsGrid}>
-                {pets.map((pet) => {
-                  const isSelected = selectedPets.find(p => p._id === pet._id);
-                  return (
-                    <TouchableOpacity
-                      key={pet._id}
-                      style={[
-                        styles.petCard,
-                        isSelected && styles.petCardSelected,
-                      ]}
-                      onPress={() => {
-                        console.log('🐾 Pet card clicked:', pet.name);
-                        togglePetSelection(pet);
-                      }}
-                      activeOpacity={0.7}
-                    >
-                      {isSelected && (
-                        <View style={styles.petCheckbox}>
-                          <Ionicons name="checkmark" size={16} color="#fff" />
-                        </View>
+                {pets.map((pet) => (
+                  <TouchableOpacity
+                    key={pet._id}
+                    style={[
+                      styles.petCard,
+                      selectedPets.find(p => p._id === pet._id) && styles.petCardSelected,
+                    ]}
+                    onPress={() => togglePetSelection(pet)}
+                  >
+                    <View style={styles.petCheckbox}>
+                      {selectedPets.find(p => p._id === pet._id) && (
+                        <Ionicons name="checkmark" size={16} color="#fff" />
                       )}
-                      <Text style={styles.petEmoji}>{pet.species === 'Dog' ? '🐕' : pet.species === 'Cat' ? '🐱' : '🐾'}</Text>
-                      <Text style={styles.petCardName}>{pet.name}</Text>
-                      <Text style={styles.petCardType}>{pet.species}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
+                    </View>
+                    <Text style={styles.petEmoji}>
+                      {pet.species === 'Dog' ? '🐕' : pet.species === 'Cat' ? '🐱' : '🐾'}
+                    </Text>
+                    <Text variant="labelMedium" style={styles.petCardName}>
+                      {pet.name}
+                    </Text>
+                    <Text variant="labelSmall" style={styles.petCardType}>
+                      {pet.species}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
               </View>
             )}
-          </View>
+          </Surface>
 
           {/* Select Date */}
-          <View style={styles.modalSection}>
-            <Text style={styles.sectionLabel}>Select Date *</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <Surface style={styles.modalSection}>
+            <Text variant="labelLarge" style={styles.sectionLabel}>
+              Select Date <Text style={styles.required}>*</Text>
+            </Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.dateScrollView}>
               {dates.map((date) => (
                 <TouchableOpacity
                   key={date.id}
@@ -346,6 +427,7 @@ const BookingModal = ({ visible, onClose, service }) => {
                   onPress={() => setSelectedDate(date)}
                 >
                   <Text
+                    variant="labelSmall"
                     style={[
                       styles.dateDay,
                       selectedDate?.id === date.id && styles.dateTextSelected,
@@ -354,6 +436,7 @@ const BookingModal = ({ visible, onClose, service }) => {
                     {date.day}
                   </Text>
                   <Text
+                    variant="headlineMedium"
                     style={[
                       styles.dateNumber,
                       selectedDate?.id === date.id && styles.dateTextSelected,
@@ -362,6 +445,7 @@ const BookingModal = ({ visible, onClose, service }) => {
                     {date.date}
                   </Text>
                   <Text
+                    variant="labelSmall"
                     style={[
                       styles.dateMonth,
                       selectedDate?.id === date.id && styles.dateTextSelected,
@@ -371,18 +455,22 @@ const BookingModal = ({ visible, onClose, service }) => {
                   </Text>
                   {date.id === 0 && (
                     <View style={styles.todayBadge}>
-                      <Text style={styles.todayText}>Today</Text>
+                      <Text variant="labelSmall" style={styles.todayText}>
+                        Today
+                      </Text>
                     </View>
                   )}
                 </TouchableOpacity>
               ))}
             </ScrollView>
-          </View>
+          </Surface>
 
           {/* Select Time Slot */}
           {!isEmergency && (
-            <View style={styles.modalSection}>
-              <Text style={styles.sectionLabel}>Select Time Slot *</Text>
+            <Surface style={styles.modalSection}>
+              <Text variant="labelLarge" style={styles.sectionLabel}>
+                Select Time Slot <Text style={styles.required}>*</Text>
+              </Text>
               <View style={styles.slotsGrid}>
                 {timeSlots.filter(slot => slot.available).slice(0, 12).map((slot) => (
                   <TouchableOpacity
@@ -394,6 +482,7 @@ const BookingModal = ({ visible, onClose, service }) => {
                     onPress={() => setSelectedSlot(slot)}
                   >
                     <Text
+                      variant="labelMedium"
                       style={[
                         styles.timeSlotText,
                         selectedSlot?.id === slot.id && styles.timeSlotTextSelected,
@@ -404,137 +493,201 @@ const BookingModal = ({ visible, onClose, service }) => {
                   </TouchableOpacity>
                 ))}
               </View>
-            </View>
+            </Surface>
           )}
 
           {/* Repeat Booking */}
-          <View style={styles.modalSection}>
+          <Surface style={styles.modalSection}>
             <View style={styles.repeatRow}>
               <View style={styles.repeatLeft}>
-                <MaterialIcons name="repeat" size={20} color="#24A1DE" />
-                <Text style={styles.repeatText}>Repeat Weekly</Text>
+                <MaterialIcons name="repeat" size={20} color={theme.colors.primary} />
+                <Text variant="labelLarge" style={styles.repeatText}>
+                  Repeat Weekly
+                </Text>
               </View>
               <Switch
                 value={repeatBooking}
                 onValueChange={setRepeatBooking}
-                trackColor={{ false: '#E0E0E0', true: '#24A1DE' }}
-                thumbColor={repeatBooking ? '#fff' : '#f4f3f4'}
+                color={theme.colors.primary}
               />
             </View>
-          </View>
+          </Surface>
 
           {/* Select Service Partner */}
-          <View style={styles.modalSection}>
-            <Text style={styles.sectionLabel}>Select Service Partner *</Text>
+          <Surface style={styles.modalSection}>
+            <Text variant="labelLarge" style={styles.sectionLabel}>
+              Select Service Partner <Text style={styles.required}>*</Text>
+            </Text>
             {loadingPartners ? (
-              <Text style={styles.nearbyText}>Loading paravets...</Text>
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator animating={true} color={theme.colors.primary} />
+                <Text variant="labelSmall" style={styles.loadingText}>
+                  Loading paravets...
+                </Text>
+              </View>
             ) : (
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12, gap: 4 }}>
-                <MaterialIcons name="location-on" size={14} color="#10B981" />
-                <Text style={styles.nearbyText}>{servicePartners.length} providers available nearby</Text>
+              <View style={styles.nearbyProviders}>
+                <MaterialIcons name="place" size={14} color={theme.colors.primary} />
+                <Text variant="labelSmall" style={styles.nearbyText}>
+                  {servicePartners.length} providers available nearby
+                </Text>
               </View>
             )}
             
-            {servicePartners.map((partner) => (
-              <TouchableOpacity
-                key={partner.id}
-                style={[
-                  styles.partnerCard,
-                  selectedPartner?.id === partner.id && styles.partnerCardSelected,
-                ]}
-                onPress={() => setSelectedPartner(partner)}
-              >
-                <Image source={{ uri: partner.photo }} style={styles.partnerPhoto} />
-                <View style={styles.partnerInfo}>
-                  <View style={styles.partnerNameRow}>
-                    <Text style={styles.partnerName}>{partner.name}</Text>
-                    {partner.verified && (
-                      <MaterialIcons name="verified" size={16} color="#10B981" />
-                    )}
-                  </View>
-                  <Text style={styles.partnerSpecialization}>{partner.specialization}</Text>
-                  <Text style={styles.partnerExperience}>{partner.experience} experience</Text>
-                  <View style={styles.partnerStats}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                      <MaterialIcons name="star" size={12} color="#FFA500" />
-                      <Text style={styles.ratingText}>{partner.rating}</Text>
-                    </View>
-                    <Text style={styles.reviewsText}>({partner.reviews} reviews)</Text>
-                    <Text style={styles.distanceText}>{partner.distance} away</Text>
-                  </View>
-                </View>
-                <View style={styles.partnerRadio}>
-                  {selectedPartner?.id === partner.id && (
-                    <View style={styles.partnerRadioInner} />
-                  )}
-                </View>
-              </TouchableOpacity>
-            ))}
-          </View>
+            <View style={styles.partnersList}>
+              {servicePartners.map((partner) => (
+                <TouchableOpacity
+                  key={partner.id}
+                  onPress={() => setSelectedPartner(partner)}
+                  style={styles.partnerTouchable}
+                >
+                  <Card
+                    style={[
+                      styles.partnerCard,
+                      selectedPartner?.id === partner.id && styles.partnerCardSelected,
+                    ]}
+                  >
+                    <Card.Content style={styles.partnerCardContent}>
+                      <Image source={{ uri: partner.photo }} style={styles.partnerPhoto} />
+                      <View style={styles.partnerInfo}>
+                        <View style={styles.partnerNameRow}>
+                          <Text variant="labelLarge" style={styles.partnerName}>
+                            {partner.name}
+                          </Text>
+                          {partner.verified && (
+                            <MaterialIcons name="verified" size={16} color={theme.colors.primary} />
+                          )}
+                        </View>
+                        <Text variant="labelSmall" style={styles.partnerSpecialization}>
+                          {partner.specialization}
+                        </Text>
+                        <Text variant="labelSmall" style={styles.partnerExperience}>
+                          {typeof partner.experience === 'string' 
+                            ? partner.experience 
+                            : `${partner.experience?.yearsOfExpertise?.value || 0}+ years`}
+                        </Text>
+                        <View style={styles.partnerStats}>
+                          <View style={styles.ratingBadge}>
+                            <MaterialIcons name="star" size={12} color="#FFA500" />
+                            <Text variant="labelSmall" style={styles.ratingText}>
+                              {partner.rating}
+                            </Text>
+                          </View>
+                          <Text variant="labelSmall" style={styles.reviewsText}>
+                            ({partner.reviews} reviews)
+                          </Text>
+                          <Text variant="labelSmall" style={styles.distanceText}>
+                            • {partner.distance} away
+                          </Text>
+                        </View>
+                      </View>
+                      <View style={styles.partnerRadio}>
+                        {selectedPartner?.id === partner.id && (
+                          <View style={styles.partnerRadioInner} />
+                        )}
+                      </View>
+                    </Card.Content>
+                  </Card>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </Surface>
 
           {/* Special Instructions */}
-          <View style={styles.modalSection}>
-            <Text style={styles.sectionLabel}>Special Instructions (Optional)</Text>
+          <Surface style={styles.modalSection}>
+            <Text variant="labelLarge" style={styles.sectionLabel}>
+              Special Instructions
+            </Text>
             <TextInput
-              style={styles.textArea}
+              mode="outlined"
               placeholder="Any specific requirements or pet behavior notes..."
               value={specialInstructions}
               onChangeText={setSpecialInstructions}
               multiline
               numberOfLines={4}
+              activeOutlineColor={theme.colors.primary}
+              style={styles.textArea}
             />
-          </View>
+          </Surface>
 
           {/* Coupon Code */}
-          <View style={styles.modalSection}>
-            <TouchableOpacity style={styles.couponRow} onPress={() => Alert.alert('Coming Soon', 'Coupon feature will be available soon!')}>
-              <MaterialIcons name="local-offer" size={20} color="#10B981" />
-              <Text style={styles.couponText}>Apply Coupon</Text>
+          <Surface style={styles.modalSection}>
+            <TouchableOpacity style={styles.couponRow}>
+              <MaterialIcons name="local-offer" size={20} color={theme.colors.primary} />
+              <Text variant="labelLarge" style={styles.couponText}>
+                Apply Coupon Code
+              </Text>
               <Ionicons name="chevron-forward" size={20} color="#999" />
             </TouchableOpacity>
-          </View>
+          </Surface>
 
           {/* Price Breakdown */}
-          <View style={styles.priceSection}>
-            <Text style={styles.priceSectionTitle}>Price Details</Text>
-            
-            <View style={styles.priceRow}>
-              <Text style={styles.priceLabel}>Service Charge</Text>
-              <Text style={styles.priceValue}>₹{service?.price}</Text>
-            </View>
-
-            {selectedPets.length > 1 && (
+          <Card style={styles.priceCard}>
+            <Card.Content>
+              <Text variant="titleMedium" style={styles.priceSectionTitle}>
+                Price Breakdown
+              </Text>
+              
               <View style={styles.priceRow}>
-                <Text style={styles.priceLabel}>Additional Pets ({selectedPets.length - 1})</Text>
-                <Text style={styles.priceValue}>₹{(selectedPets.length - 1) * service?.price}</Text>
+                <Text variant="bodySmall" style={styles.priceLabel}>
+                  Service Charge
+                </Text>
+                <Text variant="bodySmall" style={styles.priceValue}>
+                  ₹{service?.price}
+                </Text>
               </View>
-            )}
 
-            {isEmergency && (
-              <View style={styles.priceRow}>
-                <Text style={styles.priceLabel}>Emergency Charge</Text>
-                <Text style={styles.priceValue}>₹200</Text>
+              {selectedPets.length > 1 && (
+                <View style={styles.priceRow}>
+                  <Text variant="bodySmall" style={styles.priceLabel}>
+                    Additional Pets ({selectedPets.length - 1})
+                  </Text>
+                  <Text variant="bodySmall" style={styles.priceValue}>
+                    ₹{(selectedPets.length - 1) * service?.price}
+                  </Text>
+                </View>
+              )}
+
+              {isEmergency && (
+                <View style={styles.priceRow}>
+                  <Text variant="bodySmall" style={styles.priceLabel}>
+                    Emergency Charge
+                  </Text>
+                  <Text variant="bodySmall" style={styles.priceValue}>
+                    ₹200
+                  </Text>
+                </View>
+              )}
+
+              {couponCode && (
+                <View style={styles.priceRow}>
+                  <Text variant="bodySmall" style={styles.priceLabel}>
+                    Coupon Discount
+                  </Text>
+                  <Text variant="bodySmall" style={styles.discountValue}>
+                    -₹100
+                  </Text>
+                </View>
+              )}
+
+              <Divider style={styles.priceDivider} />
+
+              <View style={styles.totalRow}>
+                <Text variant="titleMedium" style={styles.totalLabel}>
+                  Total Amount
+                </Text>
+                <Text variant="displaySmall" style={styles.totalValue}>
+                  ₹{calculateTotal()}
+                </Text>
               </View>
-            )}
-
-            {couponCode && (
-              <View style={styles.priceRow}>
-                <Text style={styles.priceLabel}>Coupon Discount</Text>
-                <Text style={styles.discountValue}>-₹100</Text>
-              </View>
-            )}
-
-            <View style={styles.priceDivider} />
-
-            <View style={styles.totalRow}>
-              <Text style={styles.totalLabel}>Total Amount</Text>
-              <Text style={styles.totalValue}>₹{calculateTotal()}</Text>
-            </View>
-          </View>
+            </Card.Content>
+          </Card>
 
           {/* Payment Method */}
-          <View style={styles.modalSection}>
-            <Text style={styles.sectionLabel}>Payment Method</Text>
+          <Surface style={styles.modalSection}>
+            <Text variant="labelLarge" style={styles.sectionLabel}>
+              Payment Method
+            </Text>
             <TouchableOpacity
               style={[
                 styles.paymentOption,
@@ -545,8 +698,10 @@ const BookingModal = ({ visible, onClose, service }) => {
               <View style={styles.paymentRadio}>
                 {paymentMethod === 'online' && <View style={styles.paymentRadioInner} />}
               </View>
-              <MaterialIcons name="payment" size={20} color="#24A1DE" />
-              <Text style={styles.paymentText}>Pay Online (Recommended)</Text>
+              <MaterialIcons name="payment" size={20} color={theme.colors.primary} />
+              <Text variant="labelLarge" style={styles.paymentText}>
+                Pay Online (Recommended)
+              </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -559,24 +714,36 @@ const BookingModal = ({ visible, onClose, service }) => {
               <View style={styles.paymentRadio}>
                 {paymentMethod === 'cash' && <View style={styles.paymentRadioInner} />}
               </View>
-              <MaterialIcons name="payments" size={20} color="#10B981" />
-              <Text style={styles.paymentText}>Cash After Service</Text>
+              <MaterialIcons name="payments" size={20} color={theme.colors.primary} />
+              <Text variant="labelLarge" style={styles.paymentText}>
+                Cash After Service
+              </Text>
             </TouchableOpacity>
-          </View>
+          </Surface>
 
           <View style={{ height: 100 }} />
         </ScrollView>
 
         {/* Bottom Bar */}
-        <View style={styles.bottomBar}>
+        <Surface style={styles.bottomBar}>
           <View style={styles.bottomLeft}>
-            <Text style={styles.bottomPrice}>₹{calculateTotal()}</Text>
-            <Text style={styles.bottomPets}>{selectedPets.length} pet(s)</Text>
+            <Text variant="displaySmall" style={styles.bottomPrice}>
+              ₹{calculateTotal()}
+            </Text>
+            <Text variant="labelSmall" style={styles.bottomPets}>
+              {selectedPets.length} pet(s)
+            </Text>
           </View>
-          <TouchableOpacity style={styles.confirmButton} onPress={handleConfirmBooking}>
-            <Text style={styles.confirmButtonText}>Confirm Booking</Text>
-          </TouchableOpacity>
-        </View>
+          <Button
+            mode="contained"
+            onPress={handleConfirmBooking}
+            disabled={!selectedDate || (!isEmergency && !selectedSlot) || !selectedPartner || selectedPets.length === 0}
+            buttonColor={theme.colors.primary}
+            style={styles.confirmButton}
+          >
+            Confirm Booking
+          </Button>
+        </Surface>
       </SafeAreaView>
     </Modal>
   );
@@ -588,7 +755,7 @@ const TrackingModal = ({ visible, onClose, booking }) => {
   const [eta, setEta] = useState(25);
 
   const statuses = [
-    { id: 'pending', label: 'Booking Confirmed', icon: 'check-circle', color: '#10B981' },
+    { id: 'pending', label: 'Booking Confirmed', icon: 'check-circle', color: theme.colors.primary },
     { id: 'confirmed', label: 'Partner Assigned', icon: 'person', color: '#24A1DE' },
     { id: 'in-progress', label: 'Service in Progress', icon: 'build', color: '#FF5722' },
     { id: 'completed', label: 'Service Completed', icon: 'done-all', color: '#4CAF50' },
@@ -623,121 +790,126 @@ const TrackingModal = ({ visible, onClose, booking }) => {
     <Modal visible={visible} animationType="slide">
       <SafeAreaView style={styles.trackingContainer}>
         <View style={styles.trackingHeader}>
-          <TouchableOpacity onPress={onClose}>
+          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
             <Ionicons name="close" size={28} color="#333" />
           </TouchableOpacity>
-          <Text style={styles.trackingTitle}>Track Service</Text>
+          <Text variant="headlineSmall" style={styles.trackingTitle}>
+            Track Service
+          </Text>
           <View style={{ width: 28 }} />
         </View>
 
         <ScrollView showsVerticalScrollIndicator={false}>
           {/* Map Placeholder */}
-          <View style={styles.mapPlaceholder}>
-            <MaterialIcons name="location-on" size={60} color="#24A1DE" />
-            <Text style={styles.mapText}>Live Location Tracking</Text>
-            <Text style={styles.etaText}>ETA: {eta} minutes</Text>
-          </View>
+          <Surface style={styles.mapPlaceholder}>
+            <MaterialIcons name="location-on" size={60} color={theme.colors.primary} />
+            <Text variant="titleMedium" style={styles.mapText}>
+              Live Location Tracking
+            </Text>
+            <Text variant="labelSmall" style={styles.etaText}>
+              ETA: {eta} minutes
+            </Text>
+          </Surface>
 
           {/* Partner Info */}
-          <View style={styles.trackingPartnerCard}>
-            <Image source={{ uri: partner.photo }} style={styles.trackingPartnerPhoto} />
-            <View style={styles.trackingPartnerInfo}>
-              <Text style={styles.trackingPartnerName}>{partner.name}</Text>
-              <Text style={styles.trackingPartnerRole}>{partner.specialization}</Text>
-              <View style={styles.trackingRating}>
-                <MaterialIcons name="star" size={14} color="#FFA500" />
-                <Text style={styles.trackingRatingText}>{partner.rating}</Text>
+          <Card style={styles.trackingPartnerCard}>
+            <Card.Content style={styles.trackingPartnerCardContent}>
+              <Image source={{ uri: partner.photo }} style={styles.trackingPartnerPhoto} />
+              <View style={styles.trackingPartnerInfo}>
+                <Text variant="titleMedium" style={styles.trackingPartnerName}>
+                  {partner.name}
+                </Text>
+                <Text variant="labelSmall" style={styles.trackingPartnerRole}>
+                  {partner.specialization}
+                </Text>
+                <View style={styles.trackingRating}>
+                  <MaterialIcons name="star" size={14} color="#FFA500" />
+                  <Text variant="labelSmall" style={styles.trackingRatingText}>
+                    {partner.rating}
+                  </Text>
+                </View>
               </View>
-            </View>
-            <View style={styles.trackingActions}>
-              <TouchableOpacity style={styles.trackingActionBtn}>
-                <Ionicons name="call" size={24} color="#24A1DE" />
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.trackingActionBtn}>
-                <Ionicons name="chatbubble" size={24} color="#24A1DE" />
-              </TouchableOpacity>
-            </View>
-          </View>
+              <View style={styles.trackingActions}>
+                <TouchableOpacity style={styles.trackingActionBtn}>
+                  <Ionicons name="call" size={24} color={theme.colors.primary} />
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.trackingActionBtn}>
+                  <Ionicons name="chatbubble" size={24} color={theme.colors.primary} />
+                </TouchableOpacity>
+              </View>
+            </Card.Content>
+          </Card>
 
           {/* Status Timeline */}
-          <View style={styles.timelineSection}>
-            <Text style={styles.timelineTitle}>Service Status</Text>
-            {statuses.map((status, index) => {
-              const isActive = statuses.findIndex(s => s.id === currentStatus) >= index;
-              return (
-                <View key={status.id} style={styles.timelineItem}>
-                  <View style={styles.timelineLeft}>
-                    <View
-                      style={[
-                        styles.timelineIcon,
-                        { backgroundColor: isActive ? status.color : '#E0E0E0' },
-                      ]}
-                    >
-                      <MaterialIcons
-                        name={status.icon}
-                        size={16}
-                        color={isActive ? '#fff' : '#999'}
-                      />
-                    </View>
-                    {index < statuses.length - 1 && (
+          <Card style={styles.timelineCard}>
+            <Card.Content>
+              <Text variant="titleMedium" style={styles.timelineTitle}>
+                Service Status
+              </Text>
+              {statuses.map((status, index) => {
+                const isActive = statuses.findIndex(s => s.id === currentStatus) >= index;
+                return (
+                  <View key={status.id} style={styles.timelineItem}>
+                    <View style={styles.timelineLeft}>
                       <View
                         style={[
-                          styles.timelineLine,
+                          styles.timelineIcon,
                           { backgroundColor: isActive ? status.color : '#E0E0E0' },
                         ]}
-                      />
-                    )}
+                      >
+                        <MaterialIcons
+                          name={status.icon}
+                          size={16}
+                          color={isActive ? '#fff' : '#999'}
+                        />
+                      </View>
+                      {index < statuses.length - 1 && (
+                        <View
+                          style={[
+                            styles.timelineLine,
+                            { backgroundColor: isActive ? status.color : '#E0E0E0' },
+                          ]}
+                        />
+                      )}
+                    </View>
+                    <View style={styles.timelineRight}>
+                      <Text
+                        variant="labelMedium"
+                        style={[
+                          styles.timelineLabel,
+                          { color: isActive ? '#333' : '#999' },
+                        ]}
+                      >
+                        {status.label}
+                      </Text>
+                      {isActive && currentStatus === status.id && (
+                        <Text variant="labelSmall" style={styles.timelineTime}>
+                          Just now
+                        </Text>
+                      )}
+                    </View>
                   </View>
-                  <View style={styles.timelineRight}>
-                    <Text
-                      style={[
-                        styles.timelineLabel,
-                        { color: isActive ? '#333' : '#999' },
-                      ]}
-                    >
-                      {status.label}
-                    </Text>
-                    {isActive && currentStatus === status.id && (
-                      <Text style={styles.timelineTime}>Just now</Text>
-                    )}
-                  </View>
-                </View>
-              );
-            })}
-          </View>
+                );
+              })}
+            </Card.Content>
+          </Card>
 
           {/* OTP Section */}
-          <View style={styles.otpSection}>
-            <MaterialIcons name="lock" size={24} color="#24A1DE" />
-            <View style={styles.otpText}>
-              <Text style={styles.otpTitle}>Service OTP: 4829</Text>
-              <Text style={styles.otpSubtitle}>Share with partner to start service</Text>
-            </View>
-          </View>
+          <Card style={styles.otpCard}>
+            <Card.Content style={styles.otpCardContent}>
+              <MaterialIcons name="lock" size={24} color={theme.colors.primary} />
+              <View style={styles.otpText}>
+                <Text variant="labelLarge" style={styles.otpTitle}>
+                  Service OTP: 4829
+                </Text>
+                <Text variant="labelSmall" style={styles.otpSubtitle}>
+                  Share with partner to start service
+                </Text>
+              </View>
+            </Card.Content>
+          </Card>
 
-          {/* Cancel Booking Button */}
-          <TouchableOpacity 
-            style={styles.cancelBookingBtn}
-            onPress={() => {
-              Alert.alert(
-                'Cancel Booking',
-                'Are you sure you want to cancel this booking?',
-                [
-                  { text: 'No', style: 'cancel' },
-                  {
-                    text: 'Yes, Cancel',
-                    style: 'destructive',
-                    onPress: () => {
-                      Alert.alert('Booking Cancelled', 'Your booking has been cancelled successfully.');
-                      onClose();
-                    }
-                  }
-                ]
-              );
-            }}
-          >
-            <Text style={styles.cancelBookingText}>Cancel Booking</Text>
-          </TouchableOpacity>
+          <View style={{ height: 40 }} />
         </ScrollView>
       </SafeAreaView>
     </Modal>
@@ -748,27 +920,51 @@ const TrackingModal = ({ visible, onClose, booking }) => {
 const ParavetModule = () => {
   const dispatch = useDispatch();
   const router = useRouter();
+  const params = useLocalSearchParams();
   const parentData = useSelector(state => state.auth?.parentData?.data?.parent?.[0]);
   const [selectedService, setSelectedService] = useState(null);
+  const [selectedParavet, setSelectedParavet] = useState(null);
   const [bookingModalVisible, setBookingModalVisible] = useState(false);
+  const [paravetSelectionVisible, setParavetSelectionVisible] = useState(false);
   const [trackingModalVisible, setTrackingModalVisible] = useState(false);
   const [userBookings, setUserBookings] = useState([]);
   const [selectedBooking, setSelectedBooking] = useState(null);
-  const [services, setServices] = useState([]);
-  const [loadingServices, setLoadingServices] = useState(true);
-
+  const [paravets, setParavets] = useState([]);
+  const [loadingParavets, setLoadingParavets] = useState(false);
+  
   useEffect(() => {
-    const fetchParentData = async () => {
+    fetchParavets();
+    fetchUserBookings();
+    setTimeout(() => setParavetSelectionVisible(true), 500);
+    
+    const setupSocketListeners = async () => {
       const userId = await AsyncStorage.getItem('userId');
-      if (userId && !parentData) {
-        dispatch(getParent(userId));
+      if (userId) {
+        SocketService.connect(userId, 'user');
+        
+        SocketService.on('booking:statusUpdated', (data) => {
+          console.log('🔔 Booking status updated:', data);
+          fetchUserBookings();
+          
+          if (data.status === 'accepted') {
+            Alert.alert(
+              'Booking Accepted! 🎉',
+              `${data.paravetName} has accepted your booking request for ${data.serviceType}.`,
+              [{ text: 'OK' }]
+            );
+          } else if (data.status === 'rejected') {
+            Alert.alert(
+              'Booking Declined',
+              `${data.paravetName} has declined your booking request. Please try booking with another paravet.`,
+              [{ text: 'OK' }]
+            );
+          }
+        });
       }
     };
-    fetchParentData();
-    fetchServices();
-    fetchUserBookings();
     
-    // Setup refresh callback
+    setupSocketListeners();
+    
     if (typeof window !== 'undefined') {
       window.refreshBookings = fetchUserBookings;
     }
@@ -777,83 +973,9 @@ const ParavetModule = () => {
       if (typeof window !== 'undefined') {
         delete window.refreshBookings;
       }
+      SocketService.off('booking:statusUpdated');
     };
   }, []);
-
-  const fetchServices = async () => {
-    try {
-      setLoadingServices(true);
-      const response = await ApiService.getDoorstepServices();
-      setServices(response.data || []);
-    } catch (error) {
-      console.log('Using fallback services');
-      // Fallback to default services if API fails
-      setServices([
-        {
-          _id: '1',
-          title: 'Vet Home Visit',
-          subtitle: 'General checkup, injections, first aid',
-          price: 599,
-          duration: '45-60 min',
-          icon: 'stethoscope',
-          iconSet: 'FontAwesome5',
-          color: '#FF6B6B',
-        },
-        {
-          _id: '2',
-          title: 'Vaccination at Home',
-          subtitle: 'All vaccines administered safely',
-          price: 499,
-          duration: '30 min',
-          icon: 'syringe',
-          iconSet: 'FontAwesome5',
-          color: '#4ECDC4',
-        },
-        {
-          _id: '3',
-          title: 'Pet Grooming',
-          subtitle: 'Bath, haircut, nail trim',
-          price: 799,
-          duration: '90-120 min',
-          icon: 'cut',
-          iconSet: 'FontAwesome5',
-          color: '#95E1D3',
-        },
-        {
-          _id: '4',
-          title: 'Pet Training Session',
-          subtitle: 'Professional behavioral training',
-          price: 899,
-          duration: '60 min',
-          icon: 'dog',
-          iconSet: 'MaterialCommunityIcons',
-          color: '#F38181',
-        },
-        {
-          _id: '5',
-          title: 'Physiotherapy',
-          subtitle: 'Post-surgery & recovery care',
-          price: 1299,
-          duration: '60 min',
-          icon: 'medical-bag',
-          iconSet: 'MaterialCommunityIcons',
-          color: '#AA96DA',
-        },
-        {
-          _id: '6',
-          title: 'Pet Walking',
-          subtitle: 'Hourly or daily walks',
-          price: 199,
-          duration: '30 min',
-          icon: 'walk',
-          iconSet: 'MaterialCommunityIcons',
-          color: '#FCBAD3',
-        },
-      ]);
-    } finally {
-      setLoadingServices(false);
-    }
-  };
 
   const fetchUserBookings = async () => {
     try {
@@ -864,810 +986,722 @@ const ParavetModule = () => {
     }
   };
 
+  const fetchParavets = async () => {
+    try {
+      setLoadingParavets(true);
+      const response = await ApiService.getVerifiedParavets();
+      setParavets(response.data || []);
+    } catch (error) {
+      console.error('Error fetching paravets:', error);
+    } finally {
+      setLoadingParavets(false);
+    }
+  };
+
+  const handleParavetSelect = (paravet) => {
+    setSelectedParavet(paravet);
+    setParavetSelectionVisible(false);
+  };
+
+  const paravetServices = selectedParavet?.experience?.areasOfExpertise?.value || [];
+  
+  // Service image mappings
+  const diagnosticSupportServices = [
+    'Blood Collection',
+    'Urine Sample Collection',
+    'Lab Sample Handling',
+    'X-ray Assistance',
+    'Ultrasound Assistance',
+    'ECG Assistance',
+    'Basic Diagnostics',
+  ];
+
+  const woundCareServices = ['Wound Care & Dressing'];
+  const preOperativeServices = ['Pre-operative Preparation'];
+  const homeVaccinationServices = ['Home Vaccination'];
+  const earCleaningServices = ['Ear Cleaning'];
+  const vitalSignsServices = ['Vital Signs Monitoring'];
+  const vaccinationSupportServices = ['Vaccination Support'];
+
+  const serviceImages = {
+    diagnosticSupport: 'https://plus.unsplash.com/premium_photo-1663047756170-0bec0113645e?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTd8fERpYWdub3N0aWMlMjBTdXBwb3J0JTIwcGV0fGVufDB8fDB8fHww',
+    woundCare: 'https://plus.unsplash.com/premium_photo-1663040486740-60e41b8fd1e3?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MXx8V291bmQlMjBDYXJlJTIwJTI2JTIwRHJlc3NpbmclMjBwZXRzfGVufDB8fDB8fHww',
+    preOperative: 'https://images.unsplash.com/photo-1710322928695-c7fb49886cb1?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTF8fFByZS1vcGVyYXRpdmUlMjBQcmVwYXJhdGlvbiUyMHBldHN8ZW58MHx8MHx8fDA%3D',
+    homeVaccination: 'https://plus.unsplash.com/premium_photo-1726768886710-92e78c6272df?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8OXx8SG9tZSUyMFZhY2NpbmF0aW9uJTIwcGV0c3xlbnwwfHwwfHx8MA%3D%3D',
+    earCleaning: 'https://plus.unsplash.com/premium_photo-1663011219208-418276022b35?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8OXx8RWFyJTIwQ2xlYW5pbmclM0QlMjBwZXR8ZW58MHx8MHx8fDA%3D',
+    vitalSigns: 'https://images.unsplash.com/photo-1625321171045-1fea4ac688e9?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Nnx8Vml0YWwlMjBTaWducyUyME1vbml0b3JpbiUyMHBldHxlbnwwfHwwfHx8MA%3D%3D',
+    vaccinationSupport: 'https://media.istockphoto.com/id/885592010/photo/young-male-maine-coon-cat-taking-a-vaccine.jpg?s=2048x2048&w=is&k=20&c=M5uHwfLaAtlhr0Bg2uk0hV5BuieGwGkQyHWdTOXaesk=',
+  };
+  
+  const serviceMapping = {
+    'Vet Home Visit': { id: '1', icon: 'stethoscope', iconSet: 'FontAwesome5', color: '#FF6B6B', subtitle: 'General checkup, injections, first aid', price: 599, duration: '45-60 min' },
+    'Vaccination at Home': { id: '2', icon: 'syringe', iconSet: 'FontAwesome5', color: '#4ECDC4', subtitle: 'All vaccines administered safely', price: 499, duration: '30 min' },
+    'Pet Grooming': { id: '3', icon: 'cut', iconSet: 'FontAwesome5', color: '#95E1D3', subtitle: 'Bath, haircut, nail trim', price: 799, duration: '90-120 min' },
+    'Pet Training Session': { id: '4', icon: 'dog', iconSet: 'MaterialCommunityIcons', color: '#F38181', subtitle: 'Professional behavioral training', price: 899, duration: '60 min' },
+    'Physiotherapy': { id: '5', icon: 'medical-bag', iconSet: 'MaterialCommunityIcons', color: '#AA96DA', subtitle: 'Post-surgery & recovery care', price: 1299, duration: '60 min' },
+    'Pet Walking': { id: '6', icon: 'walk', iconSet: 'MaterialCommunityIcons', color: '#FCBAD3', subtitle: 'Hourly or daily walks', price: 199, duration: '30 min' },
+    'Wound Care & Dressing': { id: '7', icon: 'bandage', iconSet: 'FontAwesome5', color: '#FF6B6B', subtitle: 'Professional wound care and dressing', price: 699, duration: '30-45 min' },
+    'Blood Collection': { id: '8', icon: 'syringe', iconSet: 'FontAwesome5', color: '#E74C3C', subtitle: 'Safe blood sample collection', price: 399, duration: '15-20 min' },
+    'Pre-operative Preparation': { id: '9', icon: 'hospital', iconSet: 'FontAwesome5', color: '#9B59B6', subtitle: 'Pre-surgery preparation and care', price: 899, duration: '45-60 min' },
+  };
+  
+  const availableServices = paravetServices.length > 0 
+    ? paravetServices.map((serviceName, index) => {
+        const mapped = serviceMapping[serviceName];
+        if (mapped) {
+          return { ...mapped, title: serviceName };
+        }
+        return {
+          id: `custom-${index}`,
+          title: serviceName,
+          icon: 'medical-services',
+          iconSet: 'MaterialIcons',
+          color: theme.colors.primary,
+          subtitle: 'Professional pet care service',
+          price: 599,
+          duration: '30-60 min'
+        };
+      })
+    : [];
+
   const handleServiceSelect = (service) => {
-    console.log('🔵 Button clicked! Service:', service?.title);
-    console.log('🔵 Parent data:', parentData);
-    console.log('🔵 Is profile complete:', isProfileComplete(parentData));
-    
-    // Temporarily skip profile check for testing
-    console.log('⚠️ Skipping profile check for testing');
+    if (!selectedParavet) {
+      Alert.alert('Select Paravet', 'Please select a paravet first');
+      setParavetSelectionVisible(true);
+      return;
+    }
     setSelectedService(service);
     setBookingModalVisible(true);
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <CommonHeader title="Doorstep Service" />
-      <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Hero Section */}
-        <View style={styles.heroSection}>
-          <View style={styles.heroContent}>
-            <Text style={styles.heroTitle}>Pet Care at Your Doorstep</Text>
-            <Text style={styles.heroSubtitle}>
-              Professional veterinary services delivered to your home
-            </Text>
-            <View style={styles.heroFeatures}>
-              <View style={styles.heroFeature}>
-                <MaterialIcons name="verified-user" size={16} color="#10B981" />
-                <Text style={styles.heroFeatureText}>Verified Partners</Text>
-              </View>
-              <View style={styles.heroFeature}>
-                <MaterialIcons name="security" size={16} color="#10B981" />
-                <Text style={styles.heroFeatureText}>100% Safe</Text>
-              </View>
-              <View style={styles.heroFeature}>
-                <MaterialIcons name="access-time" size={16} color="#10B981" />
-                <Text style={styles.heroFeatureText}>On-Time Service</Text>
-              </View>
+    <PaperProvider theme={theme}>
+      <SafeAreaView style={styles.container}>
+        <CommonHeader title="Doorstep Service" />
+        
+        {/* Paravet Selection Modal */}
+        <Modal visible={paravetSelectionVisible} animationType="slide">
+          <SafeAreaView style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <TouchableOpacity onPress={() => setParavetSelectionVisible(false)} style={styles.closeButton}>
+                <Ionicons name="close" size={28} color="#333" />
+              </TouchableOpacity>
+              <Text variant="headlineSmall" style={styles.modalTitle}>
+                Select Paravet
+              </Text>
+              <View style={{ width: 28 }} />
             </View>
-          </View>
-          <Image
-            source={{ uri: 'https://cdn-icons-png.flaticon.com/512/3047/3047928.png' }}
-            style={styles.heroImage}
-          />
-        </View>
-
-        {/* Emergency Button */}
-        <TouchableOpacity 
-          style={styles.emergencyButton}
-          onPress={() => {
-            if (!isProfileComplete(parentData)) {
-              Alert.alert(
-                'Complete Your Profile',
-                'Please complete your profile to use emergency services.',
-                [
-                  { text: 'Cancel', style: 'cancel' },
-                  { 
-                    text: 'Go to Profile', 
-                    onPress: () => router.push('/(vetician_tabs)/(tabs)/profile')
-                  }
-                ]
-              );
-              return;
-            }
             
-            Alert.alert(
-              'Emergency Service',
-              'Do you need immediate veterinary assistance?',
-              [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                  text: 'Yes, Book Now',
-                  onPress: () => {
-                    const emergencyService = services.find(s => s.title.includes('Vet Home Visit')) || services[0];
-                    if (emergencyService) {
-                      setSelectedService(emergencyService);
-                      setBookingModalVisible(true);
-                    }
-                  }
-                }
-              ]
-            );
-          }}
-        >
-          <MaterialIcons name="emergency" size={24} color="#fff" />
-          <View style={styles.emergencyButtonText}>
-            <Text style={styles.emergencyButtonTitle}>Emergency Service</Text>
-            <Text style={styles.emergencyButtonSubtitle}>Get help within 2 hours</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={24} color="#fff" />
-        </TouchableOpacity>
-
-        {/* Services Grid */}
-        <View style={styles.servicesSection}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Our Services</Text>
-            <Text style={styles.sectionSubtitle}>Choose what your pet needs</Text>
-          </View>
-
-          {loadingServices ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#24A1DE" />
-              <Text style={styles.loadingText}>Loading services...</Text>
-            </View>
-          ) : (
-            <View style={styles.servicesGrid}>
-              {services.map((service) => (
-                <View
-                  key={service._id || service.id}
-                  style={styles.serviceCard}
-                >
-                  <View
-                    style={[styles.serviceIconContainer, { backgroundColor: service.color + '20' }]}
-                  >
-                    {service.iconSet === 'FontAwesome5' ? (
-                      <FontAwesome5 name={service.icon} size={28} color={service.color} />
-                    ) : (
-                      <MaterialCommunityIcons name={service.icon} size={28} color={service.color} />
-                    )}
-                  </View>
-                  <Text style={styles.serviceTitle}>{service.title}</Text>
-                  <Text style={styles.serviceSubtitle} numberOfLines={2}>
-                    {service.subtitle}
+            <ScrollView style={styles.modalScrollContent}>
+              <Text variant="labelLarge" style={styles.sectionSubtitle}>
+                Choose a paravet to see their services
+              </Text>
+              
+              {loadingParavets ? (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator animating={true} color={theme.colors.primary} />
+                  <Text variant="labelSmall" style={styles.loadingText}>
+                    Loading paravets...
                   </Text>
-                  <View style={styles.serviceFooter}>
-                    <Text style={styles.servicePrice}>₹{service.price}</Text>
-                    <Text style={styles.serviceDuration}>{service.duration}</Text>
-                  </View>
-                  <TouchableOpacity 
-                    style={styles.bookNowButton}
-                    onPress={() => {
-                      console.log('🟡 Book Now button pressed!');
-                      handleServiceSelect(service);
-                    }}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={styles.bookNowText}>Book Now</Text>
-                    <Ionicons name="arrow-forward" size={16} color="#fff" />
-                  </TouchableOpacity>
                 </View>
+              ) : paravets.length === 0 ? (
+                <View style={styles.noServicesContainer}>
+                  <MaterialIcons name="info-outline" size={48} color="#999" />
+                  <Text variant="titleMedium" style={styles.noServicesText}>
+                    No paravets available
+                  </Text>
+                </View>
+              ) : (
+                paravets.map((paravet) => (
+                  <Card
+                    key={paravet._id || paravet.id}
+                    style={styles.paravetSelectionCard}
+                    onPress={() => handleParavetSelect(paravet)}
+                  >
+                    <Card.Content style={styles.paravetSelectionCardContent}>
+                      <Image source={{ uri: paravet.photo }} style={styles.paravetSelectionPhoto} />
+                      <View style={styles.paravetSelectionInfo}>
+                        <Text variant="labelLarge" style={styles.paravetSelectionName}>
+                          {paravet.name}
+                        </Text>
+                        <Text variant="labelSmall" style={styles.paravetSelectionSpecialization}>
+                          {paravet.specialization}
+                        </Text>
+                        <Text variant="labelSmall" style={styles.paravetSelectionExperience}>
+                          {paravet.experience?.areasOfExpertise?.value?.length || 0} services available
+                        </Text>
+                      </View>
+                      <Ionicons name="chevron-forward" size={24} color={theme.colors.primary} />
+                    </Card.Content>
+                  </Card>
+                ))
+              )}
+            </ScrollView>
+          </SafeAreaView>
+        </Modal>
+
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollViewContent}>
+          {/* Selected Paravet Banner */}
+          {selectedParavet && (
+            <Card style={styles.selectedParavetBanner} onPress={() => setParavetSelectionVisible(true)}>
+              <Card.Content style={styles.selectedParavetContent}>
+                <Image source={{ uri: selectedParavet.photo }} style={styles.bannerPhoto} />
+                <View style={styles.bannerTextContainer}>
+                  <Text variant="titleMedium" style={styles.bannerName}>
+                    {selectedParavet.name}
+                  </Text>
+                  <Text variant="labelSmall" style={styles.bannerSubtext}>
+                    {paravetServices.length} services available
+                  </Text>
+                </View>
+                <Text variant="labelMedium" style={styles.changeText}>
+                  Change
+                </Text>
+              </Card.Content>
+            </Card>
+          )}
+
+          {/* Hero Section with Image */}
+          <View style={styles.heroSection}>
+            <Card style={styles.heroCard}>
+              <View style={styles.heroImageContainer}>
+                <Image
+                  source={{ uri: 'https://images.unsplash.com/photo-1556866261-8763a7662333?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTl8fGRvZ3N8ZW58MHx8MHx8fDA%3D' }}
+                  style={styles.heroImage}
+                />
+                <View style={styles.heroOverlay} />
+              </View>
+              <Card.Content style={styles.heroCardContent}>
+                <Text variant="displaySmall" style={styles.heroTitle}>
+                  Pet Care at Your Doorstep
+                </Text>
+                <Text variant="bodySmall" style={styles.heroSubtitle}>
+                  Professional veterinary services delivered to your home
+                </Text>
+                <View style={styles.heroFeatures}>
+                  <View style={styles.heroFeature}>
+                    <MaterialIcons name="verified-user" size={16} color={theme.colors.primary} />
+                    <Text variant="labelSmall" style={styles.heroFeatureText}>
+                      Verified Partners
+                    </Text>
+                  </View>
+                  <View style={styles.heroFeature}>
+                    <MaterialIcons name="security" size={16} color={theme.colors.primary} />
+                    <Text variant="labelSmall" style={styles.heroFeatureText}>
+                      100% Safe
+                    </Text>
+                  </View>
+                  <View style={styles.heroFeature}>
+                    <MaterialIcons name="access-time" size={16} color={theme.colors.primary} />
+                    <Text variant="labelSmall" style={styles.heroFeatureText}>
+                      On-Time Service
+                    </Text>
+                  </View>
+                </View>
+              </Card.Content>
+            </Card>
+          </View>
+
+          {/* Emergency Button */}
+          <Button
+            mode="contained"
+            buttonColor={theme.colors.primary}
+            style={styles.emergencyButton}
+            icon="emergency"
+            labelStyle={styles.emergencyButtonLabel}
+          >
+            Emergency Service - Get help within 2 hours
+          </Button>
+
+          {/* Services Grid */}
+          <View style={styles.servicesSection}>
+            <View style={styles.sectionHeader}>
+              <Text variant="headlineSmall" style={styles.sectionTitle}>
+                Our Services
+              </Text>
+              <Text variant="labelSmall" style={styles.sectionSubtitle}>
+                Choose what your pet needs
+              </Text>
+            </View>
+
+            <View style={styles.servicesGrid}>
+              {availableServices.length > 0 ? (
+                availableServices.map((service) => {
+                  const isDiagnosticSupport = diagnosticSupportServices.includes(service.title);
+                  const isWoundCare = woundCareServices.includes(service.title);
+                  const isPreOperative = preOperativeServices.includes(service.title);
+                  const isHomeVaccination = homeVaccinationServices.includes(service.title);
+                  const isEarCleaning = earCleaningServices.includes(service.title);
+                  const isVitalSigns = vitalSignsServices.includes(service.title);
+                  const isVaccinationSupport = vaccinationSupportServices.includes(service.title);
+                  const serviceImage = isDiagnosticSupport ? serviceImages.diagnosticSupport : isWoundCare ? serviceImages.woundCare : isPreOperative ? serviceImages.preOperative : isHomeVaccination ? serviceImages.homeVaccination : isEarCleaning ? serviceImages.earCleaning : isVitalSigns ? serviceImages.vitalSigns : isVaccinationSupport ? serviceImages.vaccinationSupport : null;
+                  
+                  return (
+                    <TouchableOpacity
+                      key={service.id}
+                      onPress={() => handleServiceSelect(service)}
+                      activeOpacity={0.85}
+                    >
+                      <Card style={styles.serviceCard}>
+                        {/* Service Image */}
+                        <View style={styles.serviceImageSection}>
+                          {serviceImage ? (
+                            <Image
+                              source={{ uri: serviceImage }}
+                              style={styles.serviceMainImage}
+                            />
+                          ) : (
+                            <View style={[styles.serviceImageFallback, { backgroundColor: service.color }]}>
+                              {service.iconSet === 'FontAwesome5' ? (
+                                <FontAwesome5
+                                  name={service.icon}
+                                  size={32}
+                                  color="#fff"
+                                />
+                              ) : service.iconSet === 'MaterialIcons' ? (
+                                <MaterialIcons
+                                  name={service.icon}
+                                  size={32}
+                                  color="#fff"
+                                />
+                              ) : (
+                                <MaterialCommunityIcons
+                                  name={service.icon}
+                                  size={32}
+                                  color="#fff"
+                                />
+                              )}
+                            </View>
+                          )}
+                          <View style={styles.imageOverlay} />
+                        </View>
+
+                        {/* Service Content */}
+                        <Card.Content style={styles.serviceContentSection}>
+                          <Text 
+                            variant="titleSmall" 
+                            style={styles.serviceTitle}
+                            numberOfLines={2}
+                          >
+                            {service.title}
+                          </Text>
+                          
+                          <Text
+                            variant="labelSmall"
+                            style={styles.serviceSubtitle}
+                            numberOfLines={2}
+                          >
+                            {service.subtitle}
+                          </Text>
+
+                          {/* Price and Duration */}
+                          <View style={styles.serviceMeta}>
+                            <View style={styles.priceSection}>
+                              <Text variant="labelSmall" style={styles.metaLabel}>
+                                Price
+                              </Text>
+                              <Text variant="titleSmall" style={styles.servicePrice}>
+                                ₹{service.price}
+                              </Text>
+                            </View>
+                            <Divider style={styles.metaDivider} />
+                            <View style={styles.durationSection}>
+                              <Text variant="labelSmall" style={styles.metaLabel}>
+                                Duration
+                              </Text>
+                              <Text variant="labelSmall" style={styles.serviceDurationText}>
+                                {service.duration}
+                              </Text>
+                            </View>
+                          </View>
+
+                          {/* Book Now Button */}
+                          <Button
+                            mode="contained"
+                            buttonColor={theme.colors.primary}
+                            style={styles.bookButton}
+                            labelStyle={styles.bookButtonLabel}
+                          >
+                            Book Now
+                          </Button>
+                        </Card.Content>
+                      </Card>
+                    </TouchableOpacity>
+                  );
+                })
+              ) : (
+                <View style={styles.noServicesContainer}>
+                  <MaterialIcons name="info-outline" size={48} color="#999" />
+                  <Text variant="titleMedium" style={styles.noServicesText}>
+                    No services available
+                  </Text>
+                  <Text variant="labelSmall" style={styles.noServicesSubtext}>
+                    Please select a different paravet or contact support
+                  </Text>
+                </View>
+              )}
+            </View>
+          </View>
+
+          {/* Subscription Plans */}
+          <View style={styles.subscriptionSection}>
+            <Text variant="headlineSmall" style={styles.sectionTitle}>
+              Subscription Plans
+            </Text>
+            <Text variant="labelSmall" style={styles.sectionSubtitle}>
+              Save more with regular care
+            </Text>
+
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.plansScroll}>
+              <Card style={styles.planCard}>
+                <Card.Content style={styles.planCardContent}>
+                  <Chip
+                    label="POPULAR"
+                    style={styles.planBadge}
+                    textStyle={styles.planBadgeText}
+                  />
+                  <Text variant="titleMedium" style={styles.planName}>
+                    Weekly Grooming
+                  </Text>
+                  <Text variant="displaySmall" style={styles.planPrice}>
+                    ₹2,499
+                    <Text variant="labelSmall" style={styles.planPeriod}>
+                      /month
+                    </Text>
+                  </Text>
+                  <Text variant="labelMedium" style={styles.planSavings}>
+                    Save ₹700
+                  </Text>
+                  <View style={styles.planFeatures}>
+                    <Text variant="labelSmall" style={styles.planFeature}>
+                      • 4 Grooming Sessions
+                    </Text>
+                    <Text variant="labelSmall" style={styles.planFeature}>
+                      • Free Nail Trimming
+                    </Text>
+                    <Text variant="labelSmall" style={styles.planFeature}>
+                      • Priority Booking
+                    </Text>
+                  </View>
+                  <Button
+                    mode="contained"
+                    buttonColor={theme.colors.primary}
+                    style={styles.planButton}
+                    labelStyle={styles.planButtonLabel}
+                  >
+                    Subscribe
+                  </Button>
+                </Card.Content>
+              </Card>
+
+              <Card style={styles.planCard}>
+                <Card.Content style={styles.planCardContent}>
+                  <Text variant="titleMedium" style={styles.planName}>
+                    Daily Walking
+                  </Text>
+                  <Text variant="displaySmall" style={styles.planPrice}>
+                    ₹3,999
+                    <Text variant="labelSmall" style={styles.planPeriod}>
+                      /month
+                    </Text>
+                  </Text>
+                  <Text variant="labelMedium" style={styles.planSavings}>
+                    Save ₹1,200
+                  </Text>
+                  <View style={styles.planFeatures}>
+                    <Text variant="labelSmall" style={styles.planFeature}>
+                      • 30 Walking Sessions
+                    </Text>
+                    <Text variant="labelSmall" style={styles.planFeature}>
+                      • 30 min per session
+                    </Text>
+                    <Text variant="labelSmall" style={styles.planFeature}>
+                      • Activity Reports
+                    </Text>
+                  </View>
+                  <Button
+                    mode="contained"
+                    buttonColor={theme.colors.primary}
+                    style={styles.planButton}
+                    labelStyle={styles.planButtonLabel}
+                  >
+                    Subscribe
+                  </Button>
+                </Card.Content>
+              </Card>
+            </ScrollView>
+          </View>
+
+          {/* How It Works */}
+          <View style={styles.howItWorksSection}>
+            <Text variant="headlineSmall" style={styles.sectionTitle}>
+              How It Works
+            </Text>
+            
+            {[
+              {
+                number: '1',
+                title: 'Choose Service & Book',
+                description: 'Select the service you need and pick a convenient time slot'
+              },
+              {
+                number: '2',
+                title: 'Partner Assigned & Arrives',
+                description: 'Verified professional reaches your home at scheduled time'
+              },
+              {
+                number: '3',
+                title: 'Service Completed & Pay',
+                description: 'Pay online or cash after service completion'
+              },
+              {
+                number: '4',
+                title: 'Get Care Tips & Reminders',
+                description: 'Receive follow-up care instructions and next service reminders'
+              }
+            ].map((step) => (
+              <Card key={step.number} style={styles.stepCard}>
+                <Card.Content style={styles.stepCardContent}>
+                  <View style={styles.stepNumber}>
+                    <Text variant="titleLarge" style={styles.stepNumberText}>
+                      {step.number}
+                    </Text>
+                  </View>
+                  <View style={styles.stepContent}>
+                    <Text variant="titleSmall" style={styles.stepTitle}>
+                      {step.title}
+                    </Text>
+                    <Text variant="labelSmall" style={styles.stepDescription}>
+                      {step.description}
+                    </Text>
+                  </View>
+                </Card.Content>
+              </Card>
+            ))}
+          </View>
+
+          {/* Trust & Safety */}
+          <View style={styles.trustSection}>
+            <Text variant="headlineSmall" style={styles.sectionTitle}>
+              Trust & Safety
+            </Text>
+            
+            <View style={styles.trustGrid}>
+              {[
+                {
+                  icon: 'verified',
+                  title: 'Verified Partners',
+                  description: 'All service providers are background verified'
+                },
+                {
+                  icon: 'lock',
+                  title: 'OTP Security',
+                  description: 'Service starts only after OTP verification'
+                },
+                {
+                  icon: 'sanitizer',
+                  title: 'Sanitized Tools',
+                  description: 'Partners use sanitized equipment'
+                },
+                {
+                  icon: 'camera-alt',
+                  title: 'Before & After',
+                  description: 'Get service documentation photos'
+                }
+              ].map((item) => (
+                <Card key={item.icon} style={styles.trustCard}>
+                  <Card.Content style={styles.trustCardContent}>
+                    <MaterialIcons name={item.icon} size={32} color={theme.colors.primary} />
+                    <Text variant="labelLarge" style={styles.trustTitle}>
+                      {item.title}
+                    </Text>
+                    <Text variant="labelSmall" style={styles.trustDescription}>
+                      {item.description}
+                    </Text>
+                  </Card.Content>
+                </Card>
+              ))}
+            </View>
+          </View>
+
+          {/* Active Bookings */}
+          {userBookings.length > 0 && (
+            <View style={styles.activeBookingsSection}>
+              <Text variant="headlineSmall" style={styles.sectionTitle}>
+                Active Bookings
+              </Text>
+              {userBookings.filter(b => b.status !== 'completed' && b.status !== 'cancelled').map((booking) => (
+                <Card
+                  key={booking._id}
+                  style={styles.activeBookingCard}
+                  onPress={() => {
+                    setSelectedBooking(booking);
+                    setTrackingModalVisible(true);
+                  }}
+                >
+                  <Card.Content style={styles.activeBookingCardContent}>
+                    <View style={styles.bookingCardLeft}>
+                      <Text variant="titleMedium" style={styles.bookingServiceType}>
+                        {booking.serviceType}
+                      </Text>
+                      <Text variant="labelSmall" style={styles.bookingDate}>
+                        {new Date(booking.appointmentDate).toLocaleDateString()} • {booking.timeSlot}
+                      </Text>
+                      <Text variant="labelSmall" style={[styles.bookingPartner, { color: theme.colors.primary }]}>
+                        {booking.servicePartnerName}
+                      </Text>
+                    </View>
+                    <View style={styles.bookingCardRight}>
+                      <Chip
+                        label={booking.status}
+                        style={[
+                          styles.statusBadge,
+                          {
+                            backgroundColor: booking.status === 'confirmed' ? theme.colors.primary : '#FF9800'
+                          }
+                        ]}
+                        textStyle={styles.statusText}
+                      />
+                    </View>
+                  </Card.Content>
+                </Card>
               ))}
             </View>
           )}
-        </View>
 
-        {/* Subscription Plans */}
-        <View style={styles.subscriptionSection}>
-          <Text style={styles.sectionTitle}>Subscription Plans</Text>
-          <Text style={styles.sectionSubtitle}>Save more with regular care</Text>
+          {/* Demo Button */}
+          <Button
+            mode="contained"
+            icon="location-on"
+            buttonColor={theme.colors.primary}
+            style={styles.demoButton}
+            labelStyle={styles.demoButtonLabel}
+            onPress={() => {
+              setSelectedBooking(null);
+              setTrackingModalVisible(true);
+            }}
+          >
+            View Live Tracking Demo
+          </Button>
 
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.plansScroll}>
-            <View style={styles.planCard}>
-              <View style={styles.planBadge}>
-                <Text style={styles.planBadgeText}>POPULAR</Text>
-              </View>
-              <Text style={styles.planName}>Weekly Grooming</Text>
-              <Text style={styles.planPrice}>₹2,499<Text style={styles.planPeriod}>/month</Text></Text>
-              <Text style={styles.planSavings}>Save ₹700</Text>
-              <View style={styles.planFeatures}>
-                <Text style={styles.planFeature}>4 Grooming Sessions</Text>
-                <Text style={styles.planFeature}>Free Nail Trimming</Text>
-                <Text style={styles.planFeature}>Priority Booking</Text>
-              </View>
-              <TouchableOpacity style={styles.planButton} onPress={() => Alert.alert('Coming Soon', 'Subscription plans will be available soon!')}>
-                <Text style={styles.planButtonText}>Subscribe</Text>
-              </TouchableOpacity>
-            </View>
+          <View style={{ height: 40 }} />
+        </ScrollView>
 
-            <View style={styles.planCard}>
-              <Text style={styles.planName}>Daily Walking</Text>
-              <Text style={styles.planPrice}>₹3,999<Text style={styles.planPeriod}>/month</Text></Text>
-              <Text style={styles.planSavings}>Save ₹1,200</Text>
-              <View style={styles.planFeatures}>
-                <Text style={styles.planFeature}>30 Walking Sessions</Text>
-                <Text style={styles.planFeature}>30 min per session</Text>
-                <Text style={styles.planFeature}>Activity Reports</Text>
-              </View>
-              <TouchableOpacity style={styles.planButton} onPress={() => Alert.alert('Coming Soon', 'Subscription plans will be available soon!')}>
-                <Text style={styles.planButtonText}>Subscribe</Text>
-              </TouchableOpacity>
-            </View>
-          </ScrollView>
-        </View>
-
-        {/* How It Works */}
-        <View style={styles.howItWorksSection}>
-          <Text style={styles.sectionTitle}>How It Works</Text>
-          
-          <View style={styles.stepCard}>
-            <View style={styles.stepNumber}>
-              <Text style={styles.stepNumberText}>1</Text>
-            </View>
-            <View style={styles.stepContent}>
-              <Text style={styles.stepTitle}>Choose Service & Book</Text>
-              <Text style={styles.stepDescription}>
-                Select the service you need and pick a convenient time slot
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.stepCard}>
-            <View style={styles.stepNumber}>
-              <Text style={styles.stepNumberText}>2</Text>
-            </View>
-            <View style={styles.stepContent}>
-              <Text style={styles.stepTitle}>Partner Assigned & Arrives</Text>
-              <Text style={styles.stepDescription}>
-                Verified professional reaches your home at scheduled time
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.stepCard}>
-            <View style={styles.stepNumber}>
-              <Text style={styles.stepNumberText}>3</Text>
-            </View>
-            <View style={styles.stepContent}>
-              <Text style={styles.stepTitle}>Service Completed & Pay</Text>
-              <Text style={styles.stepDescription}>
-                Pay online or cash after service completion
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.stepCard}>
-            <View style={styles.stepNumber}>
-              <Text style={styles.stepNumberText}>4</Text>
-            </View>
-            <View style={styles.stepContent}>
-              <Text style={styles.stepTitle}>Get Care Tips & Reminders</Text>
-              <Text style={styles.stepDescription}>
-                Receive follow-up care instructions and next service reminders
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Trust & Safety */}
-        <View style={styles.trustSection}>
-          <Text style={styles.sectionTitle}>Trust & Safety</Text>
-          
-          <View style={styles.trustGrid}>
-            <View style={styles.trustCard}>
-              <MaterialIcons name="verified" size={32} color="#10B981" />
-              <Text style={styles.trustTitle}>Verified Partners</Text>
-              <Text style={styles.trustDescription}>All service providers are background verified</Text>
-            </View>
-
-            <View style={styles.trustCard}>
-              <MaterialIcons name="lock" size={32} color="#24A1DE" />
-              <Text style={styles.trustTitle}>OTP Security</Text>
-              <Text style={styles.trustDescription}>Service starts only after OTP verification</Text>
-            </View>
-
-            <View style={styles.trustCard}>
-              <MaterialIcons name="sanitizer" size={32} color="#FF6B6B" />
-              <Text style={styles.trustTitle}>Sanitized Tools</Text>
-              <Text style={styles.trustDescription}>Partners use sanitized equipment</Text>
-            </View>
-
-            <View style={styles.trustCard}>
-              <MaterialIcons name="camera-alt" size={32} color="#9C27B0" />
-              <Text style={styles.trustTitle}>Before & After</Text>
-              <Text style={styles.trustDescription}>Get service documentation photos</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Track Demo Button */}
-        {userBookings.length > 0 && (
-          <View style={styles.activeBookingsSection}>
-            <Text style={styles.sectionTitle}>Active Bookings</Text>
-            {userBookings.filter(b => b.status !== 'completed' && b.status !== 'cancelled').map((booking) => (
-              <TouchableOpacity
-                key={booking._id}
-                style={styles.activeBookingCard}
-                onPress={() => {
-                  setSelectedBooking(booking);
-                  setTrackingModalVisible(true);
-                }}
-              >
-                <View style={styles.bookingCardLeft}>
-                  <Text style={styles.bookingServiceType}>{booking.serviceType}</Text>
-                  <Text style={styles.bookingDate}>
-                    {new Date(booking.appointmentDate).toLocaleDateString()} • {booking.timeSlot}
-                  </Text>
-                  <Text style={styles.bookingPartner}>{booking.servicePartnerName}</Text>
-                </View>
-                <View style={styles.bookingCardRight}>
-                  <View style={[styles.statusBadge, { backgroundColor: booking.status === 'confirmed' ? '#10B981' : '#FF9800' }]}>
-                    <Text style={styles.statusText}>{booking.status}</Text>
-                  </View>
-                  <MaterialIcons name="chevron-right" size={24} color="#999" />
-                </View>
-              </TouchableOpacity>
-            ))}
-          </View>
+        {/* Modals */}
+        {selectedService && (
+          <BookingModal
+            visible={bookingModalVisible}
+            onClose={() => setBookingModalVisible(false)}
+            service={selectedService}
+          />
         )}
 
-        <TouchableOpacity
-          style={styles.demoButton}
-          onPress={() => {
-            Alert.alert('Coming Soon', 'Live tracking feature will be available soon!');
-          }}
-        >
-          <MaterialIcons name="location-on" size={20} color="#fff" />
-          <Text style={styles.demoButtonText}>View Live Tracking Demo</Text>
-        </TouchableOpacity>
-
-        <View style={{ height: 40 }} />
-      </ScrollView>
-
-      {/* Modals */}
-      {selectedService && (
-        <BookingModal
-          visible={bookingModalVisible}
-          onClose={() => setBookingModalVisible(false)}
-          service={selectedService}
+        <TrackingModal
+          visible={trackingModalVisible}
+          onClose={() => setTrackingModalVisible(false)}
+          booking={selectedBooking}
         />
-      )}
-
-      <TrackingModal
-        visible={trackingModalVisible}
-        onClose={() => setTrackingModalVisible(false)}
-        booking={selectedBooking}
-      />
-    </SafeAreaView>
+      </SafeAreaView>
+    </PaperProvider>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
+    backgroundColor: theme.colors.background,
   },
-
-  // Loading Container
-  loadingContainer: {
-    paddingVertical: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
+  scrollViewContent: {
+    paddingBottom: 20,
   },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 14,
-    color: '#666',
-  },
-
-  // Hero Section
-  heroSection: {
-    backgroundColor: '#E3F2FD',
-    padding: 24,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  heroContent: {
-    flex: 1,
-  },
-  heroTitle: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: '#1a1a1a',
-    marginBottom: 8,
-  },
-  heroSubtitle: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 16,
-    lineHeight: 20,
-  },
-  heroFeatures: {
-    gap: 8,
-  },
-  heroFeature: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  heroFeatureText: {
-    fontSize: 12,
-    color: '#10B981',
-    fontWeight: '600',
-  },
-  heroImage: {
-    width: 100,
-    height: 100,
-    opacity: 0.9,
-  },
-
-  // Emergency Button
-  emergencyButton: {
-    backgroundColor: '#FF4757',
-    marginHorizontal: 16,
-    marginTop: 16,
-    padding: 16,
-    borderRadius: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    elevation: 4,
-    shadowColor: '#FF4757',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-  },
-  emergencyButtonText: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  emergencyButtonTitle: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  emergencyButtonSubtitle: {
-    color: '#fff',
-    fontSize: 12,
-    opacity: 0.9,
-    marginTop: 2,
-  },
-
-  // Services Section
-  servicesSection: {
-    padding: 16,
-    paddingTop: 24,
-  },
-  sectionHeader: {
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#1a1a1a',
-    marginBottom: 4,
-  },
-  sectionSubtitle: {
-    fontSize: 14,
-    color: '#666',
-  },
-  servicesGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  serviceCard: {
-    width: (width - 44) / 2,
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 16,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-  },
-  serviceIconContainer: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-  },
-  serviceTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#1a1a1a',
-    marginBottom: 4,
-  },
-  serviceSubtitle: {
-    fontSize: 12,
-    color: '#666',
-    marginBottom: 12,
-    height: 32,
-  },
-  serviceFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  servicePrice: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#24A1DE',
-  },
-  serviceDuration: {
-    fontSize: 11,
-    color: '#999',
-  },
-  bookNowButton: {
-    backgroundColor: '#24A1DE',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 10,
-    borderRadius: 8,
-    gap: 6,
-  },
-  bookNowText: {
-    color: '#fff',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-
-  // Subscription Section
-  subscriptionSection: {
-    padding: 16,
-    paddingTop: 24,
-  },
-  plansScroll: {
-    marginTop: 16,
-  },
-  planCard: {
-    width: 260,
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 20,
-    marginRight: 12,
-    borderWidth: 2,
-    borderColor: '#E0E0E0',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-  },
-  planBadge: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    backgroundColor: '#FF6B6B',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  planBadgeText: {
-    color: '#fff',
-    fontSize: 10,
-    fontWeight: '700',
-  },
-  planName: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1a1a1a',
-    marginBottom: 8,
-  },
-  planPrice: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: '#24A1DE',
-  },
-  planPeriod: {
-    fontSize: 14,
-    color: '#999',
-  },
-  planSavings: {
-    fontSize: 13,
-    color: '#10B981',
-    fontWeight: '600',
-    marginTop: 4,
-    marginBottom: 16,
-  },
-  planFeatures: {
-    gap: 8,
-    marginBottom: 16,
-  },
-  planFeature: {
-    fontSize: 13,
-    color: '#666',
-  },
-  planButton: {
-    backgroundColor: '#24A1DE',
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  planButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '700',
-  },
-
-  // How It Works
-  howItWorksSection: {
-    padding: 16,
-    paddingTop: 24,
-  },
-  stepCard: {
-    flexDirection: 'row',
-    backgroundColor: '#fff',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
-    elevation: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-  },
-  stepNumber: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#24A1DE',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 16,
-  },
-  stepNumberText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  stepContent: {
-    flex: 1,
-  },
-  stepTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#1a1a1a',
-    marginBottom: 4,
-  },
-  stepDescription: {
-    fontSize: 13,
-    color: '#666',
-    lineHeight: 18,
-  },
-
-  // Trust Section
-  trustSection: {
-    padding: 16,
-    paddingTop: 24,
-  },
-  trustGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    marginTop: 16,
-  },
-  trustCard: {
-    width: (width - 44) / 2,
-    backgroundColor: '#fff',
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    elevation: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-  },
-  trustTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#1a1a1a',
-    marginTop: 8,
-    marginBottom: 4,
-    textAlign: 'center',
-  },
-  trustDescription: {
-    fontSize: 12,
-    color: '#666',
-    textAlign: 'center',
-    lineHeight: 16,
-  },
-
-  // Demo Button
-  demoButton: {
-    backgroundColor: '#9C27B0',
-    marginHorizontal: 16,
-    marginTop: 16,
-    padding: 16,
-    borderRadius: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  demoButtonText: {
-    color: '#fff',
-    fontSize: 15,
-    fontWeight: '700',
-  },
-
-  // Active Bookings
-  activeBookingsSection: {
-    padding: 16,
-    paddingTop: 24,
-  },
-  activeBookingCard: {
-    flexDirection: 'row',
-    backgroundColor: '#fff',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-  },
-  bookingCardLeft: {
-    flex: 1,
-  },
-  bookingServiceType: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#1a1a1a',
-    marginBottom: 4,
-  },
-  bookingDate: {
-    fontSize: 13,
-    color: '#666',
-    marginBottom: 4,
-  },
-  bookingPartner: {
-    fontSize: 12,
-    color: '#24A1DE',
-    fontWeight: '600',
-  },
-  bookingCardRight: {
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
-  },
-  statusBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-  },
-  statusText: {
-    color: '#fff',
-    fontSize: 11,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-  },
-
-  // Modal Styles
   modalContainer: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
+    backgroundColor: theme.colors.background,
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#E8E8E8',
   },
+  closeButton: {
+    padding: 8,
+  },
   modalTitle: {
-    fontSize: 18,
     fontWeight: '700',
     color: '#1a1a1a',
+    flex: 1,
+    textAlign: 'center',
+  },
+  modalScrollContent: {
+    paddingVertical: 8,
   },
 
   // Service Summary Card
   serviceSummaryCard: {
+    marginHorizontal: 16,
+    marginVertical: 12,
+    borderRadius: 16,
+  },
+  serviceSummaryContent: {
     flexDirection: 'row',
-    backgroundColor: '#fff',
-    padding: 16,
-    marginBottom: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
+    justifyContent: 'space-between',
   },
   serviceSummaryLeft: {
     flex: 1,
   },
   serviceModalTitle: {
-    fontSize: 18,
     fontWeight: '700',
     color: '#1a1a1a',
-    marginBottom: 4,
+    marginBottom: 6,
   },
   serviceModalSubtitle: {
-    fontSize: 13,
     color: '#666',
-    marginBottom: 8,
+    marginBottom: 10,
+    lineHeight: 18,
+  },
+  serviceDurationContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   serviceDuration: {
-    fontSize: 12,
     color: '#999',
+    fontWeight: '500',
   },
   serviceSummaryRight: {
     alignItems: 'flex-end',
+    justifyContent: 'flex-start',
   },
   serviceModalPrice: {
-    fontSize: 24,
     fontWeight: '800',
-    color: '#24A1DE',
+    color: '#7CB342',
   },
   perVisit: {
-    fontSize: 11,
     color: '#999',
+    marginTop: 4,
   },
 
   // Modal Section
   modalSection: {
     backgroundColor: '#fff',
-    padding: 16,
-    marginBottom: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    marginVertical: 8,
+    marginHorizontal: 16,
+    borderRadius: 12,
   },
   sectionLabel: {
-    fontSize: 15,
     fontWeight: '700',
     color: '#1a1a1a',
     marginBottom: 12,
+  },
+  required: {
+    color: '#FF6B6B',
   },
 
   // Emergency Row
@@ -1686,14 +1720,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   emergencyTitle: {
-    fontSize: 15,
     fontWeight: '700',
     color: '#1a1a1a',
   },
   emergencySubtitle: {
-    fontSize: 12,
     color: '#666',
-    marginTop: 2,
+    marginTop: 4,
   },
 
   // Pets Grid
@@ -1703,23 +1735,22 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   noPetsText: {
-    fontSize: 14,
     color: '#999',
     textAlign: 'center',
-    paddingVertical: 20,
+    paddingVertical: 24,
   },
   petCard: {
     width: (width - 60) / 3,
     backgroundColor: '#F8F9FA',
     borderWidth: 2,
     borderColor: '#E0E0E0',
-    borderRadius: 12,
+    borderRadius: 14,
     padding: 12,
     alignItems: 'center',
   },
   petCardSelected: {
-    borderColor: '#24A1DE',
-    backgroundColor: '#E3F2FD',
+    borderColor: '#7CB342',
+    backgroundColor: '#F1F8E9',
   },
   petCheckbox: {
     position: 'absolute',
@@ -1728,29 +1759,34 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: '#24A1DE',
+    backgroundColor: '#7CB342',
     alignItems: 'center',
     justifyContent: 'center',
   },
   petEmoji: {
     fontSize: 32,
-    marginBottom: 4,
+    marginBottom: 6,
   },
   petCardName: {
-    fontSize: 13,
     fontWeight: '700',
     color: '#1a1a1a',
+    marginBottom: 2,
   },
   petCardType: {
-    fontSize: 11,
     color: '#666',
+    fontSize: 12,
   },
 
   // Date Cards
+  dateScrollView: {
+    marginHorizontal: -16,
+    paddingHorizontal: 16,
+  },
   dateCard: {
     width: 70,
-    padding: 12,
-    marginRight: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    marginRight: 10,
     borderRadius: 12,
     borderWidth: 2,
     borderColor: '#E0E0E0',
@@ -1758,26 +1794,26 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   dateCardSelected: {
-    borderColor: '#24A1DE',
-    backgroundColor: '#E3F2FD',
+    borderColor: '#7CB342',
+    backgroundColor: '#F1F8E9',
   },
   dateDay: {
-    fontSize: 13,
     color: '#666',
     fontWeight: '600',
+    fontSize: 12,
   },
   dateNumber: {
-    fontSize: 22,
-    fontWeight: '800',
     color: '#1a1a1a',
     marginVertical: 4,
+    fontWeight: '700',
   },
   dateMonth: {
-    fontSize: 11,
     color: '#999',
+    fontSize: 11,
   },
   dateTextSelected: {
-    color: '#24A1DE',
+    color: '#7CB342',
+    fontWeight: '600',
   },
   todayBadge: {
     backgroundColor: '#10B981',
@@ -1788,8 +1824,8 @@ const styles = StyleSheet.create({
   },
   todayText: {
     color: '#fff',
-    fontSize: 9,
-    fontWeight: '700',
+    fontSize: 10,
+    fontWeight: '600',
   },
 
   // Time Slots
@@ -1799,24 +1835,24 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   timeSlot: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     paddingVertical: 10,
-    borderRadius: 8,
+    borderRadius: 10,
     borderWidth: 1.5,
     borderColor: '#E0E0E0',
     backgroundColor: '#fff',
   },
   timeSlotSelected: {
-    borderColor: '#24A1DE',
-    backgroundColor: '#E3F2FD',
+    borderColor: '#7CB342',
+    backgroundColor: '#F1F8E9',
   },
   timeSlotText: {
-    fontSize: 13,
     fontWeight: '600',
     color: '#1a1a1a',
+    fontSize: 13,
   },
   timeSlotTextSelected: {
-    color: '#24A1DE',
+    color: '#7CB342',
   },
 
   // Repeat Row
@@ -1828,35 +1864,56 @@ const styles = StyleSheet.create({
   repeatLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
   },
   repeatText: {
-    fontSize: 15,
     fontWeight: '600',
     color: '#1a1a1a',
   },
 
-  // Nearby Text
-  nearbyText: {
-    fontSize: 13,
-    color: '#10B981',
-    fontWeight: '600',
+  // Loading
+  loadingContainer: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  loadingText: {
+    marginTop: 12,
+    color: '#666',
+  },
+
+  // Nearby Providers
+  nearbyProviders: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     marginBottom: 12,
+  },
+  nearbyText: {
+    color: '#7CB342',
+    fontWeight: '600',
+  },
+
+  // Partners List
+  partnersList: {
+    gap: 10,
+  },
+  partnerTouchable: {
+    marginBottom: 0,
   },
 
   // Partner Card
   partnerCard: {
-    flexDirection: 'row',
-    backgroundColor: '#F8F9FA',
-    padding: 12,
+    backgroundColor: '#fff',
     borderRadius: 12,
-    marginBottom: 12,
-    borderWidth: 2,
-    borderColor: '#E0E0E0',
   },
   partnerCardSelected: {
-    borderColor: '#24A1DE',
-    backgroundColor: '#E3F2FD',
+    backgroundColor: '#F1F8E9',
+    borderColor: '#7CB342',
+    borderWidth: 2,
+  },
+  partnerCardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   partnerPhoto: {
     width: 60,
@@ -1871,22 +1928,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginBottom: 2,
+    marginBottom: 4,
   },
   partnerName: {
-    fontSize: 15,
     fontWeight: '700',
     color: '#1a1a1a',
   },
   partnerSpecialization: {
-    fontSize: 12,
     color: '#666',
     marginBottom: 2,
   },
   partnerExperience: {
-    fontSize: 11,
     color: '#999',
     marginBottom: 6,
+    fontSize: 12,
   },
   partnerStats: {
     flexDirection: 'row',
@@ -1902,47 +1957,41 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   ratingText: {
-    fontSize: 11,
     fontWeight: '700',
     color: '#F57C00',
     marginLeft: 2,
   },
   reviewsText: {
-    fontSize: 11,
     color: '#999',
+    fontSize: 12,
   },
   distanceText: {
-    fontSize: 11,
-    color: '#24A1DE',
+    color: '#7CB342',
     fontWeight: '600',
+    fontSize: 12,
   },
   partnerRadio: {
     width: 24,
     height: 24,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: '#24A1DE',
+    borderColor: '#7CB342',
     alignItems: 'center',
     justifyContent: 'center',
+    marginLeft: 8,
   },
   partnerRadioInner: {
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: '#24A1DE',
+    backgroundColor: '#7CB342',
   },
 
   // Text Area
   textArea: {
     backgroundColor: '#F8F9FA',
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 14,
-    color: '#333',
-    textAlignVertical: 'top',
     height: 100,
+    marginBottom: 0,
   },
 
   // Coupon Row
@@ -1950,22 +1999,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+    paddingVertical: 12,
   },
   couponText: {
     flex: 1,
-    fontSize: 15,
     fontWeight: '600',
-    color: '#10B981',
+    color: '#7CB342',
   },
 
-  // Price Section
-  priceSection: {
-    backgroundColor: '#fff',
-    padding: 16,
-    marginBottom: 8,
+  // Price Card
+  priceCard: {
+    marginHorizontal: 16,
+    marginVertical: 12,
+    borderRadius: 16,
   },
   priceSectionTitle: {
-    fontSize: 16,
     fontWeight: '700',
     color: '#1a1a1a',
     marginBottom: 16,
@@ -1973,64 +2021,60 @@ const styles = StyleSheet.create({
   priceRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 10,
+    marginBottom: 12,
   },
   priceLabel: {
-    fontSize: 14,
     color: '#666',
+    fontWeight: '500',
   },
   priceValue: {
-    fontSize: 14,
     fontWeight: '600',
     color: '#1a1a1a',
   },
   discountValue: {
-    fontSize: 14,
     fontWeight: '600',
     color: '#10B981',
   },
   priceDivider: {
-    height: 1,
-    backgroundColor: '#E8E8E8',
     marginVertical: 12,
   },
   totalRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 8,
+    marginTop: 4,
   },
   totalLabel: {
-    fontSize: 16,
     fontWeight: '700',
     color: '#1a1a1a',
   },
   totalValue: {
-    fontSize: 20,
     fontWeight: '800',
-    color: '#24A1DE',
+    color: '#7CB342',
   },
 
   // Payment Options
   paymentOption: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 14,
-    borderRadius: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    borderRadius: 10,
     borderWidth: 1.5,
     borderColor: '#E0E0E0',
+    backgroundColor: '#fff',
     marginBottom: 10,
     gap: 12,
   },
   paymentOptionSelected: {
-    borderColor: '#24A1DE',
-    backgroundColor: '#E3F2FD',
+    borderColor: '#7CB342',
+    backgroundColor: '#F1F8E9',
   },
   paymentRadio: {
     width: 20,
     height: 20,
     borderRadius: 10,
     borderWidth: 2,
-    borderColor: '#24A1DE',
+    borderColor: '#7CB342',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -2038,10 +2082,9 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: '#24A1DE',
+    backgroundColor: '#7CB342',
   },
   paymentText: {
-    fontSize: 14,
     fontWeight: '600',
     color: '#1a1a1a',
   },
@@ -2051,95 +2094,79 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     backgroundColor: '#fff',
     borderTopWidth: 1,
     borderTopColor: '#E8E8E8',
     elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
   },
-  bottomLeft: {},
+  bottomLeft: {
+    justifyContent: 'center',
+  },
   bottomPrice: {
-    fontSize: 20,
     fontWeight: '800',
-    color: '#24A1DE',
+    color: '#7CB342',
   },
   bottomPets: {
-    fontSize: 12,
     color: '#666',
+    marginTop: 2,
   },
   confirmButton: {
-    backgroundColor: '#10B981',
-    paddingHorizontal: 32,
-    paddingVertical: 14,
-    borderRadius: 12,
-    elevation: 2,
-    shadowColor: '#10B981',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-  },
-  confirmButtonText: {
-    color: '#fff',
-    fontSize: 15,
-    fontWeight: '700',
+    minWidth: 140,
+    borderRadius: 10,
   },
 
-  // Tracking Modal
+  // Tracking
   trackingContainer: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
+    backgroundColor: theme.colors.background,
   },
   trackingHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#E8E8E8',
   },
   trackingTitle: {
-    fontSize: 18,
     fontWeight: '700',
     color: '#1a1a1a',
+    flex: 1,
+    textAlign: 'center',
   },
 
   // Map Placeholder
   mapPlaceholder: {
     height: 250,
-    backgroundColor: '#E3F2FD',
     alignItems: 'center',
     justifyContent: 'center',
+    marginHorizontal: 16,
+    marginVertical: 16,
+    borderRadius: 16,
+    paddingVertical: 24,
   },
   mapText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#24A1DE',
+    color: '#7CB342',
     marginTop: 12,
   },
   etaText: {
-    fontSize: 14,
     color: '#666',
-    marginTop: 4,
+    marginTop: 6,
   },
 
   // Tracking Partner Card
   trackingPartnerCard: {
-    flexDirection: 'row',
-    backgroundColor: '#fff',
-    padding: 16,
-    marginTop: 16,
     marginHorizontal: 16,
-    borderRadius: 12,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
+    marginTop: 16,
+    borderRadius: 16,
+  },
+  trackingPartnerCardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   trackingPartnerPhoto: {
     width: 60,
@@ -2151,49 +2178,43 @@ const styles = StyleSheet.create({
     marginLeft: 12,
   },
   trackingPartnerName: {
-    fontSize: 16,
     fontWeight: '700',
     color: '#1a1a1a',
   },
   trackingPartnerRole: {
-    fontSize: 13,
     color: '#666',
     marginTop: 2,
   },
   trackingRating: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 4,
+    marginTop: 6,
   },
   trackingRatingText: {
-    fontSize: 13,
     fontWeight: '700',
     color: '#F57C00',
     marginLeft: 4,
   },
   trackingActions: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 10,
   },
   trackingActionBtn: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#E3F2FD',
+    backgroundColor: '#F1F8E9',
     alignItems: 'center',
     justifyContent: 'center',
   },
 
-  // Timeline
-  timelineSection: {
-    backgroundColor: '#fff',
-    padding: 16,
-    marginTop: 16,
+  // Timeline Card
+  timelineCard: {
     marginHorizontal: 16,
-    borderRadius: 12,
+    marginTop: 16,
+    borderRadius: 16,
   },
   timelineTitle: {
-    fontSize: 16,
     fontWeight: '700',
     color: '#1a1a1a',
     marginBottom: 20,
@@ -2223,53 +2244,509 @@ const styles = StyleSheet.create({
     paddingTop: 6,
   },
   timelineLabel: {
-    fontSize: 14,
     fontWeight: '600',
   },
   timelineTime: {
-    fontSize: 12,
     color: '#10B981',
-    marginTop: 2,
+    marginTop: 4,
+    fontWeight: '600',
   },
 
-  // OTP Section
-  otpSection: {
-    flexDirection: 'row',
-    backgroundColor: '#FFF3E0',
-    padding: 16,
-    marginTop: 16,
+  // OTP Card
+  otpCard: {
     marginHorizontal: 16,
-    borderRadius: 12,
+    marginVertical: 16,
+    backgroundColor: '#FFF3E0',
+    borderRadius: 16,
+  },
+  otpCardContent: {
+    flexDirection: 'row',
     alignItems: 'center',
   },
   otpText: {
     marginLeft: 12,
   },
   otpTitle: {
-    fontSize: 16,
     fontWeight: '700',
     color: '#F57C00',
   },
   otpSubtitle: {
-    fontSize: 12,
     color: '#666',
     marginTop: 2,
   },
 
-  // Cancel Booking Button
-  cancelBookingBtn: {
-    backgroundColor: '#FF4757',
+  // Selected Paravet Banner
+  selectedParavetBanner: {
     marginHorizontal: 16,
     marginTop: 16,
-    marginBottom: 20,
-    padding: 16,
-    borderRadius: 12,
+    marginBottom: 8,
+    borderRadius: 16,
+  },
+  selectedParavetContent: {
+    flexDirection: 'row',
     alignItems: 'center',
   },
-  cancelBookingText: {
+  bannerPhoto: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+  },
+  bannerTextContainer: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  bannerName: {
+    fontWeight: '700',
+    color: '#1a1a1a',
+  },
+  bannerSubtext: {
+    color: '#666',
+    marginTop: 2,
+  },
+  changeText: {
+    fontWeight: '600',
+    color: '#7CB342',
+  },
+
+  // Hero Section
+  heroSection: {
+    paddingHorizontal: 16,
+    marginVertical: 16,
+  },
+  heroCard: {
+    borderRadius: 20,
+    overflow: 'hidden',
+  },
+  heroImageContainer: {
+    height: 180,
+    position: 'relative',
+  },
+  heroImage: {
+    width: '100%',
+    height: '100%',
+  },
+  heroOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+  },
+  heroCardContent: {
+    paddingTop: 24,
+    paddingBottom: 16,
+  },
+  heroTitle: {
+    fontWeight: '800',
+    color: '#1a1a1a',
+    marginBottom: 8,
+    lineHeight: 32,
+  },
+  heroSubtitle: {
+    color: '#666',
+    marginBottom: 16,
+    lineHeight: 20,
+  },
+  heroFeatures: {
+    gap: 10,
+  },
+  heroFeature: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  heroFeatureText: {
+    color: '#7CB342',
+    fontWeight: '600',
+    fontSize: 13,
+  },
+
+  // Emergency Button
+  emergencyButton: {
+    marginHorizontal: 16,
+    marginVertical: 8,
+    borderRadius: 12,
+  },
+  emergencyButtonLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+    paddingVertical: 2,
+  },
+
+  // Services Section
+  servicesSection: {
+    paddingHorizontal: 16,
+    paddingVertical: 24,
+  },
+  sectionHeader: {
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontWeight: '700',
+    color: '#1a1a1a',
+    marginBottom: 4,
+  },
+  sectionSubtitle: {
+    color: '#666',
+    fontSize: 13,
+  },
+  servicesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  serviceCard: {
+    width: (width - 44) / 2,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  serviceImageSection: {
+    width: '100%',
+    height: 100,
+    position: 'relative',
+  },
+  serviceMainImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  serviceImageFallback: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  imageOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 30,
+    backgroundColor: 'rgba(0, 0, 0, 0.1)',
+  },
+  serviceContentSection: {
+    padding: 12,
+  },
+  serviceMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    paddingVertical: 8,
+    backgroundColor: '#F8F9FA',
+    borderRadius: 8,
+  },
+  priceSection: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  metaLabel: {
+    color: '#999',
+    fontSize: 10,
+    marginBottom: 2,
+  },
+  metaDivider: {
+    width: 1,
+    height: 30,
+    backgroundColor: '#E0E0E0',
+  },
+  durationSection: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  serviceDurationText: {
+    color: '#666',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  bookButton: {
+    width: '100%',
+    borderRadius: 10,
+  },
+  bookButtonLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  serviceCardContent: {
+    alignItems: 'center',
+  },
+  serviceIconContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  serviceTitle: {
+    fontWeight: '700',
+    color: '#1a1a1a',
+    marginBottom: 6,
+    textAlign: 'center',
+  },
+  serviceSubtitle: {
+    color: '#666',
+    marginBottom: 12,
+    height: 32,
+    textAlign: 'center',
+    fontSize: 12,
+  },
+  serviceFooter: {
+    width: '100%',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  servicePrice: {
+    fontWeight: '800',
+    color: '#7CB342',
+  },
+  serviceDuration: {
+    color: '#999',
+    fontSize: 12,
+  },
+  bookNowButton: {
+    width: '100%',
+    borderRadius: 10,
+  },
+  bookNowButtonLabel: {
+    fontSize: 13,
+  },
+
+  // No Services Container
+  noServicesContainer: {
+    width: '100%',
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  noServicesText: {
+    color: '#666',
+    textAlign: 'center',
+    marginTop: 16,
+  },
+  noServicesSubtext: {
+    color: '#999',
+    textAlign: 'center',
+    marginTop: 8,
+    fontSize: 12,
+  },
+
+  // Subscription Section
+  subscriptionSection: {
+    paddingHorizontal: 16,
+    paddingVertical: 24,
+  },
+  plansScroll: {
+    marginTop: 16,
+  },
+  planCard: {
+    width: 260,
+    marginRight: 12,
+    borderRadius: 16,
+  },
+  planCardContent: {
+    alignItems: 'flex-start',
+  },
+  planBadge: {
+    backgroundColor: '#FF6B6B',
+    marginBottom: 12,
+  },
+  planBadgeText: {
     color: '#fff',
+    fontWeight: '700',
+  },
+  planName: {
+    fontWeight: '700',
+    color: '#1a1a1a',
+    marginBottom: 8,
+  },
+  planPrice: {
+    fontWeight: '800',
+    color: '#7CB342',
+  },
+  planPeriod: {
+    fontSize: 14,
+    color: '#999',
+    fontWeight: '400',
+  },
+  planSavings: {
+    color: '#10B981',
+    fontWeight: '600',
+    marginTop: 6,
+    marginBottom: 16,
+    fontSize: 13,
+  },
+  planFeatures: {
+    gap: 8,
+    marginBottom: 16,
+    width: '100%',
+  },
+  planFeature: {
+    color: '#666',
+    fontSize: 12,
+  },
+  planButton: {
+    width: '100%',
+    borderRadius: 10,
+  },
+  planButtonLabel: {
+    fontSize: 14,
+  },
+
+  // How It Works
+  howItWorksSection: {
+    paddingHorizontal: 16,
+    paddingVertical: 24,
+  },
+  stepCard: {
+    marginBottom: 12,
+    borderRadius: 16,
+  },
+  stepCardContent: {
+    flexDirection: 'row',
+  },
+  stepNumber: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#7CB342',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 16,
+  },
+  stepNumberText: {
+    color: '#fff',
+    fontWeight: '700',
+  },
+  stepContent: {
+    flex: 1,
+  },
+  stepTitle: {
+    fontWeight: '700',
+    color: '#1a1a1a',
+    marginBottom: 4,
+  },
+  stepDescription: {
+    color: '#666',
+    lineHeight: 18,
+    fontSize: 13,
+  },
+
+  // Trust Section
+  trustSection: {
+    paddingHorizontal: 16,
+    paddingVertical: 24,
+  },
+  trustGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginTop: 16,
+  },
+  trustCard: {
+    width: (width - 44) / 2,
+    borderRadius: 16,
+  },
+  trustCardContent: {
+    alignItems: 'center',
+  },
+  trustTitle: {
+    fontWeight: '700',
+    color: '#1a1a1a',
+    marginTop: 12,
+    marginBottom: 6,
+    textAlign: 'center',
+    fontSize: 13,
+  },
+  trustDescription: {
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: 16,
+    fontSize: 12,
+  },
+
+  // Demo Button
+  demoButton: {
+    marginHorizontal: 16,
+    marginVertical: 16,
+    borderRadius: 12,
+  },
+  demoButtonLabel: {
     fontSize: 15,
     fontWeight: '700',
+    paddingVertical: 2,
+  },
+
+  // Active Bookings
+  activeBookingsSection: {
+    paddingHorizontal: 16,
+    paddingVertical: 24,
+  },
+  activeBookingCard: {
+    marginBottom: 12,
+    borderRadius: 16,
+  },
+  activeBookingCardContent: {
+    flexDirection: 'row',
+  },
+  bookingCardLeft: {
+    flex: 1,
+  },
+  bookingServiceType: {
+    fontWeight: '700',
+    color: '#1a1a1a',
+    marginBottom: 6,
+  },
+  bookingDate: {
+    color: '#666',
+    marginBottom: 4,
+    fontSize: 12,
+  },
+  bookingPartner: {
+    fontWeight: '600',
+    fontSize: 12,
+  },
+  bookingCardRight: {
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+  },
+  statusBadge: {
+    borderRadius: 12,
+  },
+  statusText: {
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    color: '#fff',
+  },
+
+  // Paravet Selection
+  paravetSelectionCard: {
+    marginBottom: 12,
+    borderRadius: 16,
+  },
+  paravetSelectionCardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  paravetSelectionPhoto: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    marginRight: 12,
+  },
+  paravetSelectionInfo: {
+    flex: 1,
+  },
+  paravetSelectionName: {
+    fontWeight: '700',
+    color: '#1a1a1a',
+  },
+  paravetSelectionSpecialization: {
+    color: '#666',
+    marginTop: 2,
+  },
+  paravetSelectionExperience: {
+    color: '#999',
+    marginTop: 4,
+    fontSize: 12,
   },
 });
 

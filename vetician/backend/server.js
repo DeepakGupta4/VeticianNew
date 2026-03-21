@@ -31,8 +31,14 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
+
+// Log all requests
+app.use((req, res, next) => {
+  console.log(`${req.method} ${req.path}`);
+  next();
+});
 
 // IMPORT ROUTES
 console.log('📦 Loading routes...');
@@ -46,6 +52,7 @@ const uploadRoutes = require('./routes/upload');
 const appointmentRoutes = require('./routes/appointmentRoutes');
 const patientRoutes = require('./routes/patientRoutes');
 const surgeryRoutes = require('./routes/surgeryRoutes');
+const resortRoutes = require('./routes/resortRoutes');
 console.log('📹 Loading video call routes...');
 const videoCallRoutes = require('./routes/videoCall');
 const videoSDKRoutes = require('./routes/videoSDK');
@@ -84,6 +91,7 @@ app.use('/api/upload', uploadRoutes);
 app.use('/api/appointments', appointmentRoutes);
 app.use('/api/patients', patientRoutes);
 app.use('/api/surgeries', surgeryRoutes);
+app.use('/api/resorts', resortRoutes);
 console.log('📹 Registering video route at /api/video');
 app.use('/api/video', videoCallRoutes);
 app.use('/api/videosdk', videoSDKRoutes);

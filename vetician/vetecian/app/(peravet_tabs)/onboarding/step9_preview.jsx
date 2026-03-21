@@ -12,10 +12,13 @@ import { useRouter } from 'expo-router';
 import { CheckCircle, Clock, FileText, Award } from 'lucide-react-native';
 import { useParavetOnboarding } from '../../../contexts/ParavetOnboardingContext';
 import { useSelector } from 'react-redux';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { submitParavetOnboarding } from '../../../services/paravetApi';
+
 
 export default function Step9Preview() {
   const router = useRouter();
-  const { formData, resetOnboarding, setIsLoading, isLoading } = useParavetOnboarding();
+  const { formData, resetOnboarding, setIsLoading, isLoading, submitOnboarding } = useParavetOnboarding();
   const { user } = useSelector(state => state.auth);
   const [submitted, setSubmitted] = useState(false);
 
@@ -52,27 +55,37 @@ export default function Step9Preview() {
   const handleSubmit = async () => {
     setIsLoading(true);
     try {
-      // Simulate API call to submit application
-      setTimeout(() => {
+      const userId = await AsyncStorage.getItem('userId');
+      
+      if (!userId) {
+        Alert.alert('Error', 'User ID not found. Please login again.');
+        setIsLoading(false);
+        return;
+      }
+      
+      console.log('Submitting onboarding data:', formData);
+      
+      // Use the context's submitOnboarding function which saves to database
+      const result = await submitOnboarding(userId);
+      
+      console.log('Submission result:', result);
+      
+      if (result.success) {
         setSubmitted(true);
-        Alert.alert(
-          'Application Submitted! 🎉',
-          'Your application has been submitted for review.\n\nEstimated review time: 24-48 hours\n\nYou\'ll receive updates via email and SMS.',
-          [
-            {
-              text: 'Go to Dashboard',
-              onPress: () => {
-                setIsLoading(false);
-                resetOnboarding();
-                router.replace('/(peravet_tabs)/(tabs)');
-              },
-            },
-          ]
-        );
-      }, 1500);
+        // Set flag for home page popup
+        await AsyncStorage.setItem('onboarding_completed', 'true');
+        // Redirect to home page
+        setTimeout(() => {
+          resetOnboarding();
+          router.replace('/(peravet_tabs)/(tabs)');
+        }, 1500);
+      } else {
+        throw new Error(result.message || 'Submission failed');
+      }
     } catch (error) {
+      console.error('Submission error:', error);
       setIsLoading(false);
-      Alert.alert('Error', 'Failed to submit application. Please try again.');
+      Alert.alert('Error', error.message || 'Failed to submit application. Please try again.');
     }
   };
 
