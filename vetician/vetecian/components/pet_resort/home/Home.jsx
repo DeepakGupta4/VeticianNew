@@ -4,9 +4,9 @@ import { PawPrint, Dog, Cat, Calendar, HomeIcon, Menu } from 'lucide-react-nativ
 import { DrawerActions } from '@react-navigation/native';
 import { useNavigation } from '@react-navigation/native';
 import Header from './Header';
-import HeroSection from '../Home/HeroSection';
-import HeroSection1 from '../Home/HeroSection1';
-import FeatureCard from '../Home/FeatureCard';
+import HeroSection from './HeroSection';
+import HeroSection1 from './HeroSection1';
+import FeatureCard from './FeatureCard';
 import SectionHeader from '../Grooming/SectionHeader';
 import GroomingCard from '../Grooming/GroomingCard';
 import VetCareCard from '../Grooming/VetCareCard';
