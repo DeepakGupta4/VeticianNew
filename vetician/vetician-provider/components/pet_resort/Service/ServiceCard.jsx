@@ -1,11 +1,6 @@
-import React from "react";
-import { Pressable, Text, StyleSheet, View } from "react-native";
-import { Ionicons, MaterialIcons } from "@expo/vector-icons";
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-} from "react-native-reanimated";
+import React, { useRef } from "react";
+import { Pressable, Text, StyleSheet, View, Animated } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 
 const icons = {
   boarding: "home",
@@ -17,22 +12,21 @@ const icons = {
 };
 
 export default function ServiceCard({ id, title, description, selected, onPress }) {
-  const scale = useSharedValue(1);
+  const scale = useRef(new Animated.Value(1)).current;
 
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
+  const onPressIn = () => Animated.spring(scale, { toValue: 1.06, useNativeDriver: true }).start();
+  const onPressOut = () => Animated.spring(scale, { toValue: 1, useNativeDriver: true }).start();
 
   return (
     <Pressable
       onPress={() => onPress(id)}
-      onPressIn={() => (scale.value = withSpring(1.06))}
-      onPressOut={() => (scale.value = withSpring(1))}
+      onPressIn={onPressIn}
+      onPressOut={onPressOut}
     >
       <Animated.View
         style={[
           styles.card,
-          animatedStyle,
+          { transform: [{ scale }] },
           selected && styles.selectedCard,
         ]}
       >

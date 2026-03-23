@@ -25,9 +25,10 @@ function AuthGuard({ children }) {
   useEffect(() => {
     if (!navigationState?.key) return;
     const inAuthGroup = segments[0] === '(auth)';
+    const currentScreen = segments[1];
     if (!isAuthenticated && !inAuthGroup) {
       router.replace('/(auth)/signin');
-    } else if (isAuthenticated && inAuthGroup) {
+    } else if (isAuthenticated && inAuthGroup && currentScreen !== 'signup') {
       const role = user?.role;
       switch (role) {
         case 'admin':
