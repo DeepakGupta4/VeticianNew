@@ -1,6 +1,6 @@
 import React from 'react';
 import { createDrawerNavigator } from '@react-navigation/drawer';
-import Home from '../../../components/pet_resort/Home/home';
+import Home from '../../../components/pet_resort/Home/Home';
 import PetResort from '../onboarding/pet_resort'
 
 const Drawer = createDrawerNavigator();
