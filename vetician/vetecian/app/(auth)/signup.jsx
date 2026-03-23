@@ -28,6 +28,7 @@ export default function SignUp() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [errors, setErrors] = useState({});
   const [loginType, setLoginType] = useState('vetician'); // Default to 'vetician'
+  const [timeoutWarning, setTimeoutWarning] = useState(false);
 
   const router = useRouter();
   const dispatch = useDispatch();
@@ -44,13 +45,14 @@ export default function SignUp() {
  
 
   const handleSignUp = async () => {
+    if (isLoading) return; // Prevent multiple submissions
+    
     setErrors({});
 
     const newErrors = {};
     if (!formData.name.trim()) newErrors.name = 'Full name is required';
     if (!formData.email.trim() || !validateEmail(formData.email)) newErrors.email = 'Valid email is required';
-    if (!formData.phone.trim()) newErrors.phone = 'Phone number is required';
-    else if (formData.phone.length !== 10 || !/^\d{10}$/.test(formData.phone)) newErrors.phone = 'Enter valid 10-digit phone number';
+    if (!formData.phone.trim() || formData.phone.length !== 10 || !/^\d{10}$/.test(formData.phone)) newErrors.phone = 'Enter valid 10-digit phone number';
     if (!formData.password.trim() || formData.password.length < 6) newErrors.password = 'Password must be 6+ chars';
     if (formData.password !== formData.confirmPassword) newErrors.confirmPassword = 'Passwords do not match';
 
@@ -60,32 +62,41 @@ export default function SignUp() {
     }
 
     try {
-      const dispatchParams = {
+      const warningTimer = setTimeout(() => {
+        setTimeoutWarning(true);
+      }, 3000);
+      
+      const result = await dispatch(signUpUser({
         name: formData.name.trim(),
         email: formData.email.trim(),
         phone: `+91${formData.phone.trim()}`,
         password: formData.password,
-        loginType: loginType,
-      };
-
-      const result = await dispatch(signUpUser(dispatchParams)).unwrap();
-
-      if (result) {
-        switch (loginType) {
-          case 'veterinarian':
-            router.replace('/(doc_tabs)/onboarding/onboarding_conf');
-            break;
-          case 'pet_resort':
-            router.replace('/(pet_resort_tabs)/(tabs)');
-            break;
-          case 'paravet':
-            router.replace('/(peravet_tabs)/(tabs)');
-            break;
-          default:
-            router.replace('/(vetician_tabs)/onboarding/onboarding_conf');
-        }
+        loginType,
+      }));
+      
+      clearTimeout(warningTimer);
+      setTimeoutWarning(false);
+      
+      console.log('📋 SignUp Result:', result);
+      console.log('✅ Is Fulfilled?', signUpUser.fulfilled.match(result));
+      
+      if (signUpUser.fulfilled.match(result)) {
+        console.log('✅ SignUp successful, navigating...');
+        const routes = {
+          veterinarian: '/(doc_tabs)/onboarding/onboarding_conf',
+          pet_resort: '/(pet_resort_tabs)/(tabs)',
+          paravet: '/(peravet_tabs)/(tabs)',
+          vetician: '/(vetician_tabs)/pages/VeticianWelcomeScreen'
+        };
+        const targetRoute = routes[loginType] || routes.vetician;
+        console.log('🚀 Navigating to:', targetRoute);
+        router.replace(targetRoute);
+      } else {
+        console.log('❌ SignUp failed:', result.payload);
+        throw new Error(result.payload || 'Sign up failed');
       }
     } catch (error) {
+      console.log('❌ SignUp error:', error);
       setErrors({ general: typeof error === 'string' ? error : (error.message || 'An error occurred') });
     }
   };
@@ -230,9 +241,14 @@ export default function SignUp() {
               )}
             </View>
 
-            {errors.general && (
+            {(errors.general || timeoutWarning) && (
               <View style={styles.errorContainer}>
-                <Text style={styles.errorText}>{errors.general}</Text>
+                {errors.general && <Text style={styles.errorText}>{errors.general}</Text>}
+                {timeoutWarning && (
+                  <Text style={styles.warningText}>
+                    Taking longer than usual... Please wait
+                  </Text>
+                )}
               </View>
             )}
 
@@ -438,6 +454,12 @@ const styles = StyleSheet.create({
     color: '#ff6b6b',
     fontSize: 14,
     marginTop: 8,
+  },
+  warningText: {
+    color: '#ff9500',
+    fontSize: 14,
+    marginTop: 8,
+    fontStyle: 'italic',
   },
   loginTypeContainer: {
     marginBottom: 20,

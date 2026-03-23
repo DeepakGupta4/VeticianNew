@@ -51,21 +51,36 @@ const updatePersonalInfo = catchAsync(async (req, res, next) => {
   const { userId } = req.params;
   const { fullName, mobileNumber, email, city, serviceArea, emergencyContact } = req.body;
 
-  let paravet = await Paravet.findOne({ userId });
+  let paravet = await Paravet.findOneAndUpdate(
+    { userId },
+    {
+      $set: {
+        'personalInfo.fullName.value': fullName,
+        'personalInfo.fullName.verified': false,
+        'personalInfo.mobileNumber.value': mobileNumber,
+        'personalInfo.mobileNumber.verified': false,
+        'personalInfo.mobileNumber.otpVerified': false,
+        'personalInfo.email.value': email,
+        'personalInfo.email.verified': false,
+        'personalInfo.city.value': city,
+        'personalInfo.city.verified': false,
+        'personalInfo.serviceArea.value': serviceArea,
+        'personalInfo.serviceArea.verified': false,
+        ...(emergencyContact && {
+          'personalInfo.emergencyContact.name': emergencyContact.name,
+          'personalInfo.emergencyContact.number': emergencyContact.number,
+          'personalInfo.emergencyContact.verified': false
+        }),
+        'applicationStatus.currentStep': 3
+      }
+    },
+    { new: true, upsert: true }
+  );
+
   if (!paravet) {
     return next(new AppError('Paravet profile not found', 404));
   }
 
-  paravet.personalInfo = {
-    fullName: { value: fullName, verified: false },
-    mobileNumber: { value: mobileNumber, verified: false, otpVerified: false },
-    email: { value: email, verified: false },
-    city: { value: city, verified: false },
-    serviceArea: { value: serviceArea, verified: false },
-    emergencyContact: emergencyContact || {}
-  };
-
-  paravet.applicationStatus.currentStep = 3;
   paravet.calculateCompletion();
   await paravet.save();
 
@@ -81,19 +96,32 @@ const updateExperienceSkills = catchAsync(async (req, res, next) => {
   const { userId } = req.params;
   const { yearsOfExperience, areasOfExpertise, languagesSpoken, availability } = req.body;
 
-  let paravet = await Paravet.findOne({ userId });
+  let paravet = await Paravet.findOneAndUpdate(
+    { userId },
+    {
+      $set: {
+        'experience.yearsOfExperience.value': yearsOfExperience,
+        'experience.yearsOfExperience.verified': false,
+        'experience.areasOfExpertise.value': areasOfExpertise,
+        'experience.areasOfExpertise.verified': false,
+        'experience.languagesSpoken.value': languagesSpoken,
+        'experience.languagesSpoken.verified': false,
+        ...(availability && {
+          'experience.availability.days': availability.days,
+          'experience.availability.startTime': availability.startTime,
+          'experience.availability.endTime': availability.endTime,
+          'experience.availability.verified': false
+        }),
+        'applicationStatus.currentStep': 5
+      }
+    },
+    { new: true, upsert: true }
+  );
+
   if (!paravet) {
     return next(new AppError('Paravet profile not found', 404));
   }
 
-  paravet.experience = {
-    yearsOfExperience: { value: yearsOfExperience, verified: false },
-    areasOfExpertise: { value: areasOfExpertise, verified: false },
-    languagesSpoken: { value: languagesSpoken, verified: false },
-    availability: { ...availability, verified: false }
-  };
-
-  paravet.applicationStatus.currentStep = 5;
   paravet.calculateCompletion();
   await paravet.save();
 
@@ -109,18 +137,27 @@ const updatePaymentInfo = catchAsync(async (req, res, next) => {
   const { userId } = req.params;
   const { paymentMethod, accountHolderName, pan } = req.body;
 
-  let paravet = await Paravet.findOne({ userId });
+  let paravet = await Paravet.findOneAndUpdate(
+    { userId },
+    {
+      $set: {
+        'paymentInfo.paymentMethod.methodType': paymentMethod.type,
+        'paymentInfo.paymentMethod.value': paymentMethod.value,
+        'paymentInfo.paymentMethod.verified': false,
+        'paymentInfo.accountHolderName.value': accountHolderName,
+        'paymentInfo.accountHolderName.verified': false,
+        'paymentInfo.pan.value': pan,
+        'paymentInfo.pan.verified': false,
+        'applicationStatus.currentStep': 6
+      }
+    },
+    { new: true, upsert: true }
+  );
+
   if (!paravet) {
     return next(new AppError('Paravet profile not found', 404));
   }
 
-  paravet.paymentInfo = {
-    paymentMethod: { type: paymentMethod.type, value: paymentMethod.value, verified: false },
-    accountHolderName: { value: accountHolderName, verified: false },
-    pan: { value: pan, verified: false }
-  };
-
-  paravet.applicationStatus.currentStep = 6;
   paravet.calculateCompletion();
   await paravet.save();
 
@@ -140,20 +177,23 @@ const agreeToCodeOfConduct = catchAsync(async (req, res, next) => {
     return next(new AppError('Must agree to code of conduct to proceed', 400));
   }
 
-  let paravet = await Paravet.findOne({ userId });
+  let paravet = await Paravet.findOneAndUpdate(
+    { userId },
+    {
+      $set: {
+        'compliance.agreedToCodeOfConduct.value': true,
+        'compliance.agreedToCodeOfConduct.agreedAt': new Date(),
+        'compliance.agreedToCodeOfConduct.verified': false,
+        'applicationStatus.currentStep': 7
+      }
+    },
+    { new: true, upsert: true }
+  );
+
   if (!paravet) {
     return next(new AppError('Paravet profile not found', 404));
   }
 
-  paravet.compliance = {
-    agreedToCodeOfConduct: {
-      value: true,
-      agreedAt: new Date(),
-      verified: false
-    }
-  };
-
-  paravet.applicationStatus.currentStep = 7;
   paravet.calculateCompletion();
   await paravet.save();
 
@@ -203,10 +243,11 @@ const submitApplication = catchAsync(async (req, res, next) => {
   }
 
   // Validate all required fields before submission
+  // Note: certificationProof temporarily optional until backend fix is deployed
   if (!paravet.personalInfo.fullName?.value ||
       !paravet.personalInfo.mobileNumber?.value ||
-      !paravet.documents.governmentId?.type ||
-      !paravet.documents.certificationProof?.type ||
+      !paravet.documents.governmentId?.idType ||
+      // !paravet.documents.certificationProof?.url || // Temporarily commented
       !paravet.experience.yearsOfExperience?.value ||
       !paravet.paymentInfo.accountHolderName?.value ||
       !paravet.compliance.agreedToCodeOfConduct?.value) {
@@ -243,12 +284,17 @@ const uploadDocuments = catchAsync(async (req, res, next) => {
     paravet = await Paravet.create({ userId });
   }
 
+  // Initialize documents object if it doesn't exist
+  if (!paravet.documents) {
+    paravet.documents = {};
+  }
+
   switch (documentType) {
     case 'governmentId':
-      paravet.documents.governmentId = { type: 'uploaded', url, verified: false };
+      paravet.documents.governmentId = { idType: 'uploaded', url, verified: false };
       break;
     case 'certificationProof':
-      paravet.documents.certificationProof = { type: 'uploaded', url, verified: false };
+      paravet.documents.certificationProof = { url, certificationType: 'uploaded', verified: false };
       break;
     case 'vetRecommendation':
       paravet.documents.vetRecommendation = { url, verified: false };
@@ -260,6 +306,8 @@ const uploadDocuments = catchAsync(async (req, res, next) => {
       return next(new AppError('Invalid document type', 400));
   }
 
+  // Mark documents as modified to ensure Mongoose saves nested changes
+  paravet.markModified('documents');
   await paravet.save();
 
   res.status(200).json({

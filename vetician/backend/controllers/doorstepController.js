@@ -5,38 +5,11 @@ const AppError = require('../utils/appError');
 // Create doorstep service booking
 exports.createBooking = catchAsync(async (req, res, next) => {
   const {
+    userId,
     serviceType,
     petIds,
-    servicePartnerId,
-    servicePartnerName,
-    appointmentDate,
-    timeSlot,
-    address,
-    isEmergency,
-    repeatBooking,
-    specialInstructions,
-    paymentMethod,
-    couponCode,
-    basePrice,
-    emergencyCharge,
-    discount,
-    totalAmount
-  } = req.body;
-
-  if (!req.user || !req.user._id) {
-    return next(new AppError('User not authenticated', 401));
-  }
-
-  console.log('📦 Creating booking for paravet:', servicePartnerId);
-  console.log('👤 User ID from req.user:', req.user._id);
-  console.log('📦 Booking data:', { serviceType, petIds, appointmentDate, timeSlot });
-
-  const booking = await DoorstepService.create({
-    userId: req.user._id,
-    serviceType,
-    petIds,
-    servicePartnerId,
-    servicePartnerName,
+    paravetId,
+    paravetName,
     appointmentDate,
     timeSlot,
     address,
@@ -49,25 +22,63 @@ exports.createBooking = catchAsync(async (req, res, next) => {
     emergencyCharge,
     discount,
     totalAmount,
-    status: 'pending'
+    status
+  } = req.body;
+
+  if (!req.user || !req.user._id) {
+    return next(new AppError('User not authenticated', 401));
+  }
+
+  console.log('📦 Creating booking for paravet:', paravetId);
+  console.log('📊 Booking details:', {
+    userId: req.user._id,
+    paravetId,
+    paravetName,
+    serviceType
+  });
+  console.log('🔍 Full request body:', JSON.stringify(req.body, null, 2));
+
+  const booking = await DoorstepService.create({
+    userId: req.user._id,
+    serviceType,
+    petIds,
+    servicePartnerId: paravetId,
+    servicePartnerName: paravetName,
+    appointmentDate,
+    timeSlot,
+    address,
+    isEmergency,
+    repeatBooking,
+    specialInstructions,
+    paymentMethod,
+    couponCode,
+    basePrice,
+    emergencyCharge,
+    discount,
+    totalAmount,
+    status: status || 'pending'
   });
 
-  console.log('✅ Booking saved to DB:', booking._id);
-  console.log('👤 Booking userId:', booking.userId);
+  console.log('✅ Booking created in DB:', booking._id);
+  console.log('📋 Booking servicePartnerId:', booking.servicePartnerId);
 
   const populatedBooking = await DoorstepService.findById(booking._id)
     .populate('petIds')
     .populate('userId', 'name email phone');
 
-  console.log('📡 Emitting to room: paravet-' + servicePartnerId);
-
-  // Emit real-time notification to paravet
   const io = req.app.get('io');
   if (io) {
-    io.to(`paravet-${servicePartnerId}`).emit('new-booking', populatedBooking);
-    console.log('✅ Socket event emitted to paravet-' + servicePartnerId);
+    const roomName = `paravet-${paravetId}`;
+    console.log('📡 Emitting to room:', roomName);
+    console.log('📡 All socket rooms:', Array.from(io.sockets.adapter.rooms.keys()));
+    
+    io.to(roomName).emit('booking:new', {
+      booking: populatedBooking,
+      message: 'New booking request received'
+    });
+    console.log('✅ Notification sent to', roomName);
   } else {
-    console.log('⚠️ Socket.io not available');
+    console.log('❌ Socket.io not available');
   }
 
   res.status(201).json({
@@ -93,6 +104,29 @@ exports.getUserBookings = catchAsync(async (req, res, next) => {
   });
 });
 
+// Get all bookings for a paravet
+exports.getParavetBookings = catchAsync(async (req, res, next) => {
+  const { paravetId } = req.params;
+  
+  console.log('📥 Fetching bookings for paravet:', paravetId);
+  
+  const bookings = await DoorstepService.find({ servicePartnerId: paravetId })
+    .populate('petIds')
+    .populate('userId', 'name email phone')
+    .sort('-createdAt');
+
+  console.log('✅ Found', bookings.length, 'bookings for paravet', paravetId);
+  if (bookings.length > 0) {
+    console.log('📋 First booking servicePartnerId:', bookings[0].servicePartnerId);
+  }
+
+  res.status(200).json({
+    success: true,
+    count: bookings.length,
+    data: bookings
+  });
+});
+
 // Get single booking
 exports.getBooking = catchAsync(async (req, res, next) => {
   const booking = await DoorstepService.findById(req.params.id)
@@ -109,7 +143,7 @@ exports.getBooking = catchAsync(async (req, res, next) => {
   });
 });
 
-// Update booking status
+// Update booking status (accept/reject by paravet)
 exports.updateBookingStatus = catchAsync(async (req, res, next) => {
   const { status } = req.body;
 
@@ -123,9 +157,28 @@ exports.updateBookingStatus = catchAsync(async (req, res, next) => {
     return next(new AppError('Booking not found', 404));
   }
 
-  // Emit real-time update to user
   const io = req.app.get('io');
-  io.to(`user-${booking.userId._id}`).emit('booking-updated', booking);
+  if (io) {
+    // Notify user about status update
+    io.to(`user-${booking.userId._id}`).emit('booking:statusUpdated', {
+      bookingId: booking._id,
+      status: booking.status,
+      serviceType: booking.serviceType,
+      paravetName: booking.servicePartnerName,
+      message: status === 'confirmed' ? 'Booking confirmed' : status === 'cancelled' ? 'Booking cancelled' : 'Booking status updated'
+    });
+    console.log(`✅ Status update sent to user-${booking.userId._id}`);
+    
+    // Notify paravet to refresh earnings if status is confirmed
+    if (status === 'confirmed') {
+      io.to(`paravet-${booking.servicePartnerId}`).emit('booking-status-update', {
+        bookingId: booking._id,
+        status: booking.status,
+        totalAmount: booking.totalAmount
+      });
+      console.log(`💰 Earnings update sent to paravet-${booking.servicePartnerId}`);
+    }
+  }
 
   res.status(200).json({
     success: true,

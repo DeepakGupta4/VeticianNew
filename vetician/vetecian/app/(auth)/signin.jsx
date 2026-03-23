@@ -1,1098 +1,389 @@
-// import { useState } from 'react';
-// import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform, Image } from 'react-native';
-// import { useRouter } from 'expo-router';
-// import { useDispatch, useSelector } from 'react-redux';
-// import AsyncStorage from '@react-native-async-storage/async-storage';
-// import { signInUser } from '../../store/slices/authSlice';
-// import { validateEmail } from '../../utils/validation';
-// import { Eye, EyeOff, Mail, Lock, PawPrint } from 'lucide-react-native';
-
-// export default function SignIn() {
-//   const [email, setEmail] = useState('');
-//   const [password, setPassword] = useState('');
-//   const [showPassword, setShowPassword] = useState(false);
-//   const [errors, setErrors] = useState({});
-//   const [loginType, setLoginType] = useState('vetician');
-
-//   const router = useRouter();
-//   const dispatch = useDispatch();
-//   const { isLoading, error } = useSelector(state => state.auth);
-
-//   const handleSignIn = async () => {
-//     console.log('📱 LOGIN COMPONENT - handleSignIn started');
-//     console.log('📱 LOGIN COMPONENT - Input values:', {
-//       email: email,
-//       password: password ? '***PROVIDED***' : 'MISSING',
-//       loginType: loginType
-//     });
-
-//     // Reset errors
-//     setErrors({});
-//     console.log('📱 LOGIN COMPONENT - Errors reset');
-
-//     // Validation
-//     console.log('📱 LOGIN COMPONENT - Starting validation...');
-//     const newErrors = {};
-//     if (!email.trim()) {
-//       newErrors.email = 'Email is required';
-//       console.log('❌ LOGIN COMPONENT - Email validation failed: empty');
-//     } else if (!validateEmail(email)) {
-//       newErrors.email = 'Please enter a valid email';
-//       console.log('❌ LOGIN COMPONENT - Email validation failed: invalid format');
-//     } else {
-//       console.log('✅ LOGIN COMPONENT - Email validation passed');
-//     }
-
-//     if (!password.trim()) {
-//       newErrors.password = 'Password is required';
-//       console.log('❌ LOGIN COMPONENT - Password validation failed: empty');
-//     } else if (password.length < 6) {
-//       newErrors.password = 'Password must be at least 6 characters';
-//       console.log('❌ LOGIN COMPONENT - Password validation failed: too short');
-//     } else {
-//       console.log('✅ LOGIN COMPONENT - Password validation passed');
-//     }
-
-//     if (Object.keys(newErrors).length > 0) {
-//       console.log('❌ LOGIN COMPONENT - Validation failed, errors:', newErrors);
-//       setErrors(newErrors);
-//       return;
-//     }
-//     console.log('✅ LOGIN COMPONENT - All validations passed');
-
-//     try {
-//       console.log('🚀 LOGIN COMPONENT - Dispatching signInUser action...');
-//       console.log('📋 LOGIN COMPONENT - Dispatch params:', {
-//         email: email,
-//         password: password ? '***HIDDEN***' : 'MISSING',
-//         loginType: loginType
-//       });
-      
-//       const result = await dispatch(signInUser({ email, password, loginType })).unwrap();
-      
-//       console.log('✅ LOGIN COMPONENT - signInUser dispatch successful');
-//       console.log('📄 LOGIN COMPONENT - Result:', {
-//         success: result.success,
-//         message: result.message,
-//         hasUser: !!result.user,
-//         hasToken: !!result.token,
-//         userRole: result.user?.role
-//       });
-      
-//       if (result.success) {
-//         console.log('🎉 LOGIN COMPONENT - Login successful, checking tour completion for loginType:', loginType);
-        
-//         // Check tour completion for vetician users
-//         if (loginType === 'vetician') {
-//           // Clear tour completion for testing - remove this line after testing
-//           await AsyncStorage.removeItem('tourCompleted');
-          
-//           const tourCompleted = await AsyncStorage.getItem('tourCompleted');
-//           console.log('🔍 LOGIN COMPONENT - Tour completed status:', tourCompleted);
-          
-//           if (!tourCompleted) {
-//             console.log('📚 LOGIN COMPONENT - Routing to QuickTour');
-//             router.replace('/(vetician_tabs)/pages/QuickTour');
-//             return;
-//           }
-//         }
-        
-//         // Route to appropriate tabs based on login type
-//         switch(loginType) {
-//           case 'veterinarian':
-//             console.log('🏥 LOGIN COMPONENT - Routing to veterinarian tabs');
-//             router.replace('/(doc_tabs)');
-//             break;
-//           case 'pet_resort':
-//             console.log('🏨 LOGIN COMPONENT - Routing to pet resort tabs');
-//             router.replace('/(pet_resort_tabs)');
-//             break;
-//           case 'paravet':
-//             console.log('🐕 LOGIN COMPONENT - Routing to paravet tabs');
-//             router.replace('/(peravet_tabs)/(tabs)');
-//             break;
-//           default: // vetician
-//             console.log('👤 LOGIN COMPONENT - Routing to vetician tabs (default)');
-//             router.replace('/(vetician_tabs)');
-//         }
-//       } else {
-//         console.log('❌ LOGIN COMPONENT - Login failed, result.success is false');
-//       }
-//     } catch (error) {
-//       console.log('❌ LOGIN COMPONENT - Caught error in handleSignIn:', error);
-//       console.log('❌ LOGIN COMPONENT - Error type:', typeof error);
-//       console.log('❌ LOGIN COMPONENT - Error message:', error.message || error);
-//       console.log('❌ LOGIN COMPONENT - Full error object:', JSON.stringify(error, null, 2));
-      
-//       Alert.alert('Sign In Failed', error || 'An error occurred during sign in');
-//     }
-//   };
-
-//   return (
-//     <KeyboardAvoidingView
-//       style={styles.container}
-//       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-//     >
-//       <View style={styles.content}>
-//         <View style={styles.header}>
-//           <View style={styles.logoContainer}>
-//             <PawPrint size={40} color="#4A90E2" style={styles.logo} />
-//             <Text style={styles.appName}>Vetician</Text>
-//           </View>
-//           <Text style={styles.title}>Welcome Back</Text>
-//           <Text style={styles.subtitle}>Sign in to continue</Text>
-//         </View>
-
-//         <View style={styles.form}>
-//           <View style={styles.inputContainer}>
-//             <View style={styles.inputWrapper}>
-//               <Mail size={20} color="#888" style={styles.inputIcon} />
-//               <TextInput
-//                 style={[styles.input, errors.email && styles.inputError]}
-//                 placeholder="Email"
-//                 placeholderTextColor="#aaa"
-//                 value={email}
-//                 onChangeText={setEmail}
-//                 keyboardType="email-address"
-//                 autoCapitalize="none"
-//                 autoCorrect={false}
-//               />
-//             </View>
-//             {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
-//           </View>
-
-//           <View style={styles.inputContainer}>
-//             <View style={styles.inputWrapper}>
-//               <Lock size={20} color="#888" style={styles.inputIcon} />
-//               <TextInput
-//                 style={[styles.input, errors.password && styles.inputError]}
-//                 placeholder="Password"
-//                 placeholderTextColor="#aaa"
-//                 value={password}
-//                 onChangeText={setPassword}
-//                 secureTextEntry={!showPassword}
-//                 autoCapitalize="none"
-//               />
-//               <TouchableOpacity
-//                 style={styles.eyeButton}
-//                 onPress={() => setShowPassword(!showPassword)}
-//               >
-//                 {showPassword ? (
-//                   <EyeOff size={20} color="#888" />
-//                 ) : (
-//                   <Eye size={20} color="#888" />
-//                 )}
-//               </TouchableOpacity>
-//             </View>
-//             {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
-//           </View>
-
-//           {error && (
-//             <View style={styles.errorContainer}>
-//               <Text style={styles.errorText}>{error}</Text>
-//             </View>
-//           )}
-
-//           <Text style={styles.loginTypeLabel}>I am a:</Text>
-//           <View style={styles.loginTypeContainer}>
-//             <View style={styles.loginTypeButtons}>
-//               <TouchableOpacity
-//                 style={[
-//                   styles.loginTypeButton,
-//                   loginType === 'vetician' && styles.loginTypeButtonActive
-//                 ]}
-//                 onPress={() => setLoginType('vetician')}
-//               >
-//                 <PawPrint size={16} color={loginType === 'vetician' ? '#fff' : '#666'} />
-//                 <Text style={[
-//                   styles.loginTypeText,
-//                   loginType === 'vetician' && styles.loginTypeTextActive
-//                 ]}>
-//                   Pet Parent
-//                 </Text>
-//               </TouchableOpacity>
-//               <TouchableOpacity
-//                 style={[
-//                   styles.loginTypeButton,
-//                   loginType === 'veterinarian' && styles.loginTypeButtonActive
-//                 ]}
-//                 onPress={() => setLoginType('veterinarian')}
-//               >
-//                 <PawPrint size={16} color={loginType === 'veterinarian' ? '#fff' : '#666'} />
-//                 <Text style={[
-//                   styles.loginTypeText,
-//                   loginType === 'veterinarian' && styles.loginTypeTextActive
-//                 ]}>
-//                   Veterinarian
-//                 </Text>
-//               </TouchableOpacity>
-//               <TouchableOpacity
-//                 style={[
-//                   styles.loginTypeButton,
-//                   loginType === 'paravet' && styles.loginTypeButtonActive
-//                 ]}
-//                 onPress={() => setLoginType('paravet')}
-//               >
-//                 <PawPrint size={16} color={loginType === 'paravet' ? '#fff' : '#666'} />
-//                 <Text style={[
-//                   styles.loginTypeText,
-//                   loginType === 'paravet' && styles.loginTypeTextActive
-//                 ]}>
-//                   Paravet
-//                 </Text>
-//               </TouchableOpacity>
-//               <TouchableOpacity
-//                 style={[
-//                   styles.loginTypeButton,
-//                   loginType === 'pet_resort' && styles.loginTypeButtonActive
-//                 ]}
-//                 onPress={() => setLoginType('pet_resort')}
-//               >
-//                 <PawPrint size={16} color={loginType === 'pet_resort' ? '#fff' : '#666'} />
-//                 <Text style={[
-//                   styles.loginTypeText,
-//                   loginType === 'pet_resort' && styles.loginTypeTextActive
-//                 ]}>
-//                   Pet Resort
-//                 </Text>
-//               </TouchableOpacity>
-//             </View>
-//           </View>
-
-//           <TouchableOpacity
-//             style={[styles.signInButton, isLoading && styles.buttonDisabled]}
-//             onPress={handleSignIn}
-//             disabled={isLoading}
-//           >
-//             <Text style={styles.signInButtonText}>
-//               {isLoading ? 'Signing In...' : 'Sign In'}
-//             </Text>
-//           </TouchableOpacity>
-
-//           <TouchableOpacity 
-//             style={styles.phoneButton}
-//             onPress={() => router.push('/(auth)/phone')}
-//           >
-//             <Text style={styles.phoneButtonText}>Sign in with Phone</Text>
-//           </TouchableOpacity>
-
-//           <View style={styles.signUpContainer}>
-//             <Text style={styles.signUpText}>Don't have an account? </Text>
-//             <TouchableOpacity onPress={() => router.push('/(auth)/signup')}>
-//               <Text style={styles.signUpLink}>Sign Up</Text>
-//             </TouchableOpacity>
-//           </View>
-
-//           {/* Added coming soon notice */}
-//           <View style={styles.comingSoonContainer}>
-//             <Text style={styles.comingSoonText}>Pet Resort and Peravet features coming soon !</Text>
-//           </View>
-//         </View>
-//       </View>
-//     </KeyboardAvoidingView>
-//   );
-// }
-
-// const styles = StyleSheet.create({
-//   container: {
-//     flex: 1,
-//     backgroundColor: '#fff',
-//   },
-//   content: {
-//     flex: 1,
-//     justifyContent: 'center',
-//     paddingHorizontal: 30,
-//     paddingBottom: 40,
-//   },
-//   header: {
-//     alignItems: 'center',
-//     marginBottom: 40,
-//   },
-//   logoContainer: {
-//     flexDirection: 'row',
-//     alignItems: 'center',
-//     marginBottom: 20,
-//   },
-//   logo: {
-//     marginRight: 10,
-//   },
-//   appName: {
-//     fontSize: 28,
-//     fontWeight: 'bold',
-//     color: '#4A90E2',
-//   },
-//   title: {
-//     fontSize: 26,
-//     fontWeight: '600',
-//     color: '#333',
-//     marginBottom: 8,
-//   },
-//   subtitle: {
-//     fontSize: 16,
-//     color: '#888',
-//   },
-//   form: {
-//     width: '100%',
-//     backgroundColor: '#fff',
-//     borderRadius: 16,
-//     padding: 20,
-//     shadowColor: '#000',
-//     shadowOffset: {
-//       width: 0,
-//       height: 2,
-//     },
-//     shadowOpacity: 0.1,
-//     shadowRadius: 8,
-//     elevation: 3,
-//   },
-//   inputContainer: {
-//     marginBottom: 20,
-//   },
-//   inputWrapper: {
-//     flexDirection: 'row',
-//     alignItems: 'center',
-//     backgroundColor: '#f8f9fa',
-//     borderRadius: 12,
-//     borderWidth: 1,
-//     borderColor: '#eaeaea',
-//     paddingHorizontal: 16,
-//     height: 56,
-//   },
-//   inputIcon: {
-//     marginRight: 12,
-//   },
-//   input: {
-//     flex: 1,
-//     fontSize: 16,
-//     color: '#333',
-//     height: '100%',
-//   },
-//   inputError: {
-//     borderColor: '#ff6b6b',
-//   },
-//   eyeButton: {
-//     padding: 4,
-//   },
-//   errorContainer: {
-//     marginTop: 8,
-//     marginBottom: 16,
-//   },
-//   errorText: {
-//     color: '#ff6b6b',
-//     fontSize: 14,
-//     marginTop: 8,
-//   },
-//   loginTypeContainer: {
-//     marginBottom: 20,
-//   },
-//   loginTypeLabel: {
-//     fontSize: 16,
-//     color: '#666',
-//     marginBottom: 12,
-//     fontWeight: '500',
-//   },
-//   loginTypeButtons: {
-//     flexDirection: 'row',
-//     flexWrap: 'wrap',
-//     justifyContent: 'space-between',
-//     gap: 10,
-//   },
-//   loginTypeButton: {
-//     flex: 1,
-//     minWidth: '48%',
-//     paddingVertical: 12,
-//     borderRadius: 10,
-//     borderWidth: 1,
-//     borderColor: '#eaeaea',
-//     alignItems: 'center',
-//     backgroundColor: '#f8f9fa',
-//     marginBottom: 8,
-//     flexDirection: 'row',
-//     justifyContent: 'center',
-//     gap: 6,
-//   },
-//   loginTypeButtonActive: {
-//     backgroundColor: '#4A90E2',
-//     borderColor: '#4A90E2',
-//   },
-//   loginTypeText: {
-//     fontSize: 14,
-//     color: '#666',
-//     fontWeight: '500',
-//   },
-//   loginTypeTextActive: {
-//     color: '#fff',
-//     fontWeight: '600',
-//   },
-//   signInButton: {
-//     backgroundColor: '#4A90E2',
-//     borderRadius: 12,
-//     height: 56,
-//     justifyContent: 'center',
-//     alignItems: 'center',
-//     marginTop: 10,
-//     shadowColor: '#4A90E2',
-//     shadowOffset: {
-//       width: 0,
-//       height: 2,
-//     },
-//     shadowOpacity: 0.3,
-//     shadowRadius: 4,
-//     elevation: 5,
-//   },
-//   buttonDisabled: {
-//     backgroundColor: '#a0a0a0',
-//     shadowColor: '#a0a0a0',
-//   },
-//   signInButtonText: {
-//     color: '#fff',
-//     fontSize: 18,
-//     fontWeight: '600',
-//   },
-//   phoneButton: {
-//     backgroundColor: '#fff',
-//     borderWidth: 2,
-//     borderColor: '#4A90E2',
-//     borderRadius: 12,
-//     height: 56,
-//     justifyContent: 'center',
-//     alignItems: 'center',
-//     marginTop: 12,
-//   },
-//   phoneButtonText: {
-//     color: '#4A90E2',
-//     fontSize: 18,
-//     fontWeight: '600',
-//   },
-//   signUpContainer: {
-//     flexDirection: 'row',
-//     justifyContent: 'center',
-//     marginTop: 24,
-//   },
-//   signUpText: {
-//     fontSize: 15,
-//     color: '#888',
-//   },
-//   signUpLink: {
-//     fontSize: 15,
-//     color: '#4A90E2',
-//     fontWeight: '600',
-//   },
-//   // New styles for coming soon notice
-//   comingSoonContainer: {
-//     marginTop: 16,
-//     padding: 12,
-//     backgroundColor: '#f0f7ff',
-//     borderRadius: 8,
-//     borderLeftWidth: 4,
-//     borderLeftColor: '#4A90E2',
-//   },
-//   comingSoonText: {
-//     color: '#4A90E2',
-//     fontSize: 14,
-//     textAlign: 'center',
-//     fontWeight: '500',
-//   },
-// });
-
-import { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import {
+  View, Text, TextInput, TouchableOpacity, StyleSheet,
+  Alert, KeyboardAvoidingView, Platform, ScrollView,
+  ActivityIndicator, SafeAreaView,
+} from 'react-native';
 import { useRouter } from 'expo-router';
-import { useDispatch, useSelector } from 'react-redux';
+import { useDispatch } from 'react-redux';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { signInUser, clearLoading } from '../../store/slices/authSlice';
-import { validateEmail } from '../../utils/validation';
-import { Eye, EyeOff, Mail, Lock, PawPrint, User, Briefcase } from 'lucide-react-native';
+import { setCredentials } from '../../store/slices/authSlice';
+import { COLORS, RADIUS, SPACING, SHADOWS } from '../../constant/theme';
+
+const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://vetician-backend-kovk.onrender.com/api';
+
+const ROLES = [
+  { key: 'vetician',     label: 'Pet Parent',   emoji: '🐾' },
+  { key: 'veterinarian', label: 'Veterinarian', emoji: '🩺' },
+  { key: 'paravet',      label: 'Paravet',       emoji: '💉' },
+  { key: 'pet_resort',   label: 'Pet Resort',    emoji: '🏡' },
+];
+
+const ROLE_ROUTES = {
+  veterinarian: '/(doc_tabs)',
+  pet_resort:   '/(pet_resort_tabs)',
+  paravet:      '/(peravet_tabs)/(tabs)',
+  vetician:     null,
+};
 
 export default function SignIn() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [errors, setErrors] = useState({});
-  const [category, setCategory] = useState('consumer'); // consumer, provider, or admin
-  const [loginType, setLoginType] = useState('vetician');
-
-  const router = useRouter();
+  const router   = useRouter();
   const dispatch = useDispatch();
-  const { isLoading, error } = useSelector(state => state.auth);
 
-  // Clear loading state on component mount to prevent stuck loading button
+  const [step,           setStep]           = useState(1);
+  const [phone,          setPhone]          = useState('');
+  const [otp,            setOtp]            = useState(['', '', '', '', '', '']);
+  const [verificationId, setVerificationId] = useState('');
+  const [loading,        setLoading]        = useState(false);
+  const [timer,          setTimer]          = useState(0);
+  const [isNewUser,      setIsNewUser]      = useState(false);
+  const [name,           setName]           = useState('');
+  const [role,           setRole]           = useState('vetician');
+
+  const otpRefs = useRef([]);
+
   useEffect(() => {
-    dispatch(clearLoading());
-  }, [dispatch]);
+    if (timer <= 0) return;
+    const t = setInterval(() => setTimer(s => s - 1), 1000);
+    return () => clearInterval(t);
+  }, [timer]);
 
-  const handleSignIn = async () => {
-    setErrors({});
-
-    const newErrors = {};
-    if (!email.trim()) {
-      newErrors.email = 'Email is required';
-    } else if (!validateEmail(email)) {
-      newErrors.email = 'Please enter a valid email';
-    }
-
-    if (!password.trim()) {
-      newErrors.password = 'Password is required';
-    } else if (password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters';
-    }
-
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
+  const handleSendOTP = async () => {
+    if (!/^\d{10}$/.test(phone.trim())) {
+      Alert.alert('Invalid Number', 'Please enter a valid 10-digit mobile number.');
       return;
     }
-
-    try {
-      const result = await dispatch(signInUser({ email, password, loginType })).unwrap();
-      
-      if (result.success) {
-        await handlePostLoginRouting(loginType);
-      }
-    } catch (error) {
-      Alert.alert('Login Failed', error || 'Invalid credentials');
+    if (isNewUser && !name.trim()) {
+      Alert.alert('Name Required', 'Please enter your full name.');
+      return;
     }
-  };
-
-  const handlePostLoginRouting = async (type) => {
+    setLoading(true);
     try {
-      switch(type) {
-        case 'vetician':
-          await handleUserLogin();
-          break;
-        case 'veterinarian':
-          router.replace('/(doc_tabs)');
-          break;
-        case 'paravet':
-          router.replace('/(peravet_tabs)/(tabs)');
-          break;
-        case 'pet_resort':
-          router.replace('/(pet_resort_tabs)');
-          break;
-        case 'admin':
-          router.replace('/(admin_tabs)');
-          break;
-        default:
-          router.replace('/(vetician_tabs)');
-      }
-    } catch (error) {
-      Alert.alert('Error', 'Navigation failed. Please restart the app.');
-    }
-  };
-
-  const handleUserLogin = async () => {
-    try {
-      const tourCompleted = await AsyncStorage.getItem('tourCompleted');
-      
-      if (!tourCompleted) {
-        router.replace('/(vetician_tabs)/pages/QuickTour');
+      const res = await fetch(`${BASE_URL}/auth/send-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phoneNumber: `+91${phone.trim()}`,
+          name:      isNewUser ? name.trim() : undefined,
+          loginType: isNewUser ? role        : undefined,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setVerificationId(data.verificationId);
+        setStep(2);
+        setTimer(30);
+        if (data.otp) Alert.alert('OTP (Dev Mode)', `Your OTP: ${data.otp}`);
+      } else if (res.status === 500 && data.errorCode === 'SMS_SERVICE_ERROR') {
+        if (data.otp && data.verificationId) {
+          setVerificationId(data.verificationId);
+          setStep(2);
+          setTimer(30);
+          Alert.alert('SMS Unavailable', `Test OTP: ${data.otp}`);
+        } else {
+          Alert.alert('SMS Error', 'SMS service unavailable. Please try again later.');
+        }
       } else {
-        router.replace('/(vetician_tabs)');
+        Alert.alert('Error', data.message || 'Failed to send OTP. Try again.');
       }
-    } catch (error) {
-      router.replace('/(vetician_tabs)');
+    } catch {
+      Alert.alert('Network Error', 'Please check your internet connection.');
+    } finally {
+      setLoading(false);
     }
   };
 
+  const handleOtpChange = (val, idx) => {
+    if (!/^\d*$/.test(val)) return;
+    const updated = [...otp];
+    updated[idx] = val;
+    setOtp(updated);
+    if (val && idx < 5) otpRefs.current[idx + 1]?.focus();
+    if (!val && idx > 0) otpRefs.current[idx - 1]?.focus();
+  };
 
+  const handleVerifyOTP = async () => {
+    const otpStr = otp.join('');
+    if (otpStr.length !== 6) {
+      Alert.alert('Incomplete OTP', 'Please enter all 6 digits.');
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetch(`${BASE_URL}/auth/verify-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phoneNumber: `+91${phone}`, otp: otpStr, verificationId }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        dispatch(setCredentials({ user: data.user, token: data.token, refreshToken: data.refreshToken }));
+        await AsyncStorage.setItem('token', data.token);
+        await AsyncStorage.setItem('user', JSON.stringify(data.user));
+        await AsyncStorage.setItem('userId', data.user._id || data.user.id);
+        if (data.refreshToken) await AsyncStorage.setItem('refreshToken', data.refreshToken);
 
-  const handleCategoryChange = (newCategory) => {
-    setCategory(newCategory);
-    // Auto-select first option of the new category
-    if (newCategory === 'consumer') {
-      setLoginType('vetician');
-    } else if (newCategory === 'provider') {
-      setLoginType('veterinarian');
-    } else if (newCategory === 'admin') {
-      setLoginType('admin');
+        const userRole = data.user?.role || 'vetician';
+        const route = ROLE_ROUTES[userRole];
+        if (route) {
+          router.replace(route);
+        } else {
+          const tourDone = await AsyncStorage.getItem('tourCompleted');
+          router.replace(tourDone ? '/(vetician_tabs)' : '/(vetician_tabs)/pages/QuickTour');
+        }
+      } else {
+        Alert.alert('Wrong OTP', data.message || 'Incorrect OTP. Please try again.');
+      }
+    } catch {
+      Alert.alert('Network Error', 'Please check your internet connection.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResend = async () => {
+    if (timer > 0) return;
+    setOtp(['', '', '', '', '', '']);
+    setLoading(true);
+    try {
+      const res = await fetch(`${BASE_URL}/auth/send-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phoneNumber: `+91${phone}` }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setVerificationId(data.verificationId);
+        setTimer(30);
+        if (data.otp) Alert.alert('OTP (Dev Mode)', `New OTP: ${data.otp}`);
+      } else {
+        Alert.alert('Error', data.message || 'Failed to resend OTP.');
+      }
+    } catch {
+      Alert.alert('Network Error', 'Please check your internet connection.');
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView 
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.content}>
-        <View style={styles.header}>
-          <View style={styles.logoContainer}>
-            <PawPrint size={40} color="#4A90E2" style={styles.logo} />
-            <Text style={styles.appName}>Vetician</Text>
-          </View>
-          <Text style={styles.title}>Welcome Back</Text>
-          <Text style={styles.subtitle}>Sign in to continue</Text>
-        </View>
-
-        <View style={styles.form}>
-          <View style={styles.inputContainer}>
-            <View style={styles.inputWrapper}>
-              <Mail size={20} color="#888" style={styles.inputIcon} />
-              <TextInput
-                style={[styles.input, errors.email && styles.inputError]}
-                placeholder="Email"
-                placeholderTextColor="#aaa"
-                value={email}
-                onChangeText={(text) => setEmail(text.replace('mailto:', ''))}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
-                textContentType="emailAddress"
-              />
+    <SafeAreaView style={styles.root}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <ScrollView
+          contentContainerStyle={styles.scroll}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Logo */}
+          <View style={styles.header}>
+            <View style={styles.logoCircle}>
+              <Text style={styles.logoEmoji}>🐾</Text>
             </View>
-            {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
+            <Text style={styles.brand}>Vetician</Text>
+            <Text style={styles.tagline}>Your pet's health, simplified</Text>
           </View>
 
-          <View style={styles.inputContainer}>
-            <View style={styles.inputWrapper}>
-              <Lock size={20} color="#888" style={styles.inputIcon} />
-              <TextInput
-                style={[styles.input, errors.password && styles.inputError]}
-                placeholder="Password"
-                placeholderTextColor="#aaa"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry={!showPassword}
-                autoCapitalize="none"
-              />
-              <TouchableOpacity
-                style={styles.eyeButton}
-                onPress={() => setShowPassword(!showPassword)}
-              >
-                {showPassword ? (
-                  <EyeOff size={20} color="#888" />
-                ) : (
-                  <Eye size={20} color="#888" />
+          {/* Card */}
+          <View style={styles.card}>
+            {step === 1 ? (
+              <>
+                <Text style={styles.cardTitle}>
+                  {isNewUser ? 'Create Account' : 'Welcome Back'}
+                </Text>
+                <Text style={styles.cardSub}>
+                  {isNewUser
+                    ? 'Fill in your details to get started'
+                    : 'Enter your mobile number to continue'}
+                </Text>
+
+                <Text style={styles.fieldLabel}>Mobile Number</Text>
+                <View style={styles.phoneRow}>
+                  <View style={styles.flag}>
+                    <Text style={styles.flagText}>🇮🇳 +91</Text>
+                  </View>
+                  <TextInput
+                    style={styles.phoneInput}
+                    placeholder="10-digit number"
+                    placeholderTextColor={COLORS.textMuted}
+                    value={phone}
+                    onChangeText={setPhone}
+                    keyboardType="phone-pad"
+                    maxLength={10}
+                    autoFocus
+                  />
+                </View>
+
+                {isNewUser && (
+                  <>
+                    <Text style={styles.fieldLabel}>Full Name</Text>
+                    <TextInput
+                      style={styles.nameInput}
+                      placeholder="Enter your full name"
+                      placeholderTextColor={COLORS.textMuted}
+                      value={name}
+                      onChangeText={setName}
+                      autoCapitalize="words"
+                    />
+
+                    <Text style={styles.fieldLabel}>I am a:</Text>
+                    <View style={styles.roleGrid}>
+                      {ROLES.map(r => (
+                        <TouchableOpacity
+                          key={r.key}
+                          style={[styles.roleBtn, role === r.key && styles.roleBtnActive]}
+                          onPress={() => setRole(r.key)}
+                          activeOpacity={0.8}
+                        >
+                          <Text style={styles.roleEmoji}>{r.emoji}</Text>
+                          <Text style={[styles.roleText, role === r.key && styles.roleTextActive]}>
+                            {r.label}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </>
                 )}
-              </TouchableOpacity>
-            </View>
-            {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
-          </View>
 
-          {error && (
-            <View style={styles.errorContainer}>
-              <Text style={styles.errorText}>{error}</Text>
-            </View>
-          )}
+                <TouchableOpacity
+                  style={[styles.btn, loading && styles.btnDisabled]}
+                  onPress={handleSendOTP}
+                  disabled={loading}
+                  activeOpacity={0.85}
+                >
+                  {loading
+                    ? <ActivityIndicator color="#fff" />
+                    : <Text style={styles.btnText}>Get OTP</Text>
+                  }
+                </TouchableOpacity>
 
-          {/* Category Selection: Consumer, Provider, or Admin */}
-          <Text style={styles.categoryLabel}>I am a:</Text>
-          <View style={styles.categoryContainer}>
-            <TouchableOpacity
-              style={[
-                styles.categoryButton,
-                category === 'consumer' && styles.categoryButtonActive
-              ]}
-              onPress={() => handleCategoryChange('consumer')}
-            >
-              <User size={20} color={category === 'consumer' ? '#fff' : '#666'} />
-              <Text style={[
-                styles.categoryText,
-                category === 'consumer' && styles.categoryTextActive
-              ]}>
-                Consumer
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.categoryButton,
-                category === 'provider' && styles.categoryButtonActive
-              ]}
-              onPress={() => handleCategoryChange('provider')}
-            >
-              <Briefcase size={20} color={category === 'provider' ? '#fff' : '#666'} />
-              <Text style={[
-                styles.categoryText,
-                category === 'provider' && styles.categoryTextActive
-              ]}>
-                Provider
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.categoryButtonSmall,
-                category === 'admin' && styles.categoryButtonActive
-              ]}
-              onPress={() => handleCategoryChange('admin')}
-            >
-              <Lock size={18} color={category === 'admin' ? '#fff' : '#666'} />
-              <Text style={[
-                styles.categoryText,
-                category === 'admin' && styles.categoryTextActive
-              ]}>
-                Admin
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Role Selection based on Category */}
-          {category === 'admin' ? null : category === 'consumer' ? (
-            <>
-              <Text style={styles.loginTypeLabel}>Select your role:</Text>
-              <View style={styles.loginTypeContainer}>
-                <View style={styles.loginTypeButtons}>
-                  <TouchableOpacity
-                    style={[
-                      styles.loginTypeButton,
-                      loginType === 'vetician' && styles.loginTypeButtonActive
-                    ]}
-                    onPress={() => setLoginType('vetician')}
-                  >
-                    <PawPrint size={16} color={loginType === 'vetician' ? '#fff' : '#666'} />
-                    <Text style={[
-                      styles.loginTypeText,
-                      loginType === 'vetician' && styles.loginTypeTextActive
-                    ]}>
-                      Pet Parent
+                <TouchableOpacity
+                  style={styles.toggleRow}
+                  onPress={() => { setIsNewUser(v => !v); setName(''); setRole('vetician'); }}
+                >
+                  <Text style={styles.toggleText}>
+                    {isNewUser ? 'Already have an account? ' : 'New to Vetician? '}
+                    <Text style={styles.toggleLink}>
+                      {isNewUser ? 'Sign in' : 'Create account'}
                     </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      styles.loginTypeButton,
-                      loginType === 'pet_resort' && styles.loginTypeButtonActive
-                    ]}
-                    onPress={() => setLoginType('pet_resort')}
-                  >
-                    <PawPrint size={16} color={loginType === 'pet_resort' ? '#fff' : '#666'} />
-                    <Text style={[
-                      styles.loginTypeText,
-                      loginType === 'pet_resort' && styles.loginTypeTextActive
-                    ]}>
-                      Pet Resort
+                  </Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                <Text style={styles.cardTitle}>Enter OTP</Text>
+                <Text style={styles.cardSub}>
+                  Sent to <Text style={styles.highlight}>+91 {phone}</Text>
+                </Text>
+
+                <View style={styles.otpRow}>
+                  {otp.map((digit, i) => (
+                    <TextInput
+                      key={i}
+                      ref={r => (otpRefs.current[i] = r)}
+                      style={[styles.otpBox, digit && styles.otpBoxFilled]}
+                      value={digit}
+                      onChangeText={v => handleOtpChange(v, i)}
+                      keyboardType="number-pad"
+                      maxLength={1}
+                      textAlign="center"
+                      autoFocus={i === 0}
+                    />
+                  ))}
+                </View>
+
+                <TouchableOpacity
+                  style={[styles.btn, loading && styles.btnDisabled]}
+                  onPress={handleVerifyOTP}
+                  disabled={loading}
+                  activeOpacity={0.85}
+                >
+                  {loading
+                    ? <ActivityIndicator color="#fff" />
+                    : <Text style={styles.btnText}>Verify & Continue</Text>
+                  }
+                </TouchableOpacity>
+
+                <View style={styles.resendRow}>
+                  <Text style={styles.resendLabel}>Didn't receive it? </Text>
+                  <TouchableOpacity onPress={handleResend} disabled={timer > 0}>
+                    <Text style={[styles.resendLink, timer > 0 && styles.resendDisabled]}>
+                      {timer > 0 ? `Resend in ${timer}s` : 'Resend OTP'}
                     </Text>
                   </TouchableOpacity>
                 </View>
-              </View>
-            </>
-          ) : (
-            <>
-              <Text style={styles.loginTypeLabel}>Select your role:</Text>
-              <View style={styles.loginTypeContainer}>
-                <View style={styles.loginTypeButtons}>
-                  <TouchableOpacity
-                    style={[
-                      styles.loginTypeButton,
-                      loginType === 'veterinarian' && styles.loginTypeButtonActive
-                    ]}
-                    onPress={() => setLoginType('veterinarian')}
-                  >
-                    <PawPrint size={16} color={loginType === 'veterinarian' ? '#fff' : '#666'} />
-                    <Text style={[
-                      styles.loginTypeText,
-                      loginType === 'veterinarian' && styles.loginTypeTextActive
-                    ]}>
-                      Veterinarian
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      styles.loginTypeButton,
-                      loginType === 'paravet' && styles.loginTypeButtonActive
-                    ]}
-                    onPress={() => setLoginType('paravet')}
-                  >
-                    <PawPrint size={16} color={loginType === 'paravet' ? '#fff' : '#666'} />
-                    <Text style={[
-                      styles.loginTypeText,
-                      loginType === 'paravet' && styles.loginTypeTextActive
-                    ]}>
-                      Paravet
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </>
-          )}
 
-          <TouchableOpacity
-            style={[styles.signInButton, isLoading && styles.buttonDisabled]}
-            onPress={handleSignIn}
-            disabled={isLoading}
-          >
-            <Text style={styles.signInButtonText}>
-              {isLoading ? 'Signing In...' : 'Sign In'}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.phoneButton}
-            onPress={() => router.push('/(auth)/phone')}
-          >
-            <Text style={styles.phoneButtonText}>Sign in with Phone</Text>
-          </TouchableOpacity>
-
-          <View style={styles.signUpContainer}>
-            <Text style={styles.signUpText}>Don't have an account? </Text>
-            <TouchableOpacity onPress={() => router.push('/(auth)/signup')}>
-              <Text style={styles.signUpLink}>Sign Up</Text>
-            </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.changeNum}
+                  onPress={() => { setStep(1); setOtp(['', '', '', '', '', '']); }}
+                >
+                  <Text style={styles.changeNumText}>← Change number</Text>
+                </TouchableOpacity>
+              </>
+            )}
           </View>
 
-          <View style={styles.comingSoonContainer}>
-            <Text style={styles.comingSoonText}>Pet Resort and Paravet features coming soon!</Text>
-          </View>
-        </View>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+          <Text style={styles.terms}>
+            By continuing, you agree to our{' '}
+            <Text style={styles.termsLink}>Terms</Text> &{' '}
+            <Text style={styles.termsLink}>Privacy Policy</Text>
+          </Text>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  scrollContent: {
-    flexGrow: 1,
-  },
-  content: {
-    flex: 1,
-    justifyContent: 'center',
-    paddingHorizontal: 30,
-    paddingVertical: 40,
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: 40,
-  },
-  logoContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  logo: {
-    marginRight: 10,
-  },
-  appName: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#4A90E2',
-  },
-  title: {
-    fontSize: 26,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#888',
-  },
-  form: {
-    width: '100%',
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  inputContainer: {
-    marginBottom: 20,
-  },
-  inputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f8f9fa',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#eaeaea',
-    paddingHorizontal: 16,
-    height: 56,
-  },
-  inputIcon: {
-    marginRight: 12,
-  },
-  input: {
-    flex: 1,
-    fontSize: 16,
-    color: '#333',
-    height: '100%',
-  },
-  inputError: {
-    borderColor: '#ff6b6b',
-  },
-  eyeButton: {
-    padding: 4,
-  },
-  errorContainer: {
-    marginTop: 8,
-    marginBottom: 16,
-  },
-  errorText: {
-    color: '#ff6b6b',
-    fontSize: 14,
-    marginTop: 8,
-  },
-  // Category Selection Styles
-  categoryLabel: {
-    fontSize: 16,
-    color: '#666',
-    marginBottom: 12,
-    fontWeight: '500',
-  },
-  categoryContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    marginBottom: 20,
-  },
-  categoryButton: {
-    flex: 1,
-    minWidth: '30%',
-    paddingVertical: 16,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#eaeaea',
-    alignItems: 'center',
-    backgroundColor: '#f8f9fa',
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  categoryButtonSmall: {
-    flex: 1,
-    minWidth: '30%',
-    paddingVertical: 16,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#eaeaea',
-    alignItems: 'center',
-    backgroundColor: '#f8f9fa',
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 6,
-  },
-  categoryButtonActive: {
-    backgroundColor: '#4A90E2',
-    borderColor: '#4A90E2',
-  },
-  categoryText: {
-    fontSize: 16,
-    color: '#666',
-    fontWeight: '600',
-  },
-  categoryTextActive: {
-    color: '#fff',
-    fontWeight: '600',
-  },
-  // Login Type Selection Styles
-  loginTypeContainer: {
-    marginBottom: 20,
-  },
-  loginTypeLabel: {
-    fontSize: 16,
-    color: '#666',
-    marginBottom: 12,
-    fontWeight: '500',
-  },
-  loginTypeButtons: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    gap: 10,
-  },
-  loginTypeButton: {
-    flex: 1,
-    minWidth: '48%',
-    paddingVertical: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#eaeaea',
-    alignItems: 'center',
-    backgroundColor: '#f8f9fa',
-    marginBottom: 8,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 6,
-  },
-  loginTypeButtonActive: {
-    backgroundColor: '#4A90E2',
-    borderColor: '#4A90E2',
-  },
-  loginTypeText: {
-    fontSize: 14,
-    color: '#666',
-    fontWeight: '500',
-  },
-  loginTypeTextActive: {
-    color: '#fff',
-    fontWeight: '600',
-  },
-  signInButton: {
-    backgroundColor: '#4A90E2',
-    borderRadius: 12,
-    height: 56,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 10,
-    shadowColor: '#4A90E2',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  buttonDisabled: {
-    backgroundColor: '#a0a0a0',
-    shadowColor: '#a0a0a0',
-  },
-  signInButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  phoneButton: {
-    backgroundColor: '#fff',
-    borderWidth: 2,
-    borderColor: '#4A90E2',
-    borderRadius: 12,
-    height: 56,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 12,
-  },
-  phoneButtonText: {
-    color: '#4A90E2',
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  signUpContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: 24,
-  },
-  signUpText: {
-    fontSize: 15,
-    color: '#888',
-  },
-  signUpLink: {
-    fontSize: 15,
-    color: '#4A90E2',
-    fontWeight: '600',
-  },
-  comingSoonContainer: {
-    marginTop: 16,
-    padding: 12,
-    backgroundColor: '#f0f7ff',
-    borderRadius: 8,
-    borderLeftWidth: 4,
-    borderLeftColor: '#4A90E2',
-  },
-  comingSoonText: {
-    color: '#4A90E2',
-    fontSize: 14,
-    textAlign: 'center',
-    fontWeight: '500',
-  },
+  root:   { flex: 1, backgroundColor: COLORS.background },
+  scroll: { flexGrow: 1, paddingHorizontal: SPACING.lg, paddingTop: 60, paddingBottom: 40, justifyContent: 'center' },
+
+  header:     { alignItems: 'center', marginBottom: SPACING.xl },
+  logoCircle: { width: 88, height: 88, borderRadius: 44, backgroundColor: COLORS.primaryPale, justifyContent: 'center', alignItems: 'center', marginBottom: SPACING.sm, ...SHADOWS.card },
+  logoEmoji:  { fontSize: 40 },
+  brand:      { fontSize: 32, fontWeight: '800', color: COLORS.primary, letterSpacing: 0.5 },
+  tagline:    { fontSize: 14, color: COLORS.textMuted, marginTop: 4 },
+
+  card:      { backgroundColor: COLORS.surface, borderRadius: RADIUS.lg, padding: SPACING.lg, ...SHADOWS.card, marginBottom: SPACING.lg },
+  cardTitle: { fontSize: 22, fontWeight: '700', color: COLORS.textDark, textAlign: 'center', marginBottom: 6 },
+  cardSub:   { fontSize: 14, color: COLORS.textMuted, textAlign: 'center', marginBottom: SPACING.lg },
+  highlight: { color: COLORS.primary, fontWeight: '600' },
+
+  fieldLabel: { fontSize: 13, fontWeight: '600', color: COLORS.textSecondary, marginBottom: 8, marginTop: 4 },
+
+  phoneRow:   { flexDirection: 'row', alignItems: 'center', borderWidth: 1.5, borderColor: COLORS.border, borderRadius: RADIUS.md, backgroundColor: COLORS.background, marginBottom: SPACING.md, overflow: 'hidden' },
+  flag:       { paddingHorizontal: SPACING.md, paddingVertical: 16, borderRightWidth: 1.5, borderRightColor: COLORS.border, backgroundColor: COLORS.primaryPale },
+  flagText:   { fontSize: 15, fontWeight: '600', color: COLORS.textPrimary },
+  phoneInput: { flex: 1, fontSize: 18, color: COLORS.textPrimary, paddingHorizontal: SPACING.md, paddingVertical: 14, letterSpacing: 2 },
+
+  nameInput: { borderWidth: 1.5, borderColor: COLORS.border, borderRadius: RADIUS.md, backgroundColor: COLORS.background, fontSize: 16, color: COLORS.textPrimary, paddingHorizontal: SPACING.md, paddingVertical: 14, marginBottom: SPACING.md },
+
+  roleGrid:       { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: SPACING.lg },
+  roleBtn:        { width: '47%', paddingVertical: 14, borderRadius: RADIUS.md, borderWidth: 1.5, borderColor: COLORS.border, backgroundColor: COLORS.background, alignItems: 'center', gap: 4 },
+  roleBtnActive:  { backgroundColor: COLORS.primaryPale, borderColor: COLORS.primary },
+  roleEmoji:      { fontSize: 22 },
+  roleText:       { fontSize: 13, fontWeight: '600', color: COLORS.textMuted },
+  roleTextActive: { color: COLORS.primary },
+
+  otpRow:       { flexDirection: 'row', justifyContent: 'space-between', marginBottom: SPACING.lg, gap: 8 },
+  otpBox:       { flex: 1, height: 56, borderWidth: 1.5, borderColor: COLORS.border, borderRadius: RADIUS.sm, fontSize: 24, fontWeight: '700', color: COLORS.textPrimary, backgroundColor: COLORS.background },
+  otpBoxFilled: { borderColor: COLORS.primary, backgroundColor: COLORS.primaryPale },
+
+  btn:        { backgroundColor: COLORS.primary, borderRadius: RADIUS.md, height: 56, justifyContent: 'center', alignItems: 'center', ...SHADOWS.card },
+  btnDisabled:{ backgroundColor: COLORS.textMuted },
+  btnText:    { color: '#fff', fontSize: 17, fontWeight: '700', letterSpacing: 0.3 },
+
+  resendRow:      { flexDirection: 'row', justifyContent: 'center', marginTop: SPACING.md },
+  resendLabel:    { color: COLORS.textMuted, fontSize: 14 },
+  resendLink:     { color: COLORS.primary, fontSize: 14, fontWeight: '600' },
+  resendDisabled: { color: COLORS.textMuted },
+
+  changeNum:     { alignItems: 'center', marginTop: SPACING.sm, paddingVertical: SPACING.xs },
+  changeNumText: { color: COLORS.textMuted, fontSize: 14 },
+
+  toggleRow:  { alignItems: 'center', marginTop: SPACING.md, paddingVertical: SPACING.xs },
+  toggleText: { fontSize: 14, color: COLORS.textMuted },
+  toggleLink: { color: COLORS.primary, fontWeight: '700' },
+
+  terms:     { textAlign: 'center', fontSize: 12, color: COLORS.textMuted, lineHeight: 18 },
+  termsLink: { color: COLORS.primary, fontWeight: '500' },
 });

@@ -31,8 +31,14 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
+
+// Log all requests
+app.use((req, res, next) => {
+  console.log(`${req.method} ${req.path}`);
+  next();
+});
 
 // IMPORT ROUTES
 console.log('📦 Loading routes...');
@@ -46,6 +52,7 @@ const uploadRoutes = require('./routes/upload');
 const appointmentRoutes = require('./routes/appointmentRoutes');
 const patientRoutes = require('./routes/patientRoutes');
 const surgeryRoutes = require('./routes/surgeryRoutes');
+const resortRoutes = require('./routes/resortRoutes');
 console.log('📹 Loading video call routes...');
 const videoCallRoutes = require('./routes/videoCall');
 const videoSDKRoutes = require('./routes/videoSDK');
@@ -64,7 +71,9 @@ if (!process.env.MONGODB_URI) {
 
 mongoose
   .connect(process.env.MONGODB_URI)
-  .then(() => console.log('✅ MongoDB Connected'))
+  .then(() => {
+    console.log('✅ MongoDB Connected');
+  })
   .catch((error) => {
     console.error('❌ MongoDB connection failed', error.message);
     process.exit(1);
@@ -84,6 +93,7 @@ app.use('/api/upload', uploadRoutes);
 app.use('/api/appointments', appointmentRoutes);
 app.use('/api/patients', patientRoutes);
 app.use('/api/surgeries', surgeryRoutes);
+app.use('/api/resorts', resortRoutes);
 console.log('📹 Registering video route at /api/video');
 app.use('/api/video', videoCallRoutes);
 app.use('/api/videosdk', videoSDKRoutes);
@@ -115,6 +125,8 @@ app.use(errorHandler);
 /* =========================
    Socket.io Connection (Updated)
 ========================= */
+const onlineDoctors = new Set();
+
 io.on('connection', (socket) => {
   console.log('✅ Client connected:', socket.id);
 
@@ -129,15 +141,21 @@ io.on('connection', (socket) => {
   });
 
   socket.on('join-veterinarian', (vetId) => {
-    socket.join(vetId);  // Join without prefix
+    socket.join(vetId);
+    socket.vetId = vetId;
+    onlineDoctors.add(vetId);
+    io.emit('doctor-status', { vetId, online: true });
+    io.emit('online-doctors', Array.from(onlineDoctors));
     console.log(`🩺 Veterinarian ${vetId} joined room: ${vetId}`);
-    console.log(`📊 Active rooms:`, Array.from(socket.rooms));
   });
 
   socket.on('join-petparent', (userId) => {
-    socket.join(userId);  // Join without prefix
+    socket.join(userId);
     console.log(`🐾 Pet Parent ${userId} joined room: ${userId}`);
-    console.log(`📊 Active rooms:`, Array.from(socket.rooms));
+  });
+
+  socket.on('get-online-doctors', () => {
+    socket.emit('online-doctors', Array.from(onlineDoctors));
   });
 
   socket.on('call-response', (data) => {
@@ -198,6 +216,11 @@ io.on('connection', (socket) => {
 
   socket.on('disconnect', () => {
     console.log('❌ Client disconnected:', socket.id);
+    if (socket.vetId) {
+      onlineDoctors.delete(socket.vetId);
+      io.emit('doctor-status', { vetId: socket.vetId, online: false });
+      io.emit('online-doctors', Array.from(onlineDoctors));
+    }
   });
 });
 

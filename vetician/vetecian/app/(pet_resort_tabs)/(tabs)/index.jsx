@@ -1,6 +1,10 @@
 import React from 'react';
 import { createDrawerNavigator } from '@react-navigation/drawer';
+<<<<<<< HEAD
 import Home from '../../../components/pet_resort/Home/Home';
+=======
+import Home from '../../../components/pet_resort/home/Home';
+>>>>>>> 503b468ae40b1a97a5e5412cdc313245d24f4375
 import PetResort from '../onboarding/pet_resort'
 
 const Drawer = createDrawerNavigator();

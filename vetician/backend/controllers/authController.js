@@ -70,32 +70,56 @@ const register = catchAsync(async (req, res, next) => {
 
   try {
     if (userRole === 'vetician') {
-      const parent = new Parent({
-        name: user.name,
-        email: user.email,
-        user: user._id,
-        gender: 'other'
+      // Check if parent already exists
+      let parent = await Parent.findOne({ 
+        $or: [
+          { user: user._id },
+          { email: user.email }
+        ]
       });
-      await parent.save();
+      
+      if (!parent) {
+        parent = new Parent({
+          name: user.name,
+          email: user.email,
+          phone: user.phone ? user.phone.replace(/\+/g, '') : '',
+          address: 'Not provided',
+          user: user._id,
+          gender: 'other'
+        });
+        await parent.save();
+        console.log('✅ Parent record created:', parent._id);
+      } else {
+        console.log('ℹ️ Parent record already exists:', parent._id);
+      }
     } else if (userRole === 'paravet') {
-      const paravet = new Paravet({
-        userId: user._id.toString(),
-        personalInfo: {
-          fullName: { value: user.name, verified: true },
-          email: { value: user.email, verified: true }
-        },
-        applicationStatus: {
-          currentStep: 1,
-          completionPercentage: 10,
-          submitted: false,
-          approvalStatus: 'approved',
-          approvedAt: new Date()
-        },
-        isActive: true
-      });
-      await paravet.save();
+      // Check if paravet already exists
+      let paravet = await Paravet.findOne({ userId: user._id.toString() });
+      
+      if (!paravet) {
+        paravet = new Paravet({
+          userId: user._id.toString(),
+          personalInfo: {
+            fullName: { value: user.name, verified: true },
+            email: { value: user.email, verified: true }
+          },
+          applicationStatus: {
+            currentStep: 1,
+            completionPercentage: 10,
+            submitted: false,
+            approvalStatus: 'approved',
+            approvedAt: new Date()
+          },
+          isActive: true
+        });
+        await paravet.save();
+        console.log('✅ Paravet record created:', paravet._id);
+      } else {
+        console.log('ℹ️ Paravet record already exists:', paravet._id);
+      }
     }
   } catch (roleError) {
+    console.error('❌ Failed to create parent/paravet record:', roleError);
     // Continue with registration even if role-specific entry fails
   }
 
@@ -109,7 +133,7 @@ const register = catchAsync(async (req, res, next) => {
     message: 'User registered successfully',
     user: {
       ...user.getPublicProfile(),
-      role: user.role
+      role: user.role === 'vetician' ? 'Pet Parent' : user.role
     },
     token: accessToken,
     refreshToken,
@@ -225,6 +249,45 @@ const login = catchAsync(async (req, res, next) => {
     return next(new AppError('Invalid email or password', 401));
   }
 
+  // Auto-sync parent data for vetician users
+  if (loginType === 'vetician') {
+    console.log('🔍 Checking parent record for user:', user._id);
+    let parent = await Parent.findOne({ user: user._id });
+    if (!parent) {
+      console.log('➕ Creating new parent record...');
+      parent = new Parent({
+        name: user.name,
+        email: user.email,
+        phone: user.phone ? user.phone.replace(/\+/g, '') : '',
+        address: 'Not provided',
+        user: user._id,
+        gender: 'other'
+      });
+      await parent.save();
+      console.log('✅ Parent record created:', parent._id);
+    } else {
+      console.log('✅ Parent record found:', parent._id);
+      // Sync user data to parent if changed
+      let updated = false;
+      if (parent.email !== user.email) {
+        parent.email = user.email;
+        updated = true;
+      }
+      if (parent.name !== user.name) {
+        parent.name = user.name;
+        updated = true;
+      }
+      if (user.phone && parent.phone !== user.phone) {
+        parent.phone = user.phone;
+        updated = true;
+      }
+      if (updated) {
+        await parent.save();
+        console.log('🔄 Parent record updated');
+      }
+    }
+  }
+
   const { accessToken, refreshToken } = generateTokens(user._id);
   user.refreshTokens.push({ token: refreshToken });
   await user.save();
@@ -235,7 +298,7 @@ const login = catchAsync(async (req, res, next) => {
     message: 'Login successful',
     user: {
       ...user.getPublicProfile(),
-      role: user.role
+      role: user.role === 'vetician' ? 'Pet Parent' : user.role
     },
     token: accessToken,
     refreshToken,
@@ -1609,7 +1672,7 @@ const generateOTP = () => {
 };
 
 const sendOTP = catchAsync(async (req, res, next) => {
-  const { phoneNumber, email } = req.body;
+  const { phoneNumber, email, name, loginType } = req.body;
   
   if (!phoneNumber && !email) {
     return next(new AppError('Phone number or email is required', 400));
@@ -1625,8 +1688,48 @@ const sendOTP = catchAsync(async (req, res, next) => {
       ]
     });
     
+    // Auto-register new user with provided name and role
     if (!user) {
-      return next(new AppError('User not found. Please sign up first.', 404));
+      const digits = phoneNumber.replace(/\D/g, '').slice(-10);
+      const userRole = loginType || 'vetician';
+      const userName = name || 'Pet Parent';
+      user = new User({
+        name: userName,
+        email: `${digits}@vetician.app`,
+        phone: phoneNumber,
+        password: `vet${digits}${Date.now()}`,
+        role: userRole
+      });
+      await user.save();
+
+      if (userRole === 'vetician') {
+        const parent = new Parent({
+          name: userName,
+          email: user.email,
+          phone: phoneNumber,
+          address: 'Not provided',
+          user: user._id,
+          gender: 'other'
+        });
+        await parent.save();
+      } else if (userRole === 'paravet') {
+        const paravet = new Paravet({
+          userId: user._id.toString(),
+          personalInfo: {
+            fullName: { value: userName, verified: true },
+            email: { value: user.email, verified: true }
+          },
+          applicationStatus: {
+            currentStep: 1,
+            completionPercentage: 10,
+            submitted: false,
+            approvalStatus: 'approved',
+            approvedAt: new Date()
+          },
+          isActive: true
+        });
+        await paravet.save();
+      }
     }
   } else {
     user = await User.findOne({ email: email.toLowerCase() });
@@ -1760,7 +1863,13 @@ const verifyOTP = catchAsync(async (req, res, next) => {
   
   let user;
   if (phoneNumber) {
-    user = await User.findOne({ phone: phoneNumber });
+    user = await User.findOne({
+      $or: [
+        { phone: phoneNumber },
+        { phone: phoneNumber.replace('+91', '') },
+        { phone: phoneNumber.replace('+', '') }
+      ]
+    });
   } else {
     user = await User.findOne({ email: email.toLowerCase() });
   }
@@ -1779,7 +1888,7 @@ const verifyOTP = catchAsync(async (req, res, next) => {
     message: 'OTP verified successfully',
     user: {
       ...user.getPublicProfile(),
-      role: user.role
+      role: user.role === 'vetician' ? 'Pet Parent' : user.role
     },
     token: accessToken,
     refreshToken

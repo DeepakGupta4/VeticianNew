@@ -34,18 +34,14 @@ const paravetSchema = new mongoose.Schema({
   // Step 4: Professional Verification
   documents: {
     governmentId: {
-      type: {
-        type: String, // Aadhaar, PAN, etc.
-        url: String,
-        verified: { type: Boolean, default: false }
-      }
+      idType: String, // Aadhaar, PAN, etc.
+      url: String,
+      verified: { type: Boolean, default: false }
     },
     certificationProof: {
-      type: {
-        url: String,
-        certificationType: String, // e.g., "Paravet Diploma", "Animal Healthcare Certificate"
-        verified: { type: Boolean, default: false }
-      }
+      url: String,
+      certificationType: String, // e.g., "Paravet Diploma", "Animal Healthcare Certificate"
+      verified: { type: Boolean, default: false }
     },
     vetRecommendation: {
       url: String,
@@ -83,11 +79,9 @@ const paravetSchema = new mongoose.Schema({
   // Step 6: Bank Details
   paymentInfo: {
     paymentMethod: {
-      type: {
-        type: String, // 'upi' or 'bank_account'
-        value: String, // UPI ID or bank account number
-        verified: { type: Boolean, default: false }
-      }
+      methodType: String, // 'upi' or 'bank_account'
+      value: String, // UPI ID or bank account number
+      verified: { type: Boolean, default: false }
     },
     accountHolderName: {
       value: String,
@@ -168,7 +162,6 @@ const paravetSchema = new mongoose.Schema({
 });
 
 // Index for better query performance
-paravetSchema.index({ userId: 1 });
 paravetSchema.index({ 'personalInfo.email.value': 1 });
 paravetSchema.index({ 'applicationStatus.approvalStatus': 1 });
 

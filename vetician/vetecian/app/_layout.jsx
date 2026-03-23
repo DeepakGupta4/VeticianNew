@@ -1,3 +1,4 @@
+import '../global.css';
 import { Slot, useRouter, useSegments, useRootNavigationState } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Provider, useSelector } from 'react-redux';
@@ -27,7 +28,7 @@ function AuthGuard({ children }) {
     const inAuthGroup = segments[0] === '(auth)';
 
     if (!isAuthenticated && !inAuthGroup) {
-      router.replace('/(auth)/signin');
+      router.replace('/(auth)/consumer-login');
     } else if (isAuthenticated && inAuthGroup) {
       const role = user?.role || 'vetician';
       
