@@ -19,7 +19,7 @@ import {
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, RADIUS } from '../../../constant/theme';
 
-export default function EmergencyAlert() {
+export default function EmergencyAlert({ petName = 'Your Pet' }) {
 
   const [visible, setVisible] = useState(true);
 
@@ -39,7 +39,7 @@ export default function EmergencyAlert() {
 
         {/* Alert text */}
         <View style={styles.textBlock}>
-          <Text style={styles.alertTitle}>⚠ max seems slightly stressed</Text>
+          <Text style={styles.alertTitle}>⚠ {petName} seems slightly stressed</Text>
           <Text style={styles.alertDesc}>
             possible reasons: 
             </Text>
@@ -64,7 +64,7 @@ export default function EmergencyAlert() {
       <View style={styles.BtnContainer}>
       <TouchableOpacity style={styles.ctaBtn}>
         <MaterialCommunityIcons name="message" size={15} color="#fff" />
-        <Text style={styles.ctaText}>Talk to Max</Text>
+        <Text style={styles.ctaText}>Talk to {petName}</Text>
       </TouchableOpacity>
       <TouchableOpacity style={styles.ctaBtn}>
         <MaterialCommunityIcons name="phone" size={15} color="#fff" />

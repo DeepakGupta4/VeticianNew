@@ -1770,11 +1770,14 @@ const sendOTP = catchAsync(async (req, res, next) => {
         otp
       });
     } catch (error) {
-      return res.status(500).json({
-        success: false,
-        message: 'Failed to send SMS. Please try email OTP instead.',
-        errorCode: 'SMS_SERVICE_ERROR',
-        suggestedAction: 'USE_EMAIL_OTP'
+      console.error('❌ Twilio SMS error:', error.message);
+      // SMS failed — return OTP in response as fallback (dev/trial mode)
+      return res.status(200).json({
+        success: true,
+        message: 'SMS unavailable. Use the OTP shown here.',
+        verificationId,
+        otp,
+        smsFailed: true
       });
     }
   } else {

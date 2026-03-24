@@ -893,11 +893,11 @@
 //   },
 // });
 
-import { View, StyleSheet, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Image, Modal, SafeAreaView } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Image, Modal, StatusBar, Text as RNText } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
 import { useRouter } from 'expo-router';
 import { signOut, getParent, updateParent } from '../../../store/slices/authSlice';
-import { User, Mail, MapPin, Phone, LogOut, X, Star, HelpCircle, PawPrint, Heart, Stethoscope, Calendar as CalendarIcon, Package, Users, BookOpen, Bell, Settings, Gift, ArrowLeft } from 'lucide-react-native';
+import { User, Mail, MapPin, Phone, LogOut, X, Star, HelpCircle, PawPrint, Heart, Stethoscope, Calendar as CalendarIcon, Package, Users, BookOpen, Bell, Settings, Gift } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -905,6 +905,7 @@ import PetDetailModal from '../../../components/petparent/home/PetDetailModal';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
 import { validateEmail } from '../../../utils/validation';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   TextInput,
   Button,
@@ -949,6 +950,7 @@ export default function Profile() {
   const [isUploading, setIsUploading] = useState(false);
   const { user } = useSelector(state => state.auth);
   const pets = useSelector(state => state.auth?.userPets?.data || []);
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     const fetchParentData = async () => {
@@ -1153,6 +1155,14 @@ export default function Profile() {
 
   const menuItems = [
     {
+      id: 'address',
+      icon: MapPin,
+      title: 'My Address',
+      subtitle: parentData?.address ? (typeof parentData.address === 'string' ? parentData.address.slice(0, 30) + (parentData.address.length > 30 ? '...' : '') : 'Address saved') : 'Add your address',
+      onPress: () => setEditModalVisible(true),
+      color: '#7CB342'
+    },
+    {
       id: 'my-pets',
       icon: PawPrint,
       title: 'My Pets',
@@ -1243,14 +1253,15 @@ export default function Profile() {
 
   return (
     <PaperProvider theme={theme}>
-      <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <ArrowLeft size={22} color="#1A1A1A" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>My Profile</Text>
+      <View style={styles.container}>
+        <StatusBar backgroundColor="#7CB342" barStyle="light-content" />
+        <LinearGradient colors={['#7CB342', '#558B2F']} style={styles.header}>
           <View style={{ width: 36 }} />
-        </View>
+          <Text style={styles.headerTitle}>My Profile</Text>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+            <X size={22} color="#fff" />
+          </TouchableOpacity>
+        </LinearGradient>
         <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
 
           {/* Profile Card */}
@@ -1314,9 +1325,9 @@ export default function Profile() {
                   activeOpacity={0.7}
                 >
                   <View style={styles.menuItemLeft}>
-                    <Surface style={[styles.menuIcon, { backgroundColor: `${item.color}15` }]}>
+                    <View style={[styles.menuIcon, { backgroundColor: `${item.color}15` }]}>
                       <item.icon size={22} color={item.color} />
-                    </Surface>
+                    </View>
                     <View style={styles.menuTextContainer}>
                       <Text variant="bodyLarge" style={styles.menuTitle}>
                         {item.title}
@@ -1344,9 +1355,9 @@ export default function Profile() {
               activeOpacity={0.7}
             >
               <View style={styles.menuItemLeft}>
-                <Surface style={[styles.menuIcon, { backgroundColor: '#FEE2E2' }]}>
+                <View style={[styles.menuIcon, { backgroundColor: '#FEE2E2' }]}>
                   <LogOut size={22} color="#EF4444" />
-                </Surface>
+                </View>
                 <Text variant="bodyLarge" style={[styles.menuTitle, { color: '#EF4444' }]}>
                   Sign Out
                 </Text>
@@ -1354,7 +1365,7 @@ export default function Profile() {
             </TouchableOpacity>
           </Surface>
 
-          <View style={styles.bottomSpacing} />
+        <View style={styles.bottomSpacing} />
         </ScrollView>
 
         <PetDetailModal
@@ -1371,52 +1382,36 @@ export default function Profile() {
           onRequestClose={() => setEditModalVisible(false)}
         >
           <View style={styles.modalOverlay}>
-            <Surface style={styles.modalContainer}>
+            <View style={styles.modalContainer}>
               <View style={styles.modalHeader}>
-                <Text variant="headlineSmall" style={styles.modalTitle}>
-                  Edit Profile
-                </Text>
-                <TouchableOpacity 
-                  style={styles.closeButton}
-                  onPress={() => setEditModalVisible(false)}
-                >
+                <RNText style={styles.modalTitle}>Edit Profile</RNText>
+                <TouchableOpacity style={styles.closeButton} onPress={() => setEditModalVisible(false)}>
                   <X size={24} color="#666" />
                 </TouchableOpacity>
               </View>
 
-              <Divider />
+              <View style={styles.modalDivider} />
 
-              <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
+              <ScrollView contentContainerStyle={styles.modalContent} showsVerticalScrollIndicator={false}>
                 {/* Profile Picture Section */}
                 <View style={styles.modalSection}>
-                  <Text variant="titleMedium" style={styles.modalSectionTitle}>
-                    Profile Picture
-                  </Text>
-                  <TouchableOpacity 
-                    style={styles.imageUploadContainer} 
-                    onPress={pickImage}
-                    activeOpacity={0.7}
-                  >
+                  <RNText style={styles.modalSectionTitle}>Profile Picture</RNText>
+                  <TouchableOpacity style={styles.imageUploadContainer} onPress={pickImage} activeOpacity={0.7}>
                     {formData.image ? (
-                      <Image 
-                        source={{ uri: formData.image.uri || formData.image }} 
-                        style={styles.modalProfileImage} 
-                      />
+                      <Image source={{ uri: formData.image.uri || formData.image }} style={styles.modalProfileImage} />
                     ) : (
-                      <Surface style={styles.modalProfileImagePlaceholder}>
+                      <View style={styles.modalProfileImagePlaceholder}>
                         <User size={40} color="#666" />
-                      </Surface>
+                      </View>
                     )}
-                    <Text style={styles.changePhotoText}>Change Photo</Text>
+                    <RNText style={styles.changePhotoText}>Change Photo</RNText>
                   </TouchableOpacity>
                 </View>
 
                 {/* Personal Information Section */}
                 <View style={styles.modalSection}>
-                  <Text variant="titleMedium" style={styles.modalSectionTitle}>
-                    Personal Information
-                  </Text>
-                  
+                  <RNText style={styles.modalSectionTitle}>Personal Information</RNText>
+
                   <TextInput
                     label="Full Name"
                     value={formData.name}
@@ -1427,7 +1422,7 @@ export default function Profile() {
                     error={!!errors.name}
                     left={<TextInput.Icon icon="account" color={theme.colors.primary} />}
                   />
-                  {errors.name && <Text style={styles.errorText}>{errors.name}</Text>}
+                  {errors.name && <RNText style={styles.errorText}>{errors.name}</RNText>}
 
                   <TextInput
                     label="Email"
@@ -1440,7 +1435,7 @@ export default function Profile() {
                     error={!!errors.email}
                     left={<TextInput.Icon icon="email" color={theme.colors.primary} />}
                   />
-                  {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
+                  {errors.email && <RNText style={styles.errorText}>{errors.email}</RNText>}
 
                   <TextInput
                     label="Phone Number"
@@ -1453,7 +1448,7 @@ export default function Profile() {
                     error={!!errors.phone}
                     left={<TextInput.Icon icon="phone" color={theme.colors.primary} />}
                   />
-                  {errors.phone && <Text style={styles.errorText}>{errors.phone}</Text>}
+                  {errors.phone && <RNText style={styles.errorText}>{errors.phone}</RNText>}
 
                   <TextInput
                     label="Address"
@@ -1467,11 +1462,10 @@ export default function Profile() {
                     numberOfLines={3}
                     left={<TextInput.Icon icon="map-marker" color={theme.colors.primary} />}
                   />
-                  {errors.address && <Text style={styles.errorText}>{errors.address}</Text>}
+                  {errors.address && <RNText style={styles.errorText}>{errors.address}</RNText>}
 
-                  {/* Gender Selection */}
                   <View style={styles.genderContainer}>
-                    <Text variant="labelLarge" style={styles.genderLabel}>Gender</Text>
+                    <RNText style={styles.genderLabel}>Gender</RNText>
                     <SegmentedButtons
                       value={formData.gender}
                       onValueChange={(value) => handleInputChange('gender', value)}
@@ -1485,7 +1479,6 @@ export default function Profile() {
                   </View>
                 </View>
 
-                {/* Submit Button */}
                 <Button
                   mode="contained"
                   onPress={handleSubmit}
@@ -1500,10 +1493,10 @@ export default function Profile() {
 
                 <View style={styles.modalBottomSpacing} />
               </ScrollView>
-            </Surface>
+            </View>
           </View>
         </Modal>
-      </SafeAreaView>
+      </View>
     </PaperProvider>
   );
 }
@@ -1523,24 +1516,23 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 14,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
   },
   backBtn: {
     width: 36,
     height: 36,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 8,
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#1A1A1A',
+    color: '#fff',
     letterSpacing: 0.3,
+    flex: 1,
+    textAlign: 'center',
   },
   profileCard: {
     marginHorizontal: 20,
@@ -1651,7 +1643,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   bottomSpacing: {
-    height: 80,
+    height: 100,
   },
   modalOverlay: {
     flex: 1,
@@ -1659,6 +1651,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContainer: {
+    backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     maxHeight: '90%',
@@ -1682,8 +1675,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalContent: {
-    flex: 1,
     paddingHorizontal: 20,
+    paddingBottom: 20,
+  },
+  modalDivider: {
+    height: 1,
+    backgroundColor: '#F1F5F9',
+    marginBottom: 4,
   },
   modalSection: {
     marginTop: 24,

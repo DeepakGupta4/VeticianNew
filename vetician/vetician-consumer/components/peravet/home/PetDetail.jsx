@@ -3,38 +3,34 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvo
 import { useRouter } from 'expo-router';
 import { DrawerActions } from '@react-navigation/native';
 import { useNavigation } from '@react-navigation/native';
-import { Menu } from 'lucide-react-native';
+import { Menu, ChevronLeft } from 'lucide-react-native';
 import { registerPet } from '../../../store/slices/authSlice';
 import { useDispatch, useSelector } from 'react-redux';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+const PRIMARY = '#7CB342';
+const stepLabels = ['Basic', 'Physical', 'Health', 'Notes'];
+
 export default function PetDetail() {
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
-    // Basic Information
     name: '',
     species: 'Dog',
     breed: '',
     gender: 'Male',
     location: '',
     dob: '',
-
-    // Physical Characteristics
     bloodGroup: '',
     height: '',
     weight: '',
     color: '',
     distinctiveFeatures: '',
-
-    // Health Information
     allergies: '',
     currentMedications: '',
     chronicDiseases: '',
     injuries: '',
     surgeries: '',
     vaccinations: '',
-
-    // Additional Information
     notes: ''
   });
 
@@ -42,7 +38,7 @@ export default function PetDetail() {
   const openDrawer = () => navigation.dispatch(DrawerActions.openDrawer());
   const [errors, setErrors] = useState({});
   const dispatch = useDispatch();
-  const { isLoading, error } = useSelector(state => state.auth);
+  const { isLoading } = useSelector(state => state.auth);
   const router = useRouter();
 
   const speciesOptions = ['Dog', 'Cat', 'Bird', 'Fish', 'Rabbit', 'Hamster', 'Other'];
@@ -51,309 +47,138 @@ export default function PetDetail() {
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-    if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: null }));
-    }
+    if (errors[field]) setErrors(prev => ({ ...prev, [field]: null }));
   };
 
   const validateStep = (currentStep) => {
     const newErrors = {};
-
     if (currentStep === 1) {
-      if (!formData.name.trim()) {
-        newErrors.name = 'Pet name is required';
-      } else if (formData.name.trim().length < 2) {
-        newErrors.name = 'Name must be at least 2 characters';
-      }
-
-      if (!formData.species) {
-        newErrors.species = 'Species is required';
-      }
-
-      if (!formData.gender) {
-        newErrors.gender = 'Gender is required';
-      }
+      if (!formData.name.trim()) newErrors.name = 'Pet name is required';
+      else if (formData.name.trim().length < 2) newErrors.name = 'Name must be at least 2 characters';
+      if (!formData.species) newErrors.species = 'Species is required';
+      if (!formData.gender) newErrors.gender = 'Gender is required';
     }
-
     if (currentStep === 2) {
-      if (formData.height && isNaN(formData.height)) {
-        newErrors.height = 'Height must be a number';
-      }
-
-      if (formData.weight && isNaN(formData.weight)) {
-        newErrors.weight = 'Weight must be a number';
-      }
+      if (formData.height && isNaN(formData.height)) newErrors.height = 'Height must be a number';
+      if (formData.weight && isNaN(formData.weight)) newErrors.weight = 'Weight must be a number';
     }
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const nextStep = () => {
-    if (validateStep(step)) {
-      setStep(step + 1);
-    }
-  };
+  const nextStep = () => { if (validateStep(step)) setStep(step + 1); };
+  const prevStep = () => setStep(step - 1);
 
-  const prevStep = () => {
-    setStep(step - 1);
-  };
-
-  // Add to handleSubmit
   const handleSubmit = async () => {
-    // if (!validateStep(step)) return;
-
     try {
       const userId = await AsyncStorage.getItem('userId');
-      // console.log(formData)
       const result = await dispatch(registerPet({ ...formData, userId })).unwrap();
-      console.log(result)
-
       if (result.success) {
-        Alert.alert(
-          'Success',
-          'Pet information has been saved successfully!',
-          [{ text: 'OK', onPress: () => router.replace('/(tabs)') }]
-        );
+        Alert.alert('Success', 'Pet information has been saved successfully!', [
+          { text: 'OK', onPress: () => router.replace('/(tabs)') }
+        ]);
       }
     } catch (error) {
-      Alert.alert(
-        'Error',
-        error.message || 'An error occurred while saving pet information'
-      );
+      Alert.alert('Error', error.message || 'An error occurred while saving pet information');
     }
   };
+
+  const ChipRow = ({ options, selected, onSelect }) => (
+    <View style={styles.chipRow}>
+      {options.map((opt) => (
+        <TouchableOpacity
+          key={opt}
+          style={[styles.chip, selected === opt && styles.chipSelected]}
+          onPress={() => onSelect(opt)}
+        >
+          <Text style={[styles.chipText, selected === opt && styles.chipTextSelected]}>{opt}</Text>
+        </TouchableOpacity>
+      ))}
+    </View>
+  );
+
+  const Field = ({ children }) => <View style={styles.fieldWrap}>{children}</View>;
 
   const renderStep = () => {
     switch (step) {
       case 1:
         return (
-          <View style={styles.section}>
+          <View>
             <Text style={styles.sectionTitle}>Basic Information</Text>
-
-            <View style={styles.inputContainer}>
-              <TextInput
-                style={[styles.input, errors.name && styles.inputError]}
-                placeholder="Pet name*"
-                value={formData.name}
-                onChangeText={(value) => handleInputChange('name', value)}
-                autoCapitalize="words"
-              />
+            <Field>
+              <TextInput style={[styles.input, errors.name && styles.inputError]} placeholder="Pet name *" value={formData.name} onChangeText={v => handleInputChange('name', v)} autoCapitalize="words" />
               {errors.name && <Text style={styles.errorText}>{errors.name}</Text>}
-            </View>
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Species*</Text>
-              <View style={styles.optionsContainer}>
-                {speciesOptions.map((species) => (
-                  <TouchableOpacity
-                    key={species}
-                    style={[
-                      styles.optionButton,
-                      formData.species === species && styles.selectedOption
-                    ]}
-                    onPress={() => handleInputChange('species', species)}
-                  >
-                    <Text style={styles.optionText}>{species}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+            </Field>
+            <Field>
+              <Text style={styles.label}>Species *</Text>
+              <ChipRow options={speciesOptions} selected={formData.species} onSelect={v => handleInputChange('species', v)} />
               {errors.species && <Text style={styles.errorText}>{errors.species}</Text>}
-            </View>
-
-            <View style={styles.inputContainer}>
-              <TextInput
-                style={styles.input}
-                placeholder="Breed"
-                value={formData.breed}
-                onChangeText={(value) => handleInputChange('breed', value)}
-              />
-            </View>
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Gender*</Text>
-              <View style={styles.optionsContainer}>
-                {genderOptions.map((gender) => (
-                  <TouchableOpacity
-                    key={gender}
-                    style={[
-                      styles.optionButton,
-                      formData.gender === gender && styles.selectedOption
-                    ]}
-                    onPress={() => handleInputChange('gender', gender)}
-                  >
-                    <Text style={styles.optionText}>{gender}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+            </Field>
+            <Field>
+              <TextInput style={styles.input} placeholder="Breed" value={formData.breed} onChangeText={v => handleInputChange('breed', v)} />
+            </Field>
+            <Field>
+              <Text style={styles.label}>Gender *</Text>
+              <ChipRow options={genderOptions} selected={formData.gender} onSelect={v => handleInputChange('gender', v)} />
               {errors.gender && <Text style={styles.errorText}>{errors.gender}</Text>}
-            </View>
-
-            <View style={styles.inputContainer}>
-              <TextInput
-                style={styles.input}
-                placeholder="Location"
-                value={formData.location}
-                onChangeText={(value) => handleInputChange('location', value)}
-              />
-            </View>
-
-            <View style={styles.inputContainer}>
-              <TextInput
-                style={styles.input}
-                placeholder="Date of birth (YYYY-MM-DD)"
-                value={formData.dob}
-                onChangeText={(value) => handleInputChange('dob', value)}
-              />
-            </View>
+            </Field>
+            <Field>
+              <TextInput style={styles.input} placeholder="Location" value={formData.location} onChangeText={v => handleInputChange('location', v)} />
+            </Field>
+            <Field>
+              <TextInput style={styles.input} placeholder="Date of birth (YYYY-MM-DD)" value={formData.dob} onChangeText={v => handleInputChange('dob', v)} />
+            </Field>
           </View>
         );
       case 2:
         return (
-          <View style={styles.section}>
+          <View>
             <Text style={styles.sectionTitle}>Physical Characteristics</Text>
-
-            <View style={styles.inputContainer}>
+            <Field>
               <Text style={styles.label}>Blood Group</Text>
-              <View style={styles.optionsContainer}>
-                {bloodGroupOptions.map((group) => (
-                  <TouchableOpacity
-                    key={group}
-                    style={[
-                      styles.optionButton,
-                      formData.bloodGroup === group && styles.selectedOption
-                    ]}
-                    onPress={() => handleInputChange('bloodGroup', group)}
-                  >
-                    <Text style={styles.optionText}>{group}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-
-            <View style={styles.inputContainer}>
-              <TextInput
-                style={[styles.input, errors.height && styles.inputError]}
-                placeholder="Height (cm)"
-                value={formData.height}
-                onChangeText={(value) => handleInputChange('height', value)}
-                keyboardType="numeric"
-              />
+              <ChipRow options={bloodGroupOptions} selected={formData.bloodGroup} onSelect={v => handleInputChange('bloodGroup', v)} />
+            </Field>
+            <Field>
+              <TextInput style={[styles.input, errors.height && styles.inputError]} placeholder="Height (cm)" value={formData.height} onChangeText={v => handleInputChange('height', v)} keyboardType="numeric" />
               {errors.height && <Text style={styles.errorText}>{errors.height}</Text>}
-            </View>
-
-            <View style={styles.inputContainer}>
-              <TextInput
-                style={[styles.input, errors.weight && styles.inputError]}
-                placeholder="Weight (kg)"
-                value={formData.weight}
-                onChangeText={(value) => handleInputChange('weight', value)}
-                keyboardType="numeric"
-              />
+            </Field>
+            <Field>
+              <TextInput style={[styles.input, errors.weight && styles.inputError]} placeholder="Weight (kg)" value={formData.weight} onChangeText={v => handleInputChange('weight', v)} keyboardType="numeric" />
               {errors.weight && <Text style={styles.errorText}>{errors.weight}</Text>}
-            </View>
-
-            <View style={styles.inputContainer}>
-              <TextInput
-                style={styles.input}
-                placeholder="Color"
-                value={formData.color}
-                onChangeText={(value) => handleInputChange('color', value)}
-              />
-            </View>
-
-            <View style={styles.inputContainer}>
-              <TextInput
-                style={styles.input}
-                placeholder="Distinctive features"
-                value={formData.distinctiveFeatures}
-                onChangeText={(value) => handleInputChange('distinctiveFeatures', value)}
-                multiline
-              />
-            </View>
+            </Field>
+            <Field>
+              <TextInput style={styles.input} placeholder="Color" value={formData.color} onChangeText={v => handleInputChange('color', v)} />
+            </Field>
+            <Field>
+              <TextInput style={[styles.input, styles.multiline]} placeholder="Distinctive features" value={formData.distinctiveFeatures} onChangeText={v => handleInputChange('distinctiveFeatures', v)} multiline />
+            </Field>
           </View>
         );
       case 3:
         return (
-          <View style={styles.section}>
+          <View>
             <Text style={styles.sectionTitle}>Health Information</Text>
-
-            <View style={styles.inputContainer}>
-              <TextInput
-                style={styles.input}
-                placeholder="Allergies (comma separated)"
-                value={formData.allergies}
-                onChangeText={(value) => handleInputChange('allergies', value)}
-                multiline
-              />
-            </View>
-
-            <View style={styles.inputContainer}>
-              <TextInput
-                style={styles.input}
-                placeholder="Current medications"
-                value={formData.currentMedications}
-                onChangeText={(value) => handleInputChange('currentMedications', value)}
-                multiline
-              />
-            </View>
-
-            <View style={styles.inputContainer}>
-              <TextInput
-                style={styles.input}
-                placeholder="Chronic diseases"
-                value={formData.chronicDiseases}
-                onChangeText={(value) => handleInputChange('chronicDiseases', value)}
-                multiline
-              />
-            </View>
-
-            <View style={styles.inputContainer}>
-              <TextInput
-                style={styles.input}
-                placeholder="Injuries"
-                value={formData.injuries}
-                onChangeText={(value) => handleInputChange('injuries', value)}
-                multiline
-              />
-            </View>
-
-            <View style={styles.inputContainer}>
-              <TextInput
-                style={styles.input}
-                placeholder="Surgeries"
-                value={formData.surgeries}
-                onChangeText={(value) => handleInputChange('surgeries', value)}
-                multiline
-              />
-            </View>
-
-            <View style={styles.inputContainer}>
-              <TextInput
-                style={styles.input}
-                placeholder="Vaccinations"
-                value={formData.vaccinations}
-                onChangeText={(value) => handleInputChange('vaccinations', value)}
-                multiline
-              />
-            </View>
+            {[
+              { field: 'allergies', placeholder: 'Allergies (comma separated)' },
+              { field: 'currentMedications', placeholder: 'Current medications' },
+              { field: 'chronicDiseases', placeholder: 'Chronic diseases' },
+              { field: 'injuries', placeholder: 'Injuries' },
+              { field: 'surgeries', placeholder: 'Surgeries' },
+              { field: 'vaccinations', placeholder: 'Vaccinations' },
+            ].map(({ field, placeholder }) => (
+              <Field key={field}>
+                <TextInput style={[styles.input, styles.multiline]} placeholder={placeholder} value={formData[field]} onChangeText={v => handleInputChange(field, v)} multiline />
+              </Field>
+            ))}
           </View>
         );
       case 4:
         return (
-          <View style={styles.section}>
+          <View>
             <Text style={styles.sectionTitle}>Additional Information</Text>
-
-            <View style={styles.inputContainer}>
-              <TextInput
-                style={[styles.input, styles.multilineInput]}
-                placeholder="Notes"
-                value={formData.notes}
-                onChangeText={(value) => handleInputChange('notes', value)}
-                multiline
-                numberOfLines={4}
-              />
-            </View>
+            <Field>
+              <TextInput style={[styles.input, styles.multilineLg]} placeholder="Notes" value={formData.notes} onChangeText={v => handleInputChange('notes', v)} multiline numberOfLines={5} />
+            </Field>
           </View>
         );
       default:
@@ -362,183 +187,147 @@ export default function PetDetail() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <View style={styles.content}>
-          <View style={styles.header}>
-            <TouchableOpacity onPress={openDrawer} style={styles.menuButton}>
-              <Menu size={24} color="#1a1a1a" />
-            </TouchableOpacity>
-            <View>
-              <Text style={styles.title}>Pet Information</Text>
-              <Text style={styles.subtitle}>Step {step} of 4</Text>
-            </View>
-          </View>
-
-          <View style={styles.form}>
-            {renderStep()}
-
-            <View style={styles.buttonContainer}>
-              {step > 1 && (
-                <TouchableOpacity
-                  style={[styles.navButton, styles.prevButton]}
-                  onPress={prevStep}
-                >
-                  <Text style={styles.navButtonText}>Previous</Text>
-                </TouchableOpacity>
-              )}
-
-              {step < 4 ? (
-                <TouchableOpacity
-                  style={[styles.navButton, styles.nextButton]}
-                  onPress={nextStep}
-                >
-                  <Text style={styles.navButtonText}>Next</Text>
-                </TouchableOpacity>
-              ) : (
-                <TouchableOpacity
-                  style={[styles.navButton, styles.submitButton]}
-                  onPress={handleSubmit}
-                >
-                  <Text style={styles.navButtonText}>Submit</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          </View>
+    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      {/* Fixed Header */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={openDrawer} style={styles.menuBtn}>
+          <Menu size={22} color="#1a1a1a" />
+        </TouchableOpacity>
+        <View>
+          <Text style={styles.title}>Pet Information</Text>
+          <Text style={styles.subtitle}>Step {step} of 4</Text>
         </View>
+      </View>
+
+      {/* Step Progress Bar */}
+      <View style={styles.stepBar}>
+        {stepLabels.map((label, i) => (
+          <View key={i} style={styles.stepItem}>
+            <View style={[styles.stepDot, i + 1 <= step && styles.stepDotActive]}>
+              <Text style={[styles.stepDotText, i + 1 <= step && styles.stepDotTextActive]}>{i + 1}</Text>
+            </View>
+            <Text style={[styles.stepLabel, i + 1 === step && styles.stepLabelActive]}>{label}</Text>
+            {i < 3 && <View style={[styles.stepLine, i + 1 < step && styles.stepLineActive]} />}
+          </View>
+        ))}
+      </View>
+
+      {/* Scrollable Content */}
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        <View style={styles.card}>
+          {renderStep()}
+        </View>
+        <View style={{ height: 16 }} />
       </ScrollView>
+
+      {/* Fixed Footer */}
+      <View style={styles.footer}>
+        {step > 1 ? (
+          <TouchableOpacity style={[styles.footerBtn, styles.prevBtn]} onPress={prevStep}>
+            <Text style={styles.prevBtnText}>Previous</Text>
+          </TouchableOpacity>
+        ) : <View style={styles.footerBtn} />}
+
+        {step < 4 ? (
+          <TouchableOpacity style={[styles.footerBtn, styles.nextBtn]} onPress={nextStep}>
+            <Text style={styles.nextBtnText}>Next</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity style={[styles.footerBtn, styles.submitBtn]} onPress={handleSubmit}>
+            <Text style={styles.nextBtnText}>{isLoading ? 'Saving...' : 'Submit'}</Text>
+          </TouchableOpacity>
+        )}
+      </View>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingBottom: 20,
-    paddingTop: 50,
-  },
-  menuButton: {
-    marginRight: 20,
-  },
-  content: {
-    flex: 1,
-    padding: 20,
-  },
+  container: { flex: 1, backgroundColor: '#f5f5f5' },
+  // Fixed header
   header: {
-    marginBottom: 30,
     flexDirection: 'row',
     alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 50,
+    paddingBottom: 14,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
   },
-  title: {
-    fontSize: 30,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 5,
+  menuBtn: { marginRight: 14, padding: 4 },
+  title: { fontSize: 20, fontWeight: '700', color: '#1a1a1a' },
+  subtitle: { fontSize: 13, color: '#888', marginTop: 2 },
+  // Step bar
+  stepBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
   },
-  subtitle: {
-    fontSize: 18,
-    color: '#666',
+  stepItem: { alignItems: 'center', flexDirection: 'row' },
+  stepDot: { width: 28, height: 28, borderRadius: 14, backgroundColor: '#e0e0e0', alignItems: 'center', justifyContent: 'center' },
+  stepDotActive: { backgroundColor: PRIMARY },
+  stepDotText: { fontSize: 12, fontWeight: '700', color: '#999' },
+  stepDotTextActive: { color: '#fff' },
+  stepLabel: { fontSize: 11, color: '#aaa', marginLeft: 4, marginRight: 4 },
+  stepLabelActive: { color: PRIMARY, fontWeight: '600' },
+  stepLine: { width: 20, height: 2, backgroundColor: '#e0e0e0', marginHorizontal: 2 },
+  stepLineActive: { backgroundColor: PRIMARY },
+  // Scroll
+  scroll: { flex: 1 },
+  scrollContent: { padding: 16 },
+  // Card
+  card: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  form: {
-    flex: 1,
-  },
-  section: {
-    marginBottom: 25,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#444',
-    marginBottom: 20,
-    paddingLeft: 5,
-  },
-  inputContainer: {
-    marginBottom: 15,
-  },
-  label: {
-    fontSize: 16,
-    marginBottom: 8,
-    color: '#444',
-  },
+  sectionTitle: { fontSize: 16, fontWeight: '700', color: '#1a1a1a', marginBottom: 16 },
+  fieldWrap: { marginBottom: 14 },
+  label: { fontSize: 13, fontWeight: '600', color: '#444', marginBottom: 8 },
   input: {
     height: 50,
     borderWidth: 1,
     borderColor: '#ddd',
     borderRadius: 8,
-    paddingHorizontal: 15,
+    paddingHorizontal: 14,
     backgroundColor: '#fff',
+    fontSize: 14,
+    color: '#1a1a1a',
   },
-  multilineInput: {
-    height: 100,
-    textAlignVertical: 'top',
-    paddingTop: 15,
-  },
-  inputError: {
-    borderColor: 'red',
-  },
-  errorText: {
-    color: 'red',
-    fontSize: 12,
-    marginTop: 5,
-    paddingLeft: 5,
-  },
-  optionsContainer: {
+  multiline: { height: 90, textAlignVertical: 'top', paddingTop: 12 },
+  multilineLg: { height: 130, textAlignVertical: 'top', paddingTop: 12 },
+  inputError: { borderColor: '#f13c20' },
+  errorText: { color: '#f13c20', fontSize: 12, marginTop: 4, paddingLeft: 4 },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  chip: { paddingVertical: 7, paddingHorizontal: 13, borderRadius: 20, borderWidth: 1, borderColor: '#ddd', backgroundColor: '#f8f9fa' },
+  chipSelected: { backgroundColor: '#E8F5E9', borderColor: PRIMARY },
+  chipText: { fontSize: 13, color: '#555' },
+  chipTextSelected: { color: PRIMARY, fontWeight: '600' },
+  // Fixed footer
+  footer: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
   },
-  optionButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    backgroundColor: '#f8f9fa',
-  },
-  selectedOption: {
-    backgroundColor: '#e3f2fd',
-    borderColor: '#007AFF',
-  },
-  optionText: {
-    color: '#333',
-  },
-  buttonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 30,
-  },
-  navButton: {
-    borderRadius: 8,
-    height: 50,
-    justifyContent: 'center',
-    alignItems: 'center',
-    flex: 1,
-    marginHorizontal: 5,
-  },
-  prevButton: {
-    backgroundColor: '#007AFF',
-    borderWidth: 1,
-    borderColor: '#ddd',
-  },
-  nextButton: {
-    backgroundColor: '#007AFF',
-  },
-  submitButton: {
-    backgroundColor: '#34C759',
-  },
-  navButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  prevButtonText: {
-    color: '#333',
-  },
+  footerBtn: { flex: 1, height: 48, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  prevBtn: { borderWidth: 1.5, borderColor: PRIMARY, backgroundColor: '#fff' },
+  prevBtnText: { color: PRIMARY, fontSize: 15, fontWeight: '600' },
+  nextBtn: { backgroundColor: PRIMARY },
+  submitBtn: { backgroundColor: '#558B2F' },
+  nextBtnText: { color: '#fff', fontSize: 15, fontWeight: '600' },
 });

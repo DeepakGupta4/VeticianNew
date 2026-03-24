@@ -1,8 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// ✅ EXPO SAFE ENV - Use localhost for development
-const API_BASE_URL = __DEV__ 
-  ? 'http://localhost:3000/api'
+// ✅ EXPO SAFE ENV
+const API_BASE_URL = __DEV__
+  ? (process.env.EXPO_PUBLIC_API_URL || 'https://vetician-backend-kovk.onrender.com/api')
   : (process.env.EXPO_PUBLIC_API_URL || 'https://vetician-backend-kovk.onrender.com/api');
 
 console.log('API_BASE_URL:', API_BASE_URL);
@@ -181,6 +181,26 @@ class ApiService {
 
   getVerifiedParavets() {
     return this.get('/paravet/verified');
+  }
+
+  /* =========================
+     PET WATCHING / SITTERS
+  ========================= */
+
+  getVerifiedSitters() {
+    return this.get('/paravet/verified');
+  }
+
+  createPetWatchingBooking(data) {
+    return this.post('/doorstep', data);
+  }
+
+  getPetWatchingBookings() {
+    return this.get('/doorstep');
+  }
+
+  cancelPetWatchingBooking(id) {
+    return this.patch(`/doorstep/${id}/cancel`);
   }
 
   /* =========================
