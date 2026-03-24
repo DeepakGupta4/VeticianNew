@@ -13,6 +13,7 @@ import {
   StyleSheet,
   StatusBar,
 } from 'react-native';
+import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import {
   MaterialIcons,
   FontAwesome5,
@@ -28,6 +29,10 @@ import { isProfileComplete, getMissingFields } from '../../../utils/profileValid
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS } from '../../../constant/theme';
+import MapView, { Marker, Polyline } from 'react-native-maps';
+import * as Location from 'expo-location';
+import { LinearGradient } from 'expo-linear-gradient';
+import { WebView } from 'react-native-webview';
 import {
   Card,
   Text,
@@ -97,7 +102,7 @@ const generateDates = () => {
 };
 
 // Booking Modal Component
-const BookingModal = ({ visible, onClose, service }) => {
+const BookingModal = ({ visible, onClose, service, preSelectedPartner }) => {
   const dispatch = useDispatch();
   const router = useRouter();
   const { user } = useSelector(state => state.auth);
@@ -105,7 +110,7 @@ const BookingModal = ({ visible, onClose, service }) => {
   const parentData = useSelector(state => state.auth?.parentData?.data?.parent?.[0]);
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedSlot, setSelectedSlot] = useState(null);
-  const [selectedPartner, setSelectedPartner] = useState(null);
+  const [selectedPartner, setSelectedPartner] = useState(preSelectedPartner || null);
   const [isEmergency, setIsEmergency] = useState(false);
   const [repeatBooking, setRepeatBooking] = useState(false);
   const [selectedPets, setSelectedPets] = useState([]);
@@ -114,19 +119,28 @@ const BookingModal = ({ visible, onClose, service }) => {
   const [couponCode, setCouponCode] = useState('');
   const [servicePartners, setServicePartners] = useState([]);
   const [loadingPartners, setLoadingPartners] = useState(false);
+  const [deliveryAddress, setDeliveryAddress] = useState('');
 
   const dates = generateDates();
   const timeSlots = generateTimeSlots();
 
   useEffect(() => {
     if (visible) {
-      console.log('🔄 Modal opened, fetching pets...');
-      console.log('📊 Current pets in Redux:', pets);
+      if (preSelectedPartner) setSelectedPartner(preSelectedPartner);
       dispatch(getPetsByUserId());
       fetchParavets();
       checkProfile();
     }
   }, [visible]);
+
+  useEffect(() => {
+    if (parentData?.address) {
+      const addr = typeof parentData.address === 'string'
+        ? parentData.address
+        : [parentData.address.street, parentData.address.city, parentData.address.state].filter(Boolean).join(', ');
+      setDeliveryAddress(addr);
+    }
+  }, [parentData]);
 
   const checkProfile = async () => {
     try {
@@ -181,69 +195,51 @@ const BookingModal = ({ visible, onClose, service }) => {
   };
 
   const handleConfirmBooking = async () => {
-    console.log('\n🎯 ========== BOOKING PROCESS START ==========');
-    console.log('📊 Redux State Check:');
-    console.log('  - parentData exists:', !!parentData);
-    console.log('  - parentData type:', typeof parentData);
-    console.log('  - parentData value:', parentData);
-    console.log('  - parentData keys:', parentData ? Object.keys(parentData) : 'N/A');
-    console.log('\n📋 Full parentData:', JSON.stringify(parentData, null, 2));
-    
-    console.log('\n📝 Booking Details:');
-    console.log('  - Selected date:', selectedDate);
-    console.log('  - Selected slot:', selectedSlot);
-    console.log('  - Selected partner:', selectedPartner?.name);
-    console.log('  - Selected pets count:', selectedPets.length);
-    
     const isComplete = isProfileComplete(parentData);
-    console.log('\n📋 Profile validation result:', isComplete);
 
-    if (!isComplete) {
-      const missingFields = getMissingFields(parentData);
-      Alert.alert(
-        'Incomplete Profile',
-        `Please complete the following fields: ${missingFields.join(', ')}`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { 
-            text: 'Complete Profile', 
-            onPress: () => {
-              onClose();
-              setTimeout(() => {
-                router.push('/(vetician_tabs)/(tabs)/profile');
-              }, 300);
-            }
-          }
-        ]
-      );
+    if (!deliveryAddress.trim()) {
+      Alert.alert('Address Required', 'Please enter your delivery address to proceed.');
       return;
     }
 
+    if (!isComplete) {
+      const missing = getMissingFields(parentData).filter(f => f !== 'Address');
+      if (missing.length > 0) {
+        Alert.alert(
+          'Incomplete Profile',
+          `Please complete: ${missing.join(', ')}`,
+          [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'Complete Profile',
+              onPress: () => {
+                onClose();
+                setTimeout(() => router.push('/(vetician_tabs)/(tabs)/profile'), 300);
+              }
+            }
+          ]
+        );
+        return;
+      }
+    }
+
     if (!selectedDate || (!isEmergency && !selectedSlot) || !selectedPartner || selectedPets.length === 0) {
-      console.log('❌ Missing required fields');
       Alert.alert('Incomplete Information', 'Please fill all required fields');
       return;
     }
 
     try {
       const userId = await AsyncStorage.getItem('userId');
-      console.log('👤 User ID:', userId);
-      
+
       const bookingData = {
         userId,
         serviceType: service.title,
         petIds: selectedPets.map(p => p._id),
-        paravetId: selectedPartner.id || selectedPartner.userId || selectedPartner._id,
+        paravetId: selectedPartner._id || selectedPartner.id || selectedPartner.userId,
         paravetName: selectedPartner.name,
         appointmentDate: selectedDate.fullDate,
-        timeSlot: selectedSlot.time,
-        address: parentData?.address || {
-          street: '123 Main Street',
-          city: 'Mumbai',
-          state: 'Maharashtra',
-          pincode: '400001',
-          landmark: 'Near Park'
-        },
+        timeSlot: isEmergency ? 'Emergency' : selectedSlot?.time,
+        address: deliveryAddress,
         isEmergency,
         repeatBooking,
         specialInstructions,
@@ -256,48 +252,24 @@ const BookingModal = ({ visible, onClose, service }) => {
         status: 'pending'
       };
 
-      console.log('📤 Sending booking:', JSON.stringify(bookingData, null, 2));
-      console.log('👤 Paravet User ID being sent:', selectedPartner.id || selectedPartner.userId || selectedPartner._id);
-      console.log('🔍 Full selectedPartner object:', JSON.stringify(selectedPartner, null, 2));
       const response = await ApiService.createDoorstepBooking(bookingData);
-      console.log('✅ Booking response:', response);
 
       if (response.success) {
-        console.log('✅ Booking created successfully:', response.data);
-        console.log('📡 Attempting to emit socket event...');
-        console.log('  - Socket connected:', SocketService.socket?.connected);
-        console.log('  - Paravet User ID:', selectedPartner.id || selectedPartner.userId || selectedPartner._id);
-        
-        SocketService.connect(userId, 'user');
         SocketService.emit('booking:created', {
           bookingId: response.data._id,
-          paravetId: selectedPartner.id || selectedPartner.userId || selectedPartner._id,
+          paravetId: selectedPartner._id || selectedPartner.id || selectedPartner.userId,
           userId
         });
-        console.log('✅ Socket event emitted: booking:created');
 
         Alert.alert(
           'Booking Request Sent! 🎉',
-          `Your booking request for ${service.title} has been sent to ${selectedPartner.name}.\n\nYou will be notified once the paravet accepts your request.\n\nDate: ${selectedDate.label}, ${selectedDate.month} ${selectedDate.date}\nTime: ${selectedSlot.time}\nTotal: ₹${calculateTotal()}`,
-          [
-            {
-              text: 'OK',
-              onPress: () => {
-                onClose();
-                if (typeof window !== 'undefined' && window.refreshBookings) {
-                  window.refreshBookings();
-                }
-              },
-            },
-          ]
+          `Your booking for ${service.title} has been sent to ${selectedPartner.name}.\n\nDate: ${selectedDate.label}, ${selectedDate.month} ${selectedDate.date}\nTime: ${isEmergency ? 'Emergency' : selectedSlot?.time}\nTotal: ₹${calculateTotal()}`,
+          [{ text: 'OK', onPress: onClose }]
         );
       } else {
-        console.log('❌ Booking failed:', response);
         Alert.alert('Error', response.message || 'Failed to create booking');
       }
     } catch (error) {
-      console.error('❌ Booking error:', error);
-      console.error('❌ Error stack:', error.stack);
       Alert.alert('Error', error.message || 'Failed to create booking');
     }
   };
@@ -540,14 +512,14 @@ const BookingModal = ({ visible, onClose, service }) => {
             <View style={styles.partnersList}>
               {servicePartners.map((partner) => (
                 <TouchableOpacity
-                  key={partner.id}
+                  key={partner._id || partner.id}
                   onPress={() => setSelectedPartner(partner)}
                   style={styles.partnerTouchable}
                 >
                   <Card
                     style={[
                       styles.partnerCard,
-                      selectedPartner?.id === partner.id && styles.partnerCardSelected,
+                      (selectedPartner?._id || selectedPartner?.id) === (partner._id || partner.id) && styles.partnerCardSelected,
                     ]}
                   >
                     <Card.Content style={styles.partnerCardContent}>
@@ -585,7 +557,7 @@ const BookingModal = ({ visible, onClose, service }) => {
                         </View>
                       </View>
                       <View style={styles.partnerRadio}>
-                        {selectedPartner?.id === partner.id && (
+                        {(selectedPartner?._id || selectedPartner?.id) === (partner._id || partner.id) && (
                           <View style={styles.partnerRadioInner} />
                         )}
                       </View>
@@ -594,6 +566,23 @@ const BookingModal = ({ visible, onClose, service }) => {
                 </TouchableOpacity>
               ))}
             </View>
+          </Surface>
+
+          {/* Delivery Address */}
+          <Surface style={styles.modalSection}>
+            <Text variant="labelLarge" style={styles.sectionLabel}>
+              Delivery Address <Text style={styles.required}>*</Text>
+            </Text>
+            <TextInput
+              mode="outlined"
+              placeholder="Enter your full address..."
+              value={deliveryAddress}
+              onChangeText={setDeliveryAddress}
+              multiline
+              numberOfLines={3}
+              activeOutlineColor={theme.colors.primary}
+              style={styles.textArea}
+            />
           </Surface>
 
           {/* Special Instructions */}
@@ -752,42 +741,276 @@ const BookingModal = ({ visible, onClose, service }) => {
   );
 };
 
+// Booking Detail Modal (status-based)
+const BookingDetailModal = ({ visible, onClose, booking }) => {
+  const [showPayment, setShowPayment] = useState(false);
+  const insets = useSafeAreaInsets();
+
+  const statusConfig = {
+    pending:       { color: '#FF9800', icon: 'hourglass-empty', label: 'Waiting for Confirmation' },
+    accepted:      { color: '#7CB342', icon: 'check-circle',    label: 'Booking Confirmed' },
+    'in-progress': { color: '#2196F3', icon: 'build',           label: 'Service In Progress' },
+    completed:     { color: '#4CAF50', icon: 'done-all',        label: 'Service Completed' },
+    rejected:      { color: '#EF4444', icon: 'cancel',          label: 'Booking Rejected' },
+    cancelled:     { color: '#999',    icon: 'block',           label: 'Booking Cancelled' },
+  };
+
+  const config = statusConfig[booking?.status] || statusConfig.pending;
+
+  const getAddressText = (address) => {
+    if (!address) return 'Not provided';
+    if (typeof address === 'string') return address;
+    return [address.street, address.city, address.state, address.pincode].filter(Boolean).join(', ') || 'Not provided';
+  };
+
+  const razorpayHTML = `
+    <!DOCTYPE html><html>
+    <head><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+    <body style="margin:0;background:#f5f5f5">
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <script>
+      var options = {
+        key: 'rzp_test_YourKeyHere',
+        amount: ${(booking?.totalAmount || 0) * 100},
+        currency: 'INR',
+        name: 'Vetician',
+        description: '${booking?.serviceType || 'Service'} Booking',
+        theme: { color: '#7CB342' },
+        handler: function(r) { window.ReactNativeWebView.postMessage(JSON.stringify({ success: true, paymentId: r.razorpay_payment_id })); },
+        modal: { ondismiss: function() { window.ReactNativeWebView.postMessage(JSON.stringify({ success: false, reason: 'dismissed' })); } }
+      };
+      var rzp = new Razorpay(options);
+      rzp.on('payment.failed', function(r) { window.ReactNativeWebView.postMessage(JSON.stringify({ success: false, reason: r.error.description })); });
+      rzp.open();
+    </script></body></html>
+  `;
+
+  if (showPayment) {
+    return (
+      <Modal visible={visible} animationType="slide" transparent={false}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
+          <StatusBar backgroundColor={COLORS.primaryGreen} barStyle="light-content" />
+          <LinearGradient colors={['#7CB342', '#558B2F']} style={styles.detailModalHeader}>
+            <View style={{ width: 36 }} />
+            <RNText style={styles.detailModalTitle}>Payment</RNText>
+            <TouchableOpacity onPress={() => setShowPayment(false)} style={styles.detailModalClose}>
+              <Ionicons name="close" size={22} color="#fff" />
+            </TouchableOpacity>
+          </LinearGradient>
+          <WebView
+            source={{ html: razorpayHTML }}
+            style={{ flex: 1 }}
+            onMessage={(e) => {
+              const data = JSON.parse(e.nativeEvent.data);
+              setShowPayment(false);
+              if (data.success) {
+                Alert.alert('Payment Successful! 🎉', `Payment ID: ${data.paymentId}\nYour booking is confirmed.`, [{ text: 'OK', onPress: onClose }]);
+              } else {
+                Alert.alert('Payment Failed', data.reason === 'dismissed' ? 'Payment was cancelled.' : data.reason || 'Payment failed.');
+              }
+            }}
+          />
+        </SafeAreaView>
+      </Modal>
+    );
+  }
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent={false}>
+      {visible && <ExpoStatusBar style="light" backgroundColor={COLORS.primaryGreen} />}
+      <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+        {/* Status bar area manually covered */}
+        <View style={{ height: insets.top, backgroundColor: COLORS.primaryGreen }} />
+        <LinearGradient colors={[COLORS.primaryGreen, COLORS.primaryGreen]} style={styles.detailModalHeader}>
+          <View style={{ width: 36 }} />
+          <RNText style={styles.detailModalTitle}>Booking Details</RNText>
+          <TouchableOpacity onPress={onClose} style={styles.detailModalClose}>
+            <Ionicons name="close" size={22} color="#fff" />
+          </TouchableOpacity>
+        </LinearGradient>
+
+        <ScrollView showsVerticalScrollIndicator={false} style={styles.modalScrollContent}>
+          {/* Status Banner */}
+          <View style={[styles.statusBanner, { backgroundColor: config.color }]}>
+            <MaterialIcons name={config.icon} size={40} color="#fff" />
+            <Text variant="titleMedium" style={styles.statusBannerText}>{config.label}</Text>
+            {booking?.status === 'pending' && (
+              <Text variant="labelSmall" style={styles.statusBannerSub}>Paravet will confirm your booking shortly</Text>
+            )}
+            {booking?.status === 'accepted' && (
+              <Text variant="labelSmall" style={styles.statusBannerSub}>
+                {booking.paymentMethod === 'online' ? 'Please complete payment to proceed' : 'Paravet will arrive at scheduled time'}
+              </Text>
+            )}
+          </View>
+
+          {/* Booking Info Card */}
+          <Card style={styles.detailCard}>
+            <Card.Content>
+              <Text variant="titleMedium" style={styles.detailCardTitle}>Booking Summary</Text>
+              <View style={styles.detailRow}>
+                <MaterialIcons name="medical-services" size={16} color="#7CB342" />
+                <Text variant="bodySmall" style={styles.detailLabel}>Service</Text>
+                <Text variant="bodySmall" style={styles.detailValue}>{booking?.serviceType}</Text>
+              </View>
+              <View style={styles.detailRow}>
+                <MaterialIcons name="person" size={16} color="#7CB342" />
+                <Text variant="bodySmall" style={styles.detailLabel}>Paravet</Text>
+                <Text variant="bodySmall" style={styles.detailValue}>{booking?.paravetName}</Text>
+              </View>
+              <View style={styles.detailRow}>
+                <MaterialIcons name="calendar-today" size={16} color="#7CB342" />
+                <Text variant="bodySmall" style={styles.detailLabel}>Date & Time</Text>
+                <Text variant="bodySmall" style={styles.detailValue}>
+                  {new Date(booking?.appointmentDate).toLocaleDateString()} • {booking?.timeSlot}
+                </Text>
+              </View>
+              <View style={styles.detailRow}>
+                <MaterialIcons name="location-on" size={16} color="#7CB342" />
+                <Text variant="bodySmall" style={styles.detailLabel}>Address</Text>
+                <Text variant="bodySmall" style={[styles.detailValue, { flex: 1 }]}>
+                  {getAddressText(booking?.address)}
+                </Text>
+              </View>
+              <View style={styles.detailRow}>
+                <MaterialIcons name="attach-money" size={16} color="#7CB342" />
+                <Text variant="bodySmall" style={styles.detailLabel}>Total</Text>
+                <Text variant="bodySmall" style={[styles.detailValue, { color: '#7CB342', fontWeight: '700' }]}>₹{booking?.totalAmount}</Text>
+              </View>
+              <View style={styles.detailRow}>
+                <MaterialIcons name="payment" size={16} color="#7CB342" />
+                <Text variant="bodySmall" style={styles.detailLabel}>Payment</Text>
+                <Text variant="bodySmall" style={styles.detailValue}>
+                  {booking?.paymentMethod === 'online' ? 'Pay Online' : 'Cash After Service'}
+                </Text>
+              </View>
+            </Card.Content>
+          </Card>
+
+          {/* Payment CTA */}
+          {booking?.status === 'accepted' && booking?.paymentMethod === 'online' && (
+            <Card style={[styles.detailCard, { backgroundColor: '#F1F8E9' }]}>
+              <Card.Content>
+                <RNText style={{ fontWeight: '700', color: '#1a1a1a', marginBottom: 6, fontSize: 15 }}>💳 Complete Payment</RNText>
+                <RNText style={{ color: '#666', marginBottom: 16, fontSize: 13 }}>Pay ₹{booking?.totalAmount} to confirm your booking</RNText>
+                <Button mode="contained" buttonColor="#7CB342" style={{ borderRadius: 10 }} onPress={() => setShowPayment(true)}>
+                  Pay Now ₹{booking?.totalAmount}
+                </Button>
+              </Card.Content>
+            </Card>
+          )}
+
+          {/* OTP */}
+          {booking?.status === 'in-progress' && booking?.otp && (
+            <Card style={[styles.detailCard, { backgroundColor: '#FFF3E0' }]}>
+              <Card.Content style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <MaterialIcons name="lock" size={24} color="#F57C00" />
+                <View style={{ marginLeft: 12 }}>
+                  <RNText style={{ fontWeight: '700', color: '#F57C00', fontSize: 15 }}>Service OTP: {booking.otp}</RNText>
+                  <RNText style={{ color: '#666', marginTop: 2, fontSize: 13 }}>Share with paravet to start service</RNText>
+                </View>
+              </Card.Content>
+            </Card>
+          )}
+
+          <View style={{ height: 40 }} />
+        </ScrollView>
+      </View>
+    </Modal>
+  );
+};
+
 // Live Tracking Modal
 const TrackingModal = ({ visible, onClose, booking }) => {
-  const [currentStatus, setCurrentStatus] = useState(booking?.status || 'confirmed');
-  const [eta, setEta] = useState(25);
+  const [currentStatus, setCurrentStatus] = useState(booking?.status || 'pending');
+  const [userLocation, setUserLocation] = useState(null);
+  const [paravetLocation, setParavetLocation] = useState(null);
+  const [locationError, setLocationError] = useState(null);
+  const mapRef = React.useRef(null);
 
   const statuses = [
-    { id: 'pending', label: 'Booking Confirmed', icon: 'check-circle', color: theme.colors.primary },
-    { id: 'confirmed', label: 'Partner Assigned', icon: 'person', color: '#24A1DE' },
-    { id: 'in-progress', label: 'Service in Progress', icon: 'build', color: '#FF5722' },
-    { id: 'completed', label: 'Service Completed', icon: 'done-all', color: '#4CAF50' },
+    { id: 'pending',     label: 'Booking Confirmed',    icon: 'check-circle', color: theme.colors.primary },
+    { id: 'accepted',   label: 'Partner Assigned',      icon: 'person',       color: '#24A1DE' },
+    { id: 'in-progress',label: 'Service in Progress',   icon: 'build',        color: '#FF5722' },
+    { id: 'completed',  label: 'Service Completed',     icon: 'done-all',     color: '#4CAF50' },
   ];
 
-  const partner = booking ? {
-    name: booking.servicePartnerName || 'Service Partner',
-    photo: 'https://randomuser.me/api/portraits/men/1.jpg',
+  const partner = {
+    name: booking?.paravetName || 'Service Partner',
     specialization: 'Paravet',
-    rating: 4.8
-  } : {
-    name: 'Demo Partner',
-    photo: 'https://randomuser.me/api/portraits/men/1.jpg',
-    specialization: 'Paravet',
-    rating: 4.8
+    rating: 4.8,
   };
 
   useEffect(() => {
-    if (booking) {
-      setCurrentStatus(booking.status);
-    }
+    if (booking) setCurrentStatus(booking.status);
   }, [booking]);
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setEta((prev) => (prev > 0 ? prev - 1 : 0));
-    }, 60000);
-    return () => clearInterval(timer);
-  }, []);
+    if (!visible) return;
+    let locationSub;
+
+    (async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          setLocationError('Location permission denied');
+          return;
+        }
+        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+        setUserLocation({
+          latitude: loc.coords.latitude,
+          longitude: loc.coords.longitude,
+        });
+
+        // Simulate paravet location nearby (replace with real socket data when backend ready)
+        setParavetLocation({
+          latitude: loc.coords.latitude + 0.008,
+          longitude: loc.coords.longitude + 0.005,
+        });
+
+        // Watch user location
+        locationSub = await Location.watchPositionAsync(
+          { accuracy: Location.Accuracy.High, distanceInterval: 10 },
+          (newLoc) => {
+            setUserLocation({
+              latitude: newLoc.coords.latitude,
+              longitude: newLoc.coords.longitude,
+            });
+          }
+        );
+      } catch (e) {
+        setLocationError('Could not get location');
+      }
+    })();
+
+    return () => { if (locationSub) locationSub.remove(); };
+  }, [visible]);
+
+  // Fit map to show both markers
+  useEffect(() => {
+    if (userLocation && paravetLocation && mapRef.current) {
+      mapRef.current.fitToCoordinates([userLocation, paravetLocation], {
+        edgePadding: { top: 80, right: 60, bottom: 80, left: 60 },
+        animated: true,
+      });
+    }
+  }, [userLocation, paravetLocation]);
+
+  const getDistanceKm = (loc1, loc2) => {
+    if (!loc1 || !loc2) return null;
+    const R = 6371;
+    const dLat = ((loc2.latitude - loc1.latitude) * Math.PI) / 180;
+    const dLon = ((loc2.longitude - loc1.longitude) * Math.PI) / 180;
+    const a =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos((loc1.latitude * Math.PI) / 180) *
+      Math.cos((loc2.latitude * Math.PI) / 180) *
+      Math.sin(dLon / 2) ** 2;
+    return (R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))).toFixed(1);
+  };
+
+  const distance = getDistanceKm(userLocation, paravetLocation);
+  const eta = distance ? Math.round(distance * 3) : null;
 
   return (
     <Modal visible={visible} animationType="slide">
@@ -796,48 +1019,116 @@ const TrackingModal = ({ visible, onClose, booking }) => {
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
             <Ionicons name="close" size={28} color="#333" />
           </TouchableOpacity>
-          <Text variant="headlineSmall" style={styles.trackingTitle}>
-            Track Service
-          </Text>
+          <Text variant="headlineSmall" style={styles.trackingTitle}>Track Service</Text>
           <View style={{ width: 28 }} />
         </View>
 
+        {/* Real Map */}
+        {locationError ? (
+          <View style={styles.mapError}>
+            <MaterialIcons name="location-off" size={48} color="#999" />
+            <Text variant="bodySmall" style={{ color: '#999', marginTop: 8, textAlign: 'center' }}>
+              {locationError}
+            </Text>
+          </View>
+        ) : userLocation ? (
+          <MapView
+            ref={mapRef}
+            style={styles.realMap}
+            initialRegion={{
+              latitude: userLocation.latitude,
+              longitude: userLocation.longitude,
+              latitudeDelta: 0.03,
+              longitudeDelta: 0.03,
+            }}
+            showsUserLocation={false}
+            showsMyLocationButton={false}
+          >
+            {/* User Marker */}
+            <Marker coordinate={userLocation} title="Your Location">
+              <View style={styles.userMarker}>
+                <MaterialIcons name="home" size={18} color="#fff" />
+              </View>
+            </Marker>
+
+            {/* Paravet Marker */}
+            {paravetLocation && (
+              <Marker coordinate={paravetLocation} title={partner.name}>
+                <View style={styles.paravetMarker}>
+                  <MaterialIcons name="medical-services" size={18} color="#fff" />
+                </View>
+              </Marker>
+            )}
+
+            {/* Route line */}
+            {paravetLocation && (
+              <Polyline
+                coordinates={[paravetLocation, userLocation]}
+                strokeColor="#7CB342"
+                strokeWidth={3}
+                lineDashPattern={[8, 4]}
+              />
+            )}
+          </MapView>
+        ) : (
+          <View style={styles.mapLoading}>
+            <ActivityIndicator animating color={theme.colors.primary} size="large" />
+            <Text variant="labelSmall" style={{ color: '#666', marginTop: 12 }}>Getting your location...</Text>
+          </View>
+        )}
+
         <ScrollView showsVerticalScrollIndicator={false}>
-          {/* Map Placeholder */}
-          <Surface style={styles.mapPlaceholder}>
-            <MaterialIcons name="location-on" size={60} color={theme.colors.primary} />
-            <Text variant="titleMedium" style={styles.mapText}>
-              Live Location Tracking
-            </Text>
-            <Text variant="labelSmall" style={styles.etaText}>
-              ETA: {eta} minutes
-            </Text>
-          </Surface>
+          {/* ETA Card */}
+          {distance && (
+            <Card style={styles.etaCard}>
+              <Card.Content style={styles.etaCardContent}>
+                <View style={styles.etaItem}>
+                  <MaterialIcons name="near-me" size={20} color={theme.colors.primary} />
+                  <Text variant="labelSmall" style={styles.etaLabel}>Distance</Text>
+                  <Text variant="titleMedium" style={styles.etaValue}>{distance} km</Text>
+                </View>
+                <View style={styles.etaDivider} />
+                <View style={styles.etaItem}>
+                  <MaterialIcons name="access-time" size={20} color={theme.colors.primary} />
+                  <Text variant="labelSmall" style={styles.etaLabel}>ETA</Text>
+                  <Text variant="titleMedium" style={styles.etaValue}>{eta} min</Text>
+                </View>
+                <View style={styles.etaDivider} />
+                <View style={styles.etaItem}>
+                  <MaterialIcons name="info" size={20} color={theme.colors.primary} />
+                  <Text variant="labelSmall" style={styles.etaLabel}>Status</Text>
+                  <Text variant="titleMedium" style={[styles.etaValue, { color: statuses.find(s => s.id === currentStatus)?.color || '#333' }]}>
+                    {statuses.find(s => s.id === currentStatus)?.label || currentStatus}
+                  </Text>
+                </View>
+              </Card.Content>
+            </Card>
+          )}
 
           {/* Partner Info */}
           <Card style={styles.trackingPartnerCard}>
             <Card.Content style={styles.trackingPartnerCardContent}>
-              <Image source={{ uri: partner.photo }} style={styles.trackingPartnerPhoto} />
+              <View style={styles.trackingPartnerAvatar}>
+                <MaterialIcons name="person" size={28} color="#7CB342" />
+              </View>
               <View style={styles.trackingPartnerInfo}>
-                <Text variant="titleMedium" style={styles.trackingPartnerName}>
-                  {partner.name}
-                </Text>
-                <Text variant="labelSmall" style={styles.trackingPartnerRole}>
-                  {partner.specialization}
-                </Text>
+                <Text variant="titleMedium" style={styles.trackingPartnerName}>{partner.name}</Text>
+                <Text variant="labelSmall" style={styles.trackingPartnerRole}>{partner.specialization}</Text>
                 <View style={styles.trackingRating}>
                   <MaterialIcons name="star" size={14} color="#FFA500" />
-                  <Text variant="labelSmall" style={styles.trackingRatingText}>
-                    {partner.rating}
-                  </Text>
+                  <Text variant="labelSmall" style={styles.trackingRatingText}>{partner.rating}</Text>
                 </View>
               </View>
               <View style={styles.trackingActions}>
-                <TouchableOpacity style={styles.trackingActionBtn}>
-                  <Ionicons name="call" size={24} color={theme.colors.primary} />
+                <TouchableOpacity style={styles.trackingActionBtn}
+                  onPress={() => Alert.alert('Call', 'Calling feature coming soon')}
+                >
+                  <Ionicons name="call" size={22} color={theme.colors.primary} />
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.trackingActionBtn}>
-                  <Ionicons name="chatbubble" size={24} color={theme.colors.primary} />
+                <TouchableOpacity style={styles.trackingActionBtn}
+                  onPress={() => Alert.alert('Chat', 'Chat feature coming soon')}
+                >
+                  <Ionicons name="chatbubble" size={22} color={theme.colors.primary} />
                 </TouchableOpacity>
               </View>
             </Card.Content>
@@ -846,49 +1137,25 @@ const TrackingModal = ({ visible, onClose, booking }) => {
           {/* Status Timeline */}
           <Card style={styles.timelineCard}>
             <Card.Content>
-              <Text variant="titleMedium" style={styles.timelineTitle}>
-                Service Status
-              </Text>
+              <Text variant="titleMedium" style={styles.timelineTitle}>Service Status</Text>
               {statuses.map((status, index) => {
                 const isActive = statuses.findIndex(s => s.id === currentStatus) >= index;
                 return (
                   <View key={status.id} style={styles.timelineItem}>
                     <View style={styles.timelineLeft}>
-                      <View
-                        style={[
-                          styles.timelineIcon,
-                          { backgroundColor: isActive ? status.color : '#E0E0E0' },
-                        ]}
-                      >
-                        <MaterialIcons
-                          name={status.icon}
-                          size={16}
-                          color={isActive ? '#fff' : '#999'}
-                        />
+                      <View style={[styles.timelineIcon, { backgroundColor: isActive ? status.color : '#E0E0E0' }]}>
+                        <MaterialIcons name={status.icon} size={16} color={isActive ? '#fff' : '#999'} />
                       </View>
                       {index < statuses.length - 1 && (
-                        <View
-                          style={[
-                            styles.timelineLine,
-                            { backgroundColor: isActive ? status.color : '#E0E0E0' },
-                          ]}
-                        />
+                        <View style={[styles.timelineLine, { backgroundColor: isActive ? status.color : '#E0E0E0' }]} />
                       )}
                     </View>
                     <View style={styles.timelineRight}>
-                      <Text
-                        variant="labelMedium"
-                        style={[
-                          styles.timelineLabel,
-                          { color: isActive ? '#333' : '#999' },
-                        ]}
-                      >
+                      <Text variant="labelMedium" style={[styles.timelineLabel, { color: isActive ? '#333' : '#999' }]}>
                         {status.label}
                       </Text>
                       {isActive && currentStatus === status.id && (
-                        <Text variant="labelSmall" style={styles.timelineTime}>
-                          Just now
-                        </Text>
+                        <Text variant="labelSmall" style={styles.timelineTime}>Current</Text>
                       )}
                     </View>
                   </View>
@@ -897,20 +1164,18 @@ const TrackingModal = ({ visible, onClose, booking }) => {
             </Card.Content>
           </Card>
 
-          {/* OTP Section */}
-          <Card style={styles.otpCard}>
-            <Card.Content style={styles.otpCardContent}>
-              <MaterialIcons name="lock" size={24} color={theme.colors.primary} />
-              <View style={styles.otpText}>
-                <Text variant="labelLarge" style={styles.otpTitle}>
-                  Service OTP: 4829
-                </Text>
-                <Text variant="labelSmall" style={styles.otpSubtitle}>
-                  Share with partner to start service
-                </Text>
-              </View>
-            </Card.Content>
-          </Card>
+          {/* OTP */}
+          {booking?.otp && (
+            <Card style={styles.otpCard}>
+              <Card.Content style={styles.otpCardContent}>
+                <MaterialIcons name="lock" size={24} color={theme.colors.primary} />
+                <View style={styles.otpText}>
+                  <Text variant="labelLarge" style={styles.otpTitle}>Service OTP: {booking.otp}</Text>
+                  <Text variant="labelSmall" style={styles.otpSubtitle}>Share with partner to start service</Text>
+                </View>
+              </Card.Content>
+            </Card>
+          )}
 
           <View style={{ height: 40 }} />
         </ScrollView>
@@ -930,6 +1195,7 @@ const ParavetModule = () => {
   const [bookingModalVisible, setBookingModalVisible] = useState(false);
   const [paravetSelectionVisible, setParavetSelectionVisible] = useState(false);
   const [trackingModalVisible, setTrackingModalVisible] = useState(false);
+  const [bookingDetailVisible, setBookingDetailVisible] = useState(false);
   const [userBookings, setUserBookings] = useState([]);
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [paravets, setParavets] = useState([]);
@@ -938,24 +1204,41 @@ const ParavetModule = () => {
   useEffect(() => {
     fetchParavets();
     fetchUserBookings();
-    setTimeout(() => setParavetSelectionVisible(true), 500);
-    
     const setupSocketListeners = async () => {
       const userId = await AsyncStorage.getItem('userId');
       if (userId) {
         SocketService.connect(userId, 'user');
         
-        SocketService.on('booking:statusUpdated', (data) => {
+        SocketService.on('booking-status-update', (data) => {
           console.log('🔔 Booking status updated:', data);
           fetchUserBookings();
           
-          if (data.status === 'accepted') {
+          if (data.status === 'accepted' || data.status === 'confirmed') {
             Alert.alert(
               'Booking Accepted! 🎉',
               `${data.paravetName} has accepted your booking request for ${data.serviceType}.`,
               [{ text: 'OK' }]
             );
-          } else if (data.status === 'rejected') {
+          } else if (data.status === 'rejected' || data.status === 'cancelled') {
+            Alert.alert(
+              'Booking Declined',
+              `${data.paravetName} has declined your booking request. Please try booking with another paravet.`,
+              [{ text: 'OK' }]
+            );
+          }
+        });
+
+        SocketService.on('booking:statusUpdated', (data) => {
+          console.log('🔔 Booking status updated (colon):', data);
+          fetchUserBookings();
+          
+          if (data.status === 'accepted' || data.status === 'confirmed') {
+            Alert.alert(
+              'Booking Accepted! 🎉',
+              `${data.paravetName} has accepted your booking request for ${data.serviceType}.`,
+              [{ text: 'OK' }]
+            );
+          } else if (data.status === 'rejected' || data.status === 'cancelled') {
             Alert.alert(
               'Booking Declined',
               `${data.paravetName} has declined your booking request. Please try booking with another paravet.`,
@@ -968,14 +1251,8 @@ const ParavetModule = () => {
     
     setupSocketListeners();
     
-    if (typeof window !== 'undefined') {
-      window.refreshBookings = fetchUserBookings;
-    }
-    
     return () => {
-      if (typeof window !== 'undefined') {
-        delete window.refreshBookings;
-      }
+      SocketService.off('booking-status-update');
       SocketService.off('booking:statusUpdated');
     };
   }, []);
@@ -1082,7 +1359,7 @@ const ParavetModule = () => {
   return (
     <PaperProvider theme={theme}>
       <View style={styles.container}>
-        <StatusBar backgroundColor={COLORS.primaryGreen} barStyle="light-content" translucent />
+        <ExpoStatusBar style="light" backgroundColor={COLORS.primaryGreen} />
         <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
           <TouchableOpacity style={styles.headerIcon} onPress={() => router.back()} activeOpacity={0.8}>
             <MaterialCommunityIcons name="arrow-left" size={22} color="#fff" />
@@ -1159,8 +1436,8 @@ const ParavetModule = () => {
         </Modal>
 
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollViewContent}>
-          {/* Selected Paravet Banner */}
-          {selectedParavet && (
+          {/* Paravet Selection Banner */}
+          {selectedParavet ? (
             <Card style={styles.selectedParavetBanner} onPress={() => setParavetSelectionVisible(true)}>
               <Card.Content style={styles.selectedParavetContent}>
                 <Image source={{ uri: selectedParavet.photo }} style={styles.bannerPhoto} />
@@ -1177,6 +1454,23 @@ const ParavetModule = () => {
                 </Text>
               </Card.Content>
             </Card>
+          ) : (
+            <TouchableOpacity
+              style={styles.selectParavetBanner}
+              onPress={() => setParavetSelectionVisible(true)}
+              activeOpacity={0.85}
+            >
+              <View style={styles.selectParavetLeft}>
+                <View style={styles.selectParavetIconBox}>
+                  <MaterialCommunityIcons name="account-search" size={28} color="#fff" />
+                </View>
+                <View>
+                  <RNText style={styles.selectParavetTitle}>Select a Paravet</RNText>
+                  <RNText style={styles.selectParavetSubtitle}>Choose to see available services</RNText>
+                </View>
+              </View>
+              <MaterialCommunityIcons name="chevron-right" size={24} color={theme.colors.primary} />
+            </TouchableOpacity>
           )}
 
           {/* Hero Section with Image */}
@@ -1225,7 +1519,7 @@ const ParavetModule = () => {
             mode="contained"
             buttonColor={theme.colors.primary}
             style={styles.emergencyButton}
-            icon="emergency"
+            icon="alert-circle-outline"
             labelStyle={styles.emergencyButtonLabel}
           >
             Emergency Service - Get help within 2 hours
@@ -1363,43 +1657,31 @@ const ParavetModule = () => {
 
           {/* Subscription Plans */}
           <View style={styles.subscriptionSection}>
-            <Text variant="headlineSmall" style={styles.sectionTitle}>
+            <Text variant="headlineSmall" style={[styles.sectionTitle, { paddingHorizontal: 16 }]}>
               Subscription Plans
             </Text>
-            <Text variant="labelSmall" style={styles.sectionSubtitle}>
+            <Text variant="labelSmall" style={[styles.sectionSubtitle, { paddingHorizontal: 16 }]}>
               Save more with regular care
             </Text>
 
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.plansScroll}>
+            <View style={styles.plansRow}>
               <Card style={styles.planCard}>
                 <Card.Content style={styles.planCardContent}>
-                  <Chip
-                    label="POPULAR"
-                    style={styles.planBadge}
-                    textStyle={styles.planBadgeText}
-                  />
+                  <View style={styles.planBadge}>
+                    <Text style={styles.planBadgeText}>POPULAR</Text>
+                  </View>
                   <Text variant="titleMedium" style={styles.planName}>
                     Weekly Grooming
                   </Text>
-                  <Text variant="displaySmall" style={styles.planPrice}>
-                    ₹2,499
-                    <Text variant="labelSmall" style={styles.planPeriod}>
-                      /month
-                    </Text>
-                  </Text>
-                  <Text variant="labelMedium" style={styles.planSavings}>
-                    Save ₹700
-                  </Text>
+                  <View style={styles.planPriceRow}>
+                    <Text style={styles.planPriceBig}>₹2,499</Text>
+                    <Text style={styles.planPeriod}>/month</Text>
+                  </View>
+                  <Text style={styles.planSavings}>Save ₹700</Text>
                   <View style={styles.planFeatures}>
-                    <Text variant="labelSmall" style={styles.planFeature}>
-                      • 4 Grooming Sessions
-                    </Text>
-                    <Text variant="labelSmall" style={styles.planFeature}>
-                      • Free Nail Trimming
-                    </Text>
-                    <Text variant="labelSmall" style={styles.planFeature}>
-                      • Priority Booking
-                    </Text>
+                    <Text style={styles.planFeature}>✓ 4 Grooming Sessions</Text>
+                    <Text style={styles.planFeature}>✓ Free Nail Trimming</Text>
+                    <Text style={styles.planFeature}>✓ Priority Booking</Text>
                   </View>
                   <Button
                     mode="contained"
@@ -1414,28 +1696,19 @@ const ParavetModule = () => {
 
               <Card style={styles.planCard}>
                 <Card.Content style={styles.planCardContent}>
+                  <View style={styles.planBadgeSpacer} />
                   <Text variant="titleMedium" style={styles.planName}>
                     Daily Walking
                   </Text>
-                  <Text variant="displaySmall" style={styles.planPrice}>
-                    ₹3,999
-                    <Text variant="labelSmall" style={styles.planPeriod}>
-                      /month
-                    </Text>
-                  </Text>
-                  <Text variant="labelMedium" style={styles.planSavings}>
-                    Save ₹1,200
-                  </Text>
+                  <View style={styles.planPriceRow}>
+                    <Text style={styles.planPriceBig}>₹3,999</Text>
+                    <Text style={styles.planPeriod}>/month</Text>
+                  </View>
+                  <Text style={styles.planSavings}>Save ₹1,200</Text>
                   <View style={styles.planFeatures}>
-                    <Text variant="labelSmall" style={styles.planFeature}>
-                      • 30 Walking Sessions
-                    </Text>
-                    <Text variant="labelSmall" style={styles.planFeature}>
-                      • 30 min per session
-                    </Text>
-                    <Text variant="labelSmall" style={styles.planFeature}>
-                      • Activity Reports
-                    </Text>
+                    <Text style={styles.planFeature}>✓ 30 Walking Sessions</Text>
+                    <Text style={styles.planFeature}>✓ 30 min per session</Text>
+                    <Text style={styles.planFeature}>✓ Activity Reports</Text>
                   </View>
                   <Button
                     mode="contained"
@@ -1447,7 +1720,7 @@ const ParavetModule = () => {
                   </Button>
                 </Card.Content>
               </Card>
-            </ScrollView>
+            </View>
           </View>
 
           {/* How It Works */}
@@ -1548,49 +1821,105 @@ const ParavetModule = () => {
               <Text variant="headlineSmall" style={styles.sectionTitle}>
                 Active Bookings
               </Text>
-              {userBookings.filter(b => b.status !== 'completed' && b.status !== 'cancelled').map((booking) => (
+              {userBookings.filter(b => b.status !== 'completed' && b.status !== 'cancelled').map((booking) => {
+                const statusColors = {
+                  pending: '#FF9800',
+                  accepted: '#7CB342',
+                  confirmed: '#7CB342',
+                  'in-progress': '#2196F3',
+                };
+                const statusColor = statusColors[booking.status] || '#FF9800';
+                return (
                 <Card
                   key={booking._id}
-                  style={styles.activeBookingCard}
+                  style={[styles.activeBookingCard, { borderLeftColor: statusColor }]}
                   onPress={() => {
                     setSelectedBooking(booking);
-                    setTrackingModalVisible(true);
+                    if (booking.status === 'in-progress' || booking.status === 'accepted') {
+                      setTrackingModalVisible(true);
+                    } else {
+                      setBookingDetailVisible(true);
+                    }
                   }}
                 >
                   <Card.Content style={styles.activeBookingCardContent}>
                     <View style={styles.bookingCardLeft}>
-                      <Text variant="titleMedium" style={styles.bookingServiceType}>
+                      <Text variant="titleSmall" style={styles.bookingServiceType}>
                         {booking.serviceType}
                       </Text>
-                      <Text variant="labelSmall" style={styles.bookingDate}>
-                        {new Date(booking.appointmentDate).toLocaleDateString()} • {booking.timeSlot}
-                      </Text>
-                      <Text variant="labelSmall" style={[styles.bookingPartner, { color: theme.colors.primary }]}>
-                        {booking.servicePartnerName}
-                      </Text>
+                      <View style={styles.bookingMetaRow}>
+                        <MaterialIcons name="calendar-today" size={12} color="#999" />
+                        <Text variant="labelSmall" style={styles.bookingDate}>
+                          {new Date(booking.appointmentDate).toLocaleDateString()} • {booking.timeSlot}
+                        </Text>
+                      </View>
+                      <View style={styles.bookingMetaRow}>
+                        <MaterialIcons name="person" size={12} color={theme.colors.primary} />
+                        <Text variant="labelSmall" style={styles.bookingPartner}>
+                          {booking.paravetName || booking.servicePartnerName}
+                        </Text>
+                      </View>
+                      <View style={styles.bookingMetaRow}>
+                        <MaterialIcons name="currency-rupee" size={12} color="#666" />
+                        <Text variant="labelSmall" style={styles.bookingAmount}>
+                          ₹{booking.totalAmount}
+                        </Text>
+                      </View>
                     </View>
                     <View style={styles.bookingCardRight}>
-                      <Chip
-                        label={booking.status}
-                        style={[
-                          styles.statusBadge,
-                          {
-                            backgroundColor: booking.status === 'confirmed' ? theme.colors.primary : '#FF9800'
-                          }
-                        ]}
-                        textStyle={styles.statusText}
-                      />
+                      <View style={[styles.statusPill, { backgroundColor: statusColor }]}>
+                        <RNText style={styles.statusPillText}>
+                          {booking.status.toUpperCase()}
+                        </RNText>
+                      </View>
+                      <TouchableOpacity style={styles.viewDetailsBtn}
+                        onPress={() => {
+                          setSelectedBooking(booking);
+                          setBookingDetailVisible(true);
+                        }}
+                      >
+                        <RNText style={styles.viewDetailsBtnText}>View Details</RNText>
+                      </TouchableOpacity>
+                      {booking.status === 'pending' && (
+                        <TouchableOpacity
+                          style={styles.cancelBtn}
+                          onPress={() => {
+                            Alert.alert(
+                              'Cancel Booking',
+                              'Are you sure you want to cancel this booking?',
+                              [
+                                { text: 'No', style: 'cancel' },
+                                {
+                                  text: 'Yes, Cancel',
+                                  style: 'destructive',
+                                  onPress: async () => {
+                                    try {
+                                      await ApiService.cancelDoorstepBooking(booking._id);
+                                      fetchUserBookings();
+                                    } catch (e) {
+                                      Alert.alert('Error', 'Could not cancel booking');
+                                    }
+                                  }
+                                }
+                              ]
+                            );
+                          }}
+                        >
+                          <RNText style={styles.cancelBtnText}>Cancel</RNText>
+                        </TouchableOpacity>
+                      )}
                     </View>
                   </Card.Content>
                 </Card>
-              ))}
+                );
+              })}
             </View>
           )}
 
           {/* Demo Button */}
           <Button
             mode="contained"
-            icon="location-on"
+            icon="map-marker"
             buttonColor={theme.colors.primary}
             style={styles.demoButton}
             labelStyle={styles.demoButtonLabel}
@@ -1602,7 +1931,7 @@ const ParavetModule = () => {
             View Live Tracking Demo
           </Button>
 
-          <View style={{ height: 40 }} />
+          <View style={{ height: 100 }} />
         </ScrollView>
 
         {/* Modals */}
@@ -1611,8 +1940,15 @@ const ParavetModule = () => {
             visible={bookingModalVisible}
             onClose={() => setBookingModalVisible(false)}
             service={selectedService}
+            preSelectedPartner={selectedParavet}
           />
         )}
+
+        <BookingDetailModal
+          visible={bookingDetailVisible}
+          onClose={() => setBookingDetailVisible(false)}
+          booking={selectedBooking}
+        />
 
         <TrackingModal
           visible={trackingModalVisible}
@@ -2194,7 +2530,77 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
-  // Map Placeholder
+  realMap: {
+    width: '100%',
+    height: 280,
+  },
+  mapLoading: {
+    height: 280,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F5F7FA',
+  },
+  mapError: {
+    height: 200,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F5F7FA',
+    margin: 16,
+    borderRadius: 16,
+  },
+  userMarker: {
+    backgroundColor: '#2196F3',
+    borderRadius: 20,
+    padding: 6,
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+  paravetMarker: {
+    backgroundColor: '#7CB342',
+    borderRadius: 20,
+    padding: 6,
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+  etaCard: {
+    marginHorizontal: 16,
+    marginTop: 12,
+    marginBottom: 4,
+    borderRadius: 16,
+  },
+  etaCardContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+  },
+  etaItem: {
+    alignItems: 'center',
+    gap: 4,
+  },
+  etaLabel: {
+    color: '#999',
+    fontSize: 11,
+  },
+  etaValue: {
+    fontWeight: '700',
+    color: '#1a1a1a',
+    fontSize: 14,
+  },
+  etaDivider: {
+    width: 1,
+    height: 40,
+    backgroundColor: '#E0E0E0',
+  },
+  trackingPartnerAvatar: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#F1F8E9',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  // Map Placeholder - kept for reference
   mapPlaceholder: {
     height: 250,
     alignItems: 'center',
@@ -2330,6 +2736,43 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 
+  selectParavetBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 8,
+    padding: 16,
+    borderRadius: 16,
+    backgroundColor: '#fff',
+    borderWidth: 2,
+    borderColor: '#7CB342',
+    borderStyle: 'dashed',
+  },
+  selectParavetLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  selectParavetIconBox: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#7CB342',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  selectParavetTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1a1a1a',
+  },
+  selectParavetSubtitle: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 2,
+  },
   // Selected Paravet Banner
   selectedParavetBanner: {
     marginHorizontal: 16,
@@ -2585,64 +3028,92 @@ const styles = StyleSheet.create({
 
   // Subscription Section
   subscriptionSection: {
-    paddingHorizontal: 16,
     paddingVertical: 24,
   },
-  plansScroll: {
+  plansRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    gap: 12,
     marginTop: 16,
   },
   planCard: {
-    width: 260,
-    marginRight: 12,
-    borderRadius: 16,
+    flex: 1,
+    borderRadius: 20,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
   },
   planCardContent: {
-    alignItems: 'flex-start',
+    padding: 4,
   },
   planBadge: {
+    alignSelf: 'flex-start',
     backgroundColor: '#FF6B6B',
-    marginBottom: 12,
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    marginBottom: 14,
   },
   planBadgeText: {
     color: '#fff',
-    fontWeight: '700',
+    fontWeight: '800',
+    fontSize: 11,
+    letterSpacing: 0.5,
+  },
+  planBadgeSpacer: {
+    height: 28,
+    marginBottom: 14,
   },
   planName: {
-    fontWeight: '700',
-    color: '#1a1a1a',
-    marginBottom: 8,
-  },
-  planPrice: {
     fontWeight: '800',
+    color: '#1a1a1a',
+    marginBottom: 10,
+    fontSize: 18,
+  },
+  planPriceRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    marginBottom: 6,
+  },
+  planPriceBig: {
+    fontSize: 32,
+    fontWeight: '900',
     color: '#7CB342',
+    letterSpacing: -1,
+    marginRight: 4,
   },
   planPeriod: {
     fontSize: 14,
     color: '#999',
-    fontWeight: '400',
+    fontWeight: '500',
+    marginBottom: 6,
   },
   planSavings: {
     color: '#10B981',
-    fontWeight: '600',
-    marginTop: 6,
-    marginBottom: 16,
+    fontWeight: '700',
+    marginBottom: 18,
     fontSize: 13,
   },
   planFeatures: {
-    gap: 8,
-    marginBottom: 16,
+    gap: 10,
+    marginBottom: 20,
     width: '100%',
   },
   planFeature: {
-    color: '#666',
-    fontSize: 12,
+    color: '#444',
+    fontSize: 13,
+    lineHeight: 20,
   },
   planButton: {
     width: '100%',
-    borderRadius: 10,
+    borderRadius: 12,
   },
   planButtonLabel: {
-    fontSize: 14,
+    fontSize: 15,
+    fontWeight: '700',
+    paddingVertical: 2,
   },
 
   // How It Works
@@ -2729,6 +3200,19 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
 
+  cancelBtn: {
+    marginTop: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#EF4444',
+  },
+  cancelBtnText: {
+    color: '#EF4444',
+    fontSize: 12,
+    fontWeight: '600',
+  },
   // Active Bookings
   activeBookingsSection: {
     paddingHorizontal: 16,
@@ -2737,41 +3221,138 @@ const styles = StyleSheet.create({
   activeBookingCard: {
     marginBottom: 12,
     borderRadius: 16,
+    borderLeftWidth: 4,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
   },
   activeBookingCardContent: {
     flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingVertical: 4,
   },
   bookingCardLeft: {
     flex: 1,
+    gap: 5,
   },
   bookingServiceType: {
     fontWeight: '700',
     color: '#1a1a1a',
-    marginBottom: 6,
+    fontSize: 15,
+    marginBottom: 2,
+  },
+  bookingMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
   },
   bookingDate: {
     color: '#666',
-    marginBottom: 4,
     fontSize: 12,
   },
   bookingPartner: {
+    color: '#7CB342',
     fontWeight: '600',
     fontSize: 12,
   },
+  bookingAmount: {
+    color: '#444',
+    fontSize: 12,
+    fontWeight: '600',
+  },
   bookingCardRight: {
     alignItems: 'flex-end',
-    justifyContent: 'center',
+    gap: 8,
+    marginLeft: 8,
   },
-  statusBadge: {
-    borderRadius: 12,
+  statusPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
   },
-  statusText: {
-    fontSize: 11,
-    fontWeight: '700',
-    textTransform: 'uppercase',
+  statusPillText: {
     color: '#fff',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  viewDetailsBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#7CB342',
+  },
+  viewDetailsBtnText: {
+    color: '#7CB342',
+    fontSize: 11,
+    fontWeight: '600',
   },
 
+  detailModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 4,
+  },
+  detailModalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#fff',
+    flex: 1,
+    textAlign: 'center',
+    letterSpacing: 0.3,
+  },
+  detailModalClose: {
+    width: 36,
+    height: 36,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  statusBanner: {
+    margin: 16,
+    borderRadius: 16,
+    padding: 20,
+    alignItems: 'center',
+    gap: 8,
+  },
+  statusBannerText: {
+    color: '#fff',
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  statusBannerSub: {
+    color: 'rgba(255,255,255,0.85)',
+    textAlign: 'center',
+  },
+  detailCard: {
+    marginHorizontal: 16,
+    marginBottom: 12,
+    borderRadius: 16,
+  },
+  detailCardTitle: {
+    fontWeight: '700',
+    color: '#1a1a1a',
+    marginBottom: 16,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    marginBottom: 12,
+  },
+  detailLabel: {
+    color: '#999',
+    width: 80,
+  },
+  detailValue: {
+    color: '#1a1a1a',
+    fontWeight: '500',
+    flexShrink: 1,
+  },
   // Paravet Selection
   paravetSelectionCard: {
     marginBottom: 12,

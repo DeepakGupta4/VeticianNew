@@ -1,56 +1,67 @@
 import '../global.css';
-import { Slot, useRouter, useSegments, useRootNavigationState } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
+import { Slot, useRouter, useSegments } from 'expo-router';
+import { StatusBar } from 'react-native';
 import { Provider, useSelector } from 'react-redux';
-import { PersistGate } from 'redux-persist/integration/react';
 import { store, persistor } from '../store/store';
-import { View, Text, StyleSheet } from 'react-native';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { PersistGate } from 'redux-persist/integration/react';
+import * as SplashScreen from 'expo-splash-screen';
+import { View, ActivityIndicator } from 'react-native';
 
-function LoadingScreen() {
-  return (
-    <View style={styles.loadingContainer}>
-      <Text style={styles.loadingText}>Loading...</Text>
-    </View>
-  );
-}
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
 function AuthGuard({ children }) {
-  const router = useRouter();
-  const segments = useSegments();
-  const navigationState = useRootNavigationState();
+  const router    = useRouter();
+  const segments  = useSegments();
+  const [ready, setReady] = useState(false);
+
   const { isAuthenticated } = useSelector(state => state.auth);
 
+  // Splash screen hide karo sirf jab redux rehydrate ho jaaye
   useEffect(() => {
-    if (!navigationState?.key) return;
+    if (!ready) {
+      setReady(true);
+      SplashScreen.hideAsync().catch(() => {});
+    }
+  }, []);
+
+  // Navigation guard
+  useEffect(() => {
+    if (!ready) return;
+
     const inAuthGroup = segments[0] === '(auth)';
+
     if (!isAuthenticated && !inAuthGroup) {
       router.replace('/(auth)/signin');
     } else if (isAuthenticated && inAuthGroup) {
       router.replace('/(vetician_tabs)');
     }
-  }, [segments, isAuthenticated, navigationState?.key]);
+  }, [ready, segments, isAuthenticated]);
 
   return children;
+}
+
+// PersistGate loading fallback - rehydration ke waqt dikhega
+function LoadingFallback() {
+  return (
+    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
+      <ActivityIndicator size="large" color="#55882F" />
+    </View>
+  );
 }
 
 export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <Provider store={store}>
-        <PersistGate loading={<LoadingScreen />} persistor={persistor}>
+        <PersistGate loading={<LoadingFallback />} persistor={persistor}>
           <AuthGuard>
             <Slot />
-            <StatusBar style="auto" />
+            <StatusBar backgroundColor="#7CB342" barStyle="light-content" translucent={false} />
           </AuthGuard>
         </PersistGate>
       </Provider>
     </GestureHandlerRootView>
   );
 }
-
-const styles = StyleSheet.create({
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f8f9fa' },
-  loadingText: { fontSize: 18, color: '#666', fontWeight: '500' },
-});

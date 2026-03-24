@@ -32,6 +32,13 @@ export default function SignIn() {
     return () => clearInterval(t);
   }, [timer]);
 
+  const fetchWithTimeout = (url, options, ms = 30000) => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), ms);
+    return fetch(url, { ...options, signal: controller.signal })
+      .finally(() => clearTimeout(timeout));
+  };
+
   const handleSendOTP = async () => {
     if (!/^\d{10}$/.test(phone.trim())) {
       Alert.alert('Invalid Number', 'Please enter a valid 10-digit mobile number.');
@@ -39,7 +46,7 @@ export default function SignIn() {
     }
     setLoading(true);
     try {
-      const res = await fetch(`${BASE_URL}/auth/send-otp`, {
+      const res = await fetchWithTimeout(`${BASE_URL}/auth/send-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phoneNumber: `+91${phone.trim()}` }),
@@ -49,21 +56,16 @@ export default function SignIn() {
         setVerificationId(data.verificationId);
         setStep(2);
         setTimer(30);
-        if (data.otp) Alert.alert('OTP (Dev Mode)', `Your OTP: ${data.otp}`);
-      } else if (res.status === 500 && data.errorCode === 'SMS_SERVICE_ERROR') {
-        if (data.otp && data.verificationId) {
-          setVerificationId(data.verificationId);
-          setStep(2);
-          setTimer(30);
-          Alert.alert('SMS Unavailable', `Test OTP: ${data.otp}`);
-        } else {
-          Alert.alert('Error', 'SMS service unavailable. Please try again later.');
-        }
+        if (data.otp) Alert.alert('OTP', `Your OTP: ${data.otp}`);
       } else {
         Alert.alert('Error', data.message || 'Failed to send OTP. Try again.');
       }
-    } catch {
-      Alert.alert('Network Error', 'Please check your internet connection.');
+    } catch (e) {
+      if (e.name === 'AbortError') {
+        Alert.alert('Timeout', 'Server respond nahi kar raha. Thodi der baad try karein.');
+      } else {
+        Alert.alert('Network Error', 'Internet connection check karein.');
+      }
     } finally {
       setLoading(false);
     }
@@ -86,7 +88,7 @@ export default function SignIn() {
     }
     setLoading(true);
     try {
-      const res = await fetch(`${BASE_URL}/auth/verify-otp`, {
+      const res = await fetchWithTimeout(`${BASE_URL}/auth/verify-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phoneNumber: `+91${phone}`, otp: otpStr, verificationId }),
@@ -109,8 +111,12 @@ export default function SignIn() {
       } else {
         Alert.alert('Wrong OTP', data.message || 'Incorrect OTP. Please try again.');
       }
-    } catch {
-      Alert.alert('Network Error', 'Please check your internet connection.');
+    } catch (e) {
+      if (e.name === 'AbortError') {
+        Alert.alert('Timeout', 'Server respond nahi kar raha. Thodi der baad try karein.');
+      } else {
+        Alert.alert('Network Error', 'Internet connection check karein.');
+      }
     } finally {
       setLoading(false);
     }
@@ -121,7 +127,7 @@ export default function SignIn() {
     setOtp(['', '', '', '', '', '']);
     setLoading(true);
     try {
-      const res = await fetch(`${BASE_URL}/auth/send-otp`, {
+      const res = await fetchWithTimeout(`${BASE_URL}/auth/send-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phoneNumber: `+91${phone}` }),
@@ -130,12 +136,16 @@ export default function SignIn() {
       if (res.ok) {
         setVerificationId(data.verificationId);
         setTimer(30);
-        if (data.otp) Alert.alert('OTP (Dev Mode)', `New OTP: ${data.otp}`);
+        if (data.otp) Alert.alert('OTP', `New OTP: ${data.otp}`);
       } else {
         Alert.alert('Error', data.message || 'Failed to resend OTP.');
       }
-    } catch {
-      Alert.alert('Network Error', 'Please check your internet connection.');
+    } catch (e) {
+      if (e.name === 'AbortError') {
+        Alert.alert('Timeout', 'Server respond nahi kar raha. Thodi der baad try karein.');
+      } else {
+        Alert.alert('Network Error', 'Internet connection check karein.');
+      }
     } finally {
       setLoading(false);
     }

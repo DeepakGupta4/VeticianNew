@@ -14,6 +14,10 @@ import {
   SafeAreaView,
   TextInput,
   Modal,
+  StatusBar,
+  Platform,
+  Linking,
+  Alert,
 } from 'react-native';
 import { useSelector } from 'react-redux';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -153,6 +157,7 @@ export default function VeticionHome() {
   const [modalVisible, setModalVisible] = useState(false);
   const [sidebarVisible, setSidebarVisible] = useState(false);
   const [userLocation, setUserLocation] = useState(null);
+  const [locationPermissionDenied, setLocationPermissionDenied] = useState(false);
   const [incomingCall, setIncomingCall] = useState(null);
   const [showIncomingCall, setShowIncomingCall] = useState(false);
   const [inVideoCall, setInVideoCall] = useState(false);
@@ -165,19 +170,53 @@ export default function VeticionHome() {
   const slideAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
-  const getUserLocation = async () => {
+  const getUserLocation = async (forceRequest = false) => {
     try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') return null;
-      const location = await Location.getCurrentPositionAsync({});
-      const coords = {
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude,
-      };
-      setUserLocation(coords);
-      return coords;
+      const { status, canAskAgain } = await Location.getForegroundPermissionsAsync();
+
+      if (status !== 'granted') {
+        if (canAskAgain || forceRequest) {
+          const { status: newStatus } = await Location.requestForegroundPermissionsAsync();
+          if (newStatus !== 'granted') {
+            setLocationPermissionDenied(true);
+            Alert.alert(
+              'Location Permission Required',
+              'Please enable location access in Settings to see nearby clinics.',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Open Settings', onPress: () => Linking.openSettings() },
+              ]
+            );
+            return null;
+          }
+        } else {
+          setLocationPermissionDenied(true);
+          Alert.alert(
+            'Location Permission Required',
+            'Please enable location access in Settings to see nearby clinics.',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Open Settings', onPress: () => Linking.openSettings() },
+            ]
+          );
+          return null;
+        }
+      }
+
+      try {
+        const location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        const coords = { latitude: location.coords.latitude, longitude: location.coords.longitude };
+        setUserLocation(coords);
+        setLocationPermissionDenied(false);
+        return coords;
+      } catch {
+        // GPS unavailable (emulator/device GPS off) - permission granted but no signal
+        // Still show prompt so user knows location is needed
+        setLocationPermissionDenied(true);
+        return null;
+      }
     } catch (error) {
-      console.error('Error getting location:', error);
+      setLocationPermissionDenied(true);
       return null;
     }
   };
@@ -283,6 +322,7 @@ export default function VeticionHome() {
   useEffect(() => {
     const init = async () => {
       const coords = await getUserLocation();
+      if (!coords) setLocationPermissionDenied(true);
       await fetchParentData();
       await fetchClinics(coords);
 
@@ -536,6 +576,7 @@ export default function VeticionHome() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <StatusBar backgroundColor="#7CB342" barStyle="light-content" translucent={false} />
       <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
@@ -552,11 +593,21 @@ export default function VeticionHome() {
           <View style={styles.headerTop}>
             <View style={styles.headerLeft}>
               <Text style={styles.appName}>Vetician</Text>
-              <View style={styles.locationInline}>
-                <MapPin size={13} color="rgba(255,255,255,0.85)" />
-                <Text style={styles.locationInlineText}>Near You</Text>
+              <TouchableOpacity 
+                style={styles.locationInline}
+                onPress={async () => {
+                  const coords = await getUserLocation(true);
+                  if (coords) fetchClinics(coords);
+                  else fetchClinics({});
+                }}
+                activeOpacity={0.7}
+              >
+                <MapPin size={13} color={userLocation ? '#fff' : 'rgba(255,255,255,0.6)'} />
+                <Text style={[styles.locationInlineText, !userLocation && { opacity: 0.7 }]}>
+                  {userLocation ? 'Near You ✓' : 'Near You'}
+                </Text>
                 <ChevronDown size={13} color="rgba(255,255,255,0.85)" />
-              </View>
+              </TouchableOpacity>
             </View>
             <TouchableOpacity onPress={() => router.push('/(vetician_tabs)/(tabs)/profile')}>
               <MaterialIcons name="person" size={26} color="#fff" />
@@ -646,76 +697,105 @@ export default function VeticionHome() {
         )}
 
         {/* Nearby Clinics */}
-        {clinics.length > 0 && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Nearby Clinics</Text>
-              <TouchableOpacity onPress={() => router.push('pages/ClinicListScreen')}>
-                <Text style={styles.seeAll}>See All →</Text>
+        <View style={styles.section}>
+          {clinics.length === 0 ? (
+            <>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Nearby Clinics</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.locationPromptCard}
+                activeOpacity={0.85}
+                onPress={async () => {
+                  const coords = await getUserLocation(true);
+                  if (coords) fetchClinics(coords);
+                  else fetchClinics({});
+                }}
+              >
+                <View style={styles.locationPromptIconWrap}>
+                  <MaterialIcons name="location-off" size={32} color="#7CB342" />
+                </View>
+                <Text style={styles.locationPromptTitle}>Enable Location to See Nearby Clinics</Text>
+                <Text style={styles.locationPromptSubtitle}>
+                  We need your location to show the best vet clinics near you.
+                </Text>
+                <View style={styles.locationPromptButton}>
+                  <MaterialIcons name="my-location" size={16} color="#fff" />
+                  <Text style={styles.locationPromptButtonText}>Allow Location Access</Text>
+                </View>
               </TouchableOpacity>
-            </View>
-            <FlatList
-              horizontal
-              data={clinics.slice(0, 5)}
-              keyExtractor={(item) => item._id}
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ gap: 12, paddingRight: 4 }}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={styles.clinicCardMain}
-                  onPress={() => handleClinicPress(item)}
-                  activeOpacity={0.9}
-                >
-                  {/* Image */}
-                  <View style={styles.clinicCardImageContainer}>
-                    <Image
-                      source={{ uri: item.profilePhotoUrl || 'https://images.unsplash.com/photo-1628009368231-7bb7cfcb0def?w=400&auto=format&fit=crop' }}
-                      style={styles.clinicCardImage}
-                      resizeMode="cover"
-                    />
-                    {/* Verified badge */}
-                    <View style={styles.clinicVerifiedBadge}>
-                      <MaterialIcons name="verified" size={11} color="#10B981" />
-                      <Text style={styles.clinicVerifiedText}>Verified</Text>
-                    </View>
-                    {/* Distance badge */}
-                    <View style={styles.clinicDistanceBadge}>
-                      <MaterialIcons name="near-me" size={11} color="#7CB342" />
-                      <Text style={styles.clinicDistanceBadgeText}>
-                        {item.distance !== 'N/A' ? `${item.distance} km` : 'Nearby'}
-                      </Text>
-                    </View>
-                  </View>
-
-                  {/* Info */}
-                  <View style={styles.clinicCardInfo}>
-                    <View style={styles.clinicCardNameRow}>
-                      <Text style={styles.clinicCardName} numberOfLines={1} ellipsizeMode="tail">{item.clinicName}</Text>
-                      {item.clinicDetails?.fees ? (
-                        <Text style={styles.clinicCardFees}>₹{item.clinicDetails.fees}</Text>
-                      ) : null}
-                    </View>
-                    <View style={styles.clinicCardRow}>
-                      <MaterialIcons name="local-hospital" size={11} color="#999" />
-                      <Text style={styles.clinicCardTypeText} numberOfLines={1}>{item.establishmentType}</Text>
-                    </View>
-                    {item.clinicDetails?.timings?.mon?.start ? (
-                      <View style={styles.clinicCardRow}>
-                        <MaterialIcons name="access-time" size={11} color="#7CB342" />
-                        <Text style={styles.clinicCardTimeText}>
-                          {item.clinicDetails.timings.mon.start} - {item.clinicDetails.timings.mon.end}
+            </>
+          ) : (
+            <>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Nearby Clinics</Text>
+                <TouchableOpacity onPress={() => router.push('pages/ClinicListScreen')}>
+                  <Text style={styles.seeAll}>See All →</Text>
+                </TouchableOpacity>
+              </View>
+              <FlatList
+                horizontal
+                data={clinics.slice(0, 5)}
+                keyExtractor={(item) => item._id}
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ gap: 12, paddingRight: 4 }}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={styles.clinicCardMain}
+                    onPress={() => handleClinicPress(item)}
+                    activeOpacity={0.9}
+                  >
+                    {/* Image */}
+                    <View style={styles.clinicCardImageContainer}>
+                      <Image
+                        source={{ uri: item.profilePhotoUrl || 'https://images.unsplash.com/photo-1628009368231-7bb7cfcb0def?w=400&auto=format&fit=crop' }}
+                        style={styles.clinicCardImage}
+                        resizeMode="cover"
+                      />
+                      {/* Verified badge */}
+                      <View style={styles.clinicVerifiedBadge}>
+                        <MaterialIcons name="verified" size={11} color="#10B981" />
+                        <Text style={styles.clinicVerifiedText}>Verified</Text>
+                      </View>
+                      {/* Distance badge */}
+                      <View style={styles.clinicDistanceBadge}>
+                        <MaterialIcons name="near-me" size={11} color="#7CB342" />
+                        <Text style={styles.clinicDistanceBadgeText}>
+                          {item.distance !== 'N/A' ? `${item.distance} km` : 'Nearby'}
                         </Text>
                       </View>
-                    ) : null}
-                    <TouchableOpacity style={styles.bookNowBadge} onPress={() => handleClinicPress(item)}>
-                      <Text style={styles.bookNowBadgeText}>Book Now</Text>
-                    </TouchableOpacity>
-                  </View>
-                </TouchableOpacity>
-              )}
-            />
-          </View>
-        )}
+                    </View>
+
+                    {/* Info */}
+                    <View style={styles.clinicCardInfo}>
+                      <View style={styles.clinicCardNameRow}>
+                        <Text style={styles.clinicCardName} numberOfLines={1} ellipsizeMode="tail">{item.clinicName}</Text>
+                        {item.clinicDetails?.fees ? (
+                          <Text style={styles.clinicCardFees}>₹{item.clinicDetails.fees}</Text>
+                        ) : null}
+                      </View>
+                      <View style={styles.clinicCardRow}>
+                        <MaterialIcons name="local-hospital" size={11} color="#999" />
+                        <Text style={styles.clinicCardTypeText} numberOfLines={1}>{item.establishmentType}</Text>
+                      </View>
+                      {item.clinicDetails?.timings?.mon?.start ? (
+                        <View style={styles.clinicCardRow}>
+                          <MaterialIcons name="access-time" size={11} color="#7CB342" />
+                          <Text style={styles.clinicCardTimeText}>
+                            {item.clinicDetails.timings.mon.start} - {item.clinicDetails.timings.mon.end}
+                          </Text>
+                        </View>
+                      ) : null}
+                      <TouchableOpacity style={styles.bookNowBadge} onPress={() => handleClinicPress(item)}>
+                        <Text style={styles.bookNowBadgeText}>Book Now</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </TouchableOpacity>
+                )}
+              />
+            </>
+          )}
+        </View>
 
         {/* Health Tips Section */}
         <View style={styles.section}>
@@ -870,13 +950,14 @@ export default function VeticionHome() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: '#7CB342',
   },
   scrollView: {
     flex: 1,
+    backgroundColor: '#F5F5F5',
   },
   header: {
-    paddingTop: 12,
+    paddingTop: Platform.OS === 'android' ? 12 : 12,
     paddingBottom: 20,
     paddingHorizontal: 16,
     borderBottomLeftRadius: 24,
@@ -1296,6 +1377,58 @@ const styles = StyleSheet.create({
   bookNowBadgeText: {
     color: '#fff',
     fontSize: 12,
+    fontWeight: '700',
+  },
+  locationPromptCard: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 24,
+    alignItems: 'center',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    borderWidth: 1.5,
+    borderColor: '#E8F5E9',
+    borderStyle: 'dashed',
+  },
+  locationPromptIconWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#F1F8E9',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  locationPromptTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1A1A1A',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  locationPromptSubtitle: {
+    fontSize: 13,
+    color: '#888',
+    textAlign: 'center',
+    lineHeight: 19,
+    marginBottom: 18,
+    paddingHorizontal: 8,
+  },
+  locationPromptButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#7CB342',
+    paddingHorizontal: 20,
+    paddingVertical: 11,
+    borderRadius: 25,
+    gap: 8,
+  },
+  locationPromptButtonText: {
+    color: '#fff',
+    fontSize: 14,
     fontWeight: '700',
   },
 

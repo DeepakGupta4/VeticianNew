@@ -20,33 +20,12 @@ import { COLORS, RADIUS } from '../../../constant/theme';
 
 // ── Button definitions ──
 const BUTTONS = [
-  {
-    key:      'speak',
-    icon:     'mic',
-    iconLib:  Ionicons,
-    label:    'Speak to Pet',
-    desc:     'Send voice message',
-    feedback: 'Transmitting voice to Max…',
-  },
-  {
-    key:      'toy',
-    icon:     'tennis-ball',
-    iconLib:  MaterialCommunityIcons,
-    label:    'Play Toy Sound',
-    desc:     'Activate smart toy',
-    feedback: 'Activating play toy…',
-  },
-  {
-    key:      'call',
-    icon:     'notifications',
-    iconLib:  Ionicons,
-    label:    'Call Max',
-    desc:     'Call pet by name',
-    feedback: "Calling Max's name…",
-  },
+  { key: 'speak', icon: 'mic',          iconLib: Ionicons,               label: 'Speak to Pet',   desc: 'Send voice message',  feedbackKey: 'speak' },
+  { key: 'toy',   icon: 'tennis-ball',   iconLib: MaterialCommunityIcons, label: 'Play Toy Sound', desc: 'Activate smart toy',  feedbackKey: 'toy'   },
+  { key: 'call',  icon: 'notifications', iconLib: Ionicons,               label: 'Call Pet',       desc: 'Call pet by name',   feedbackKey: 'call'  },
 ];
 
-export default function RemoteInteractionPanel() {
+export default function RemoteInteractionPanel({ petName = 'Your Pet' }) {
 
   // Which button is currently active (null = none)
   const [activeKey, setActiveKey] = useState(null);
@@ -57,7 +36,12 @@ export default function RemoteInteractionPanel() {
   };
 
   // Get feedback text for the active button
-  const activeFeedback = BUTTONS.find(b => b.key === activeKey)?.feedback;
+  const feedbackMap = {
+    speak: `Transmitting voice to ${petName}…`,
+    toy:   'Activating play toy…',
+    call:  `Calling ${petName}'s name…`,
+  };
+  const activeFeedback = activeKey ? feedbackMap[activeKey] : null;
 
   return (
     <View style={styles.container}>

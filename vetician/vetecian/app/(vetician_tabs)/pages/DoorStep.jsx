@@ -93,6 +93,19 @@ const generateDates = () => {
   return dates;
 };
 
+// Normalize nested API paravet data to flat fields used in UI
+const normalizeParavet = (p) => ({
+  ...p,
+  name: p.personalInfo?.fullName?.value || p.name || 'Paravet',
+  photo: p.documents?.profilePhoto?.url || p.photo || `https://ui-avatars.com/api/?name=Paravet&size=70&background=9B59B6&color=fff`,
+  specialization: p.experience?.areasOfExpertise?.value?.join(', ') || p.specialization || 'General Care',
+  city: p.personalInfo?.city?.value || p.city || '',
+  verified: p.applicationStatus?.approvalStatus === 'approved',
+  rating: p.rating || 4.5,
+  reviews: p.reviews || 0,
+  distance: p.distance || 'Nearby',
+});
+
 // Booking Modal Component
 const BookingModal = ({ visible, onClose, service }) => {
   const dispatch = useDispatch();
@@ -146,22 +159,15 @@ const BookingModal = ({ visible, onClose, service }) => {
   const fetchParavets = async () => {
     try {
       setLoadingPartners(true);
-      console.log('🔍 Fetching paravets from API...');
       const response = await ApiService.getVerifiedParavets();
-      console.log('✅ Paravets response:', response);
-      console.log('📊 Paravets count:', response.data?.length || 0);
-      
       if (response.data && response.data.length > 0) {
-        console.log('👤 First paravet:', response.data[0]);
-        setServicePartners(response.data);
+        setServicePartners(response.data.map(normalizeParavet));
       } else {
-        console.log('⚠️ No paravets found in response');
         setServicePartners([]);
-        Alert.alert('No Paravets Available', 'There are no verified paravets available at the moment. Please try again later.');
+        Alert.alert('No Paravets Available', 'There are no verified paravets available at the moment.');
       }
     } catch (error) {
       console.error('❌ Error fetching paravets:', error);
-      console.error('❌ Error details:', error.message);
       setServicePartners([]);
       Alert.alert('Error', 'Failed to load service partners. Please try again.');
     } finally {
@@ -982,7 +988,8 @@ const ParavetModule = () => {
       const response = await ApiService.getDoorstepBookings();
       setUserBookings(response.data || []);
     } catch (error) {
-      console.error('Error fetching bookings:', error);
+      // Silently ignore — endpoint may not be deployed yet
+      setUserBookings([]);
     }
   };
 
@@ -990,7 +997,7 @@ const ParavetModule = () => {
     try {
       setLoadingParavets(true);
       const response = await ApiService.getVerifiedParavets();
-      setParavets(response.data || []);
+      setParavets((response.data || []).map(normalizeParavet));
     } catch (error) {
       console.error('Error fetching paravets:', error);
     } finally {
@@ -1129,7 +1136,7 @@ const ParavetModule = () => {
                           {paravet.specialization}
                         </Text>
                         <Text variant="labelSmall" style={styles.paravetSelectionExperience}>
-                          {paravet.experience?.areasOfExpertise?.value?.length || 0} services available
+                          {paravet.experience?.areasOfExpertise?.value?.length || 0} service(s) available
                         </Text>
                       </View>
                       <Ionicons name="chevron-forward" size={24} color={theme.colors.primary} />
@@ -1208,7 +1215,7 @@ const ParavetModule = () => {
             mode="contained"
             buttonColor={theme.colors.primary}
             style={styles.emergencyButton}
-            icon="emergency"
+            icon="alert-circle-outline"
             labelStyle={styles.emergencyButtonLabel}
           >
             Emergency Service - Get help within 2 hours
@@ -1573,7 +1580,7 @@ const ParavetModule = () => {
           {/* Demo Button */}
           <Button
             mode="contained"
-            icon="location-on"
+            icon="map-marker-outline"
             buttonColor={theme.colors.primary}
             style={styles.demoButton}
             labelStyle={styles.demoButtonLabel}

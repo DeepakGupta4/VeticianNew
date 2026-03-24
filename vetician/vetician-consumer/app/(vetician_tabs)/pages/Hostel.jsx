@@ -45,9 +45,21 @@ export default function BookHostelScreen() {
       return;
     }
     Alert.alert(
-      'Booking Confirmed!',
+      'Booking Confirmed! 🎉',
       `${selPet.name} will stay at ${selHostel.name} in a ${selRoom.name}.\nCheck-in:  ${fmtDate(checkin.date)} at ${checkin.time}\nCheck-out: ${fmtDate(checkout.date)} at ${checkout.time}\n\nTotal: ₹${totalPrice.toLocaleString('en-IN')}`,
-      [{ text: 'Great!' }]
+      [{
+        text: 'Watch Live 📷',
+        onPress: () => router.push({
+          pathname: '/(vetician_tabs)/pages/PetWatching',
+          params: {
+            petId:      selPet.id || selPet._id || '',
+            hostelName: selHostel.name,
+            roomType:   selRoom.name,
+            checkin:    fmtDate(checkin.date),
+            checkout:   fmtDate(checkout.date),
+          },
+        }),
+      }]
     );
   }, [isReady, selPet, selHostel, selRoom, checkin, checkout, totalPrice]);
 

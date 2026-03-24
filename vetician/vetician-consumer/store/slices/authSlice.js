@@ -458,27 +458,35 @@ export const getAllVerifiedClinics = createAsyncThunk(
 ========================= */
 export const registerPet = createAsyncThunk(
   'auth/pet',
-  async (petData, { rejectWithValue, getState }) => {
+  async (petData, { rejectWithValue }) => {
     try {
       if (!petData.name || !petData.species || !petData.gender)
         throw new Error('Missing required information');
-      
+
       const userId = await AsyncStorage.getItem('userId');
+      if (!userId) throw new Error('User not authenticated');
+
       const BASE_URL = getApiBaseUrl();
       const headers = await getCommonHeaders(true);
-      
+
       const res = await fetch(`${BASE_URL}/parents/pets`, {
         method: 'POST',
         headers,
         body: JSON.stringify({ ...petData, userId }),
       });
-      
-      if (!res.ok) {
-        const errorText = await res.text();
-        throw new Error(`HTTP ${res.status}: ${errorText}`);
+
+      const responseText = await res.text();
+      let result;
+      try {
+        result = JSON.parse(responseText);
+      } catch {
+        throw new Error(responseText || 'Invalid server response');
       }
-      
-      const result = await res.json();
+
+      if (!res.ok) {
+        throw new Error(result?.message || result?.error || `Server error (${res.status})`);
+      }
+
       return result;
     } catch (error) {
       return rejectWithValue(error.message || 'Pet registration failed');

@@ -3,11 +3,19 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { View, TouchableOpacity, StyleSheet, Text } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SOSModal from '../../../components/SOSModal';
 
 function CustomTabBar({ state, descriptors, navigation }) {
   const router = useRouter();
   const [sosVisible, setSosVisible] = useState(false);
+  const { bottom } = useSafeAreaInsets();
+
+  // Hide tab bar on profile screen
+  const currentRoute = state.routes[state.index]?.name;
+  if (currentRoute === 'profile' || currentRoute === 'ProfileDetails') {
+    return null;
+  }
 
   const visibleTabs = ['index', 'doorstep', 'clinic', 'pet'];
   const visibleRoutes = state.routes.filter(r => visibleTabs.includes(r.name));
@@ -51,7 +59,7 @@ function CustomTabBar({ state, descriptors, navigation }) {
         <MaterialCommunityIcons name="alarm-light" size={34} color="#fff" />
         <Text style={styles.sosLabel}>SOS</Text>
       </TouchableOpacity>
-      <View style={styles.tabBar}>
+      <View style={[styles.tabBar, { paddingBottom: bottom || 8 }]}>
         {visibleRoutes.slice(0, 2).map(renderTab)}
         <View style={styles.sosPlaceholder} />
         {visibleRoutes.slice(2).map(renderTab)}
@@ -74,8 +82,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     backgroundColor: '#FFFFFF',
     width: '100%',
-    height: 72,
+    minHeight: 72,
     paddingHorizontal: 8,
+    paddingTop: 10,
     elevation: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -4 },
@@ -105,7 +114,7 @@ const styles = StyleSheet.create({
   },
   sosButton: {
     position: 'absolute',
-    bottom: 16,
+    bottom: 20,
     width: 80,
     height: 80,
     borderRadius: 40,
