@@ -62,7 +62,19 @@ export default function PetTab() {
               <TouchableOpacity
                 key={item.id}
                 activeOpacity={0.95}
+<<<<<<< HEAD
                 onPress={() => { if (item.id === 'details') openForm(); }}
+=======
+                onPress={() => {
+                  if (item.id === 'details') {
+                    setShowForm(true);
+                  } else if (item.id === 'appointments') {
+                    router.push('/appointments');
+                  } else if (item.id === 'vaccination') {
+                    router.push('/pages/Vaccination');
+                  }
+                }}
+>>>>>>> Sher
               >
                 <Card style={{ marginVertical: 4 }}>
                   <Card.Content style={{ paddingVertical: 12, paddingHorizontal: 14 }}>

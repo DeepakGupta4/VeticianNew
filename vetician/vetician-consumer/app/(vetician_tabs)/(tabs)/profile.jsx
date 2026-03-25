@@ -1174,7 +1174,11 @@ export default function Profile() {
       id: 'appointments',
       icon: CalendarIcon,
       title: 'Appointments',
+<<<<<<< HEAD
       onPress: () => router.push('/appointments'),
+=======
+      onPress: () => router.push('/appointmentsScreen'),
+>>>>>>> Sher
       color: '#558B2F'
     },
     {
@@ -1202,7 +1206,11 @@ export default function Profile() {
       id: 'orders',
       icon: Package,
       title: 'Orders & Purchases',
+<<<<<<< HEAD
       onPress: () => router.push('/orders'),
+=======
+      onPress: () => router.push('/appointments'),
+>>>>>>> Sher
       color: '#558B2F'
     },
     {
