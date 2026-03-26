@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   ScrollView,
@@ -33,6 +33,7 @@ const menuItems = [
 export default function PetTab() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const [showForm, setShowForm] = useState(false);
 
   const openForm = () => router.push('/(vetician_tabs)/pages/PetDetail');
 
@@ -62,9 +63,6 @@ export default function PetTab() {
               <TouchableOpacity
                 key={item.id}
                 activeOpacity={0.95}
-<<<<<<< HEAD
-                onPress={() => { if (item.id === 'details') openForm(); }}
-=======
                 onPress={() => {
                   if (item.id === 'details') {
                     setShowForm(true);
@@ -72,9 +70,10 @@ export default function PetTab() {
                     router.push('/appointments');
                   } else if (item.id === 'vaccination') {
                     router.push('/pages/Vaccination');
+                  } else if (item.id === 'help') {
+                    router.push('/help');
                   }
                 }}
->>>>>>> Sher
               >
                 <Card style={{ marginVertical: 4 }}>
                   <Card.Content style={{ paddingVertical: 12, paddingHorizontal: 14 }}>

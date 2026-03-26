@@ -1,9 +1,6 @@
 import { Stack } from 'expo-router';
 // import HealthTipsScreen from './pages/HealthTipsScreen'
-<<<<<<< HEAD
 
-=======
->>>>>>> Sher
 export default function Layout() {
   return (
     <Stack>
@@ -26,12 +23,9 @@ export default function Layout() {
       <Stack.Screen name="pages/BookScreen" options={{ headerShown: false }}/>
       <Stack.Screen name="pages/MyBookings" options={{ headerShown: false }}/>
       <Stack.Screen name="pages/MedicalRecords" options={{ headerShown: false }}/>
-<<<<<<< HEAD
-      <Stack.Screen name="pages/Appointments" options={{ headerShown: false }}/>
-=======
       <Stack.Screen name="pages/Vaccination" options={{ headerShown: false }}/>
       <Stack.Screen name="pages/AppointmentsScreen" options={{ headerShown: false }}/>
->>>>>>> Sher
+      
       <Stack.Screen name="pets" options={{ headerShown: false }}/>
       <Stack.Screen name="appointments" options={{ headerShown: false }}/>
       <Stack.Screen name="medical-records" options={{ headerShown: false }}/>

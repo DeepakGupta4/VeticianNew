@@ -161,10 +161,6 @@ export default function TabLayout() {
       <Tabs.Screen name="../pages/BookScreen" options={{ href: null }} />
       <Tabs.Screen name="../pages/VideoConsultation" options={{ href: null }} />
       <Tabs.Screen name="../pages/Hostel" options={{ href: null }} />
-<<<<<<< HEAD
-=======
-      
->>>>>>> Sher
     </Tabs>
   );
 }
