@@ -464,7 +464,11 @@ const getAllClinicsWithVets = catchAsync(async (req, res, next) => {
   const clinics = await Clinic.find({ verified: true }).lean();
   
   if (!clinics || clinics.length === 0) {
-    return next(new AppError('No verified clinics found', 404));
+    return res.status(200).json({
+      success: true,
+      count: 0,
+      data: []
+    });
   }
 
   // 2. Get all unique user IDs from clinics
