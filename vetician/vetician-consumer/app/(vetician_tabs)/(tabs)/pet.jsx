@@ -27,7 +27,7 @@ const menuItems = [
   { id: 'appointments', title: 'Appointments & Orders',  subtitle: 'Check Invoices and Order details', icon: 'calendar-check' },
   { id: 'vaccination',  title: 'Vaccination',            subtitle: 'View Pet Vaccination Records',     icon: 'needle' },
   { id: 'help',         title: 'Need Help',              subtitle: 'Whisker Your Worries Away',        icon: 'help-circle' },
-  { id: 'membership',   title: 'Premium Membership',     subtitle: 'Check your membership utilisation',icon: 'heart' },
+  { id: 'membership',   title: 'Premium Membership',     subtitle: 'Check your membership utilisation',icon: 'crown' },
 ];
 
 export default function PetTab() {
@@ -72,6 +72,8 @@ export default function PetTab() {
                     router.push('/pages/Vaccination');
                   } else if (item.id === 'help') {
                     router.push('/help');
+                  } else if (item.id === 'membership') {
+                    router.push('/membership');
                   }
                 }}
               >

@@ -897,7 +897,7 @@ import { View, StyleSheet, TouchableOpacity, ScrollView, Alert, ActivityIndicato
 import { useSelector, useDispatch } from 'react-redux';
 import { useRouter } from 'expo-router';
 import { signOut, getParent, updateParent } from '../../../store/slices/authSlice';
-import { User, Mail, MapPin, Phone, LogOut, X, Star, HelpCircle, PawPrint, Heart, Stethoscope, Calendar as CalendarIcon, Package, Users, BookOpen, Bell, Settings, Gift } from 'lucide-react-native';
+import { User, Mail, MapPin, Phone, LogOut, X, Star, HelpCircle, PawPrint, Heart, Stethoscope, Calendar as CalendarIcon, Package, Users, BookOpen, Bell, Settings, Gift, Crown } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -1211,6 +1211,14 @@ export default function Profile() {
       title: 'Pet Community',
       onPress: () => router.push('/community'),
       color: '#7CB342'
+    },
+    {
+      id: 'membership',
+      icon: Crown,
+      title: 'Membership Plans',
+      subtitle: 'Upgrade for more benefits',
+      onPress: () => router.push('/membership'),
+      color: '#F59E0B'
     },
     {
       id: 'rewards',

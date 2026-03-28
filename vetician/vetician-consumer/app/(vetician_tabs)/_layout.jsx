@@ -23,6 +23,7 @@ export default function Layout() {
       <Stack.Screen name="pages/BookScreen" options={{ headerShown: false }}/>
       <Stack.Screen name="pages/MyBookings" options={{ headerShown: false }}/>
       <Stack.Screen name="pages/MedicalRecords" options={{ headerShown: false }}/>
+      <Stack.Screen name="pages/MembershipScreen" options={{ headerShown: false }}/>
       <Stack.Screen name="pages/Vaccination" options={{ headerShown: false }}/>
       <Stack.Screen name="pages/AppointmentsScreen" options={{ headerShown: false }}/>
       
@@ -30,10 +31,12 @@ export default function Layout() {
       <Stack.Screen name="appointments" options={{ headerShown: false }}/>
       <Stack.Screen name="medical-records" options={{ headerShown: false }}/>
       <Stack.Screen name="favorites" options={{ headerShown: false }}/>
+      <Stack.Screen name="vet-details/[id]" options={{ headerShown: false }}/>
       <Stack.Screen name="pet-care" options={{ headerShown: false }}/>
       <Stack.Screen name="orders" options={{ headerShown: false }}/>
       <Stack.Screen name="community" options={{ headerShown: false }}/>
       <Stack.Screen name="rewards" options={{ headerShown: false }}/>
+      <Stack.Screen name="membership" options={{ headerShown: false }}/>
       <Stack.Screen name="notifications" options={{ headerShown: false }}/>
       <Stack.Screen name="help" options={{ headerShown: false }}/>
       <Stack.Screen name="settings" options={{ headerShown: false }}/>

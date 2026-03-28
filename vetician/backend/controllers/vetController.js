@@ -2,6 +2,7 @@ const Clinic = require('../models/Clinic');
 const Veterinarian = require('../models/Veterinarian');
 const Appointment = require('../models/Appointment');
 const { catchAsync } = require('../utils/catchAsync');
+const { AppError } = require('../utils/appError');
 
 // Utility function to calculate distance between two coordinates
 const calculateDistance = (lat1, lon1, lat2, lon2) => {
