@@ -1,36 +1,97 @@
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useState, useCallback, useMemo } from 'react';
+import { StyleSheet, SafeAreaView, Linking, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Heart, ChevronLeft } from 'lucide-react-native';
 
-export default function Favorites() {
+import Header from '../../components/petparent/VetFav/Header';
+import SearchBar from '../../components/petparent/VetFav/SearchBar';
+import VetsList from '../../components/petparent/VetFav/VetsList';
+import EmptyState from '../../components/petparent/VetFav/EmptyState';
+import RecommendedVets from '../../components/petparent/VetFav/RecommendedVets';
+import { FAVORITE_VETS } from '../../components/petparent/VetFav/vets';
+import { COLORS2 as C } from '../../components/petparent/VetFav/colors';
+
+export default function FavoriteVetsScreen() {
   const router = useRouter();
+  const [favorites, setFavorites] = useState(FAVORITE_VETS);
+  const [query, setQuery] = useState('');
+
+  const filteredVets = useMemo(() => {
+    if (!query.trim()) return favorites;
+    const q = query.toLowerCase();
+    return favorites.filter(
+      (v) =>
+        v.name.toLowerCase().includes(q) ||
+        v.clinic.toLowerCase().includes(q) ||
+        v.specialization.toLowerCase().includes(q) ||
+        v.location.toLowerCase().includes(q)
+    );
+  }, [favorites, query]);
+
+  const handlePressVet = useCallback(
+    (vet) => {
+      router.push({
+        pathname: '/(vetician_tabs)/vet-details/[id]',
+        params: { id: vet.id },
+      });
+    },
+    [router]
+  );
+
+  const handleRemove = useCallback((id) => {
+    setFavorites((prev) => prev.filter((v) => v.id !== id));
+  }, []);
+
+  const handleCall = useCallback((vet) => {
+    const url = `tel:${vet.phone.replace(/\s/g, '')}`;
+    Linking.openURL(url).catch(() =>
+      Alert.alert('Error', 'Unable to make a call on this device.')
+    );
+  }, []);
+
+  const handleBook = useCallback(
+    (vet) => {
+      router.push({
+        pathname: '/(vetician_tabs)/pages/BookScreen',
+        params: { vetId: vet.id },
+      });
+    },
+    [router]
+  );
+
+  const handleAddRecommended = useCallback((vet) => {
+    setFavorites((prev) => {
+      if (prev.some((v) => v.id === vet.id)) return prev;
+      return [...prev, vet];
+    });
+  }, []);
+
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <ChevronLeft size={24} color="#fff" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Favorite Vets</Text>
-        <View style={styles.placeholder} />
-      </View>
-      <View style={styles.content}>
-        <Heart size={80} color="#EF4444" />
-        <Text style={styles.title}>Favorite Vets</Text>
-        <Text style={styles.subtitle}>Your saved veterinarians</Text>
-        <Text style={styles.comingSoon}>Coming Soon</Text>
-      </View>
-    </View>
+    <SafeAreaView style={s.safe}>
+      <Header count={favorites.length} />
+      <SearchBar value={query} onChangeText={setQuery} />
+      <VetsList
+        vets={filteredVets}
+        onPressVet={handlePressVet}
+        onRemove={handleRemove}
+        onCall={handleCall}
+        onBook={handleBook}
+        ListEmptyComponent={favorites.length === 0 ? <EmptyState /> : null}
+        ListFooterComponent={
+          favorites.length > 0 ? (
+            <RecommendedVets
+              onAddFavorite={handleAddRecommended}
+              onViewAll={() => router.push('/(vetician_tabs)/pages/ClinicListScreen')}
+            />
+          ) : null
+        }
+      />
+    </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8F9FA' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#4E8D7C', paddingTop: 50, paddingBottom: 16, paddingHorizontal: 16 },
-  backButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255, 255, 255, 0.2)', justifyContent: 'center', alignItems: 'center' },
-  headerTitle: { fontSize: 20, fontWeight: 'bold', color: '#fff', flex: 1, textAlign: 'center' },
-  placeholder: { width: 40 },
-  content: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
-  title: { fontSize: 24, fontWeight: '700', color: '#2C3E50', marginTop: 20 },
-  subtitle: { fontSize: 16, color: '#7D7D7D', marginTop: 8, textAlign: 'center' },
-  comingSoon: { marginTop: 16, fontSize: 14, color: '#4E8D7C', fontWeight: '600' }
+const s = StyleSheet.create({
+  safe: {
+    flex: 1,
+    backgroundColor: C.bg,
+  },
 });
