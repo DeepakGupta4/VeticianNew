@@ -591,8 +591,9 @@ const createAppointment = catchAsync(async (req, res, next) => {
   }
 
   // 4. Validate veterinarian exists if provided
+  let veterinarian = null;
   if (veterinarianId) {
-    const veterinarian = await Veterinarian.findById(veterinarianId);
+    veterinarian = await Veterinarian.findById(veterinarianId);
     if (!veterinarian) {
       return next(new AppError('No veterinarian found with that ID', 404));
     }

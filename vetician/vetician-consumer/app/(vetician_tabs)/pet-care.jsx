@@ -1,36 +1,136 @@
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useState, useMemo, useCallback } from 'react';
+import { View, FlatList, StyleSheet, SafeAreaView, StatusBar } from 'react-native';
 import { useRouter } from 'expo-router';
-import { BookOpen, ChevronLeft } from 'lucide-react-native';
 
-export default function PetCare() {
+import { COLORS2 } from '../../components/petparent/PetCareTips/colors.jsx';
+import { TIPS_DATA } from '../../components/petparent/PetCareTips/tipsData.jsx';
+import Header from '../../components/petparent/PetCareTips/Header.jsx';
+import SearchBar from '../../components/petparent/PetCareTips/SearchBar.jsx';
+import CategoryFilter from '../../components/petparent/PetCareTips/CategoryFilter.jsx';
+import FeaturedTip from '../../components/petparent/PetCareTips/FeaturedTip.jsx';
+import TipCard from '../../components/petparent/PetCareTips/TipCard.jsx';
+import EmptyState from '../../components/petparent/PetCareTips/EmptyState.jsx';
+
+export default function PetCareTipsScreen() {
   const router = useRouter();
+  const [searchQuery, setSearchQuery]           = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [savedTips, setSavedTips]               = useState([]);
+
+  const featuredTip = useMemo(() => TIPS_DATA.find((t) => t.isFeatured), []);
+
+  const filteredTips = useMemo(() => {
+    let result = TIPS_DATA;
+    if (selectedCategory !== 'all') {
+      result = result.filter((t) => t.category === selectedCategory);
+    }
+    if (searchQuery.trim().length > 0) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(
+        (t) =>
+          t.title.toLowerCase().includes(q) ||
+          t.shortDescription.toLowerCase().includes(q) ||
+          t.category.toLowerCase().includes(q)
+      );
+    }
+    return result;
+  }, [selectedCategory, searchQuery]);
+
+  const showFeatured = featuredTip && selectedCategory === 'all' && searchQuery.length === 0;
+
+  const listTips = useMemo(
+    () => (showFeatured ? filteredTips.filter((t) => !t.isFeatured) : filteredTips),
+    [filteredTips, showFeatured]
+  );
+
+  const handlePressTip = useCallback((tip) => {
+    router.push({
+      pathname: '/(vetician_tabs)/pet-care-tip-details',
+      params: { tipId: tip.id },
+    });
+  }, [router]);
+
+  const handleSaveTip = useCallback((tipId) => {
+    setSavedTips((prev) =>
+      prev.includes(tipId) ? prev.filter((id) => id !== tipId) : [...prev, tipId]
+    );
+  }, []);
+
+  const handleCategorySelect = useCallback((cat) => {
+    setSelectedCategory(cat);
+    setSearchQuery('');
+  }, []);
+
+  const renderItem = useCallback(({ item, index }) => (
+    <TipCard
+      tip={item}
+      index={index}
+      onPress={handlePressTip}
+      onSave={handleSaveTip}
+      isSaved={savedTips.includes(item.id)}
+    />
+  ), [handlePressTip, handleSaveTip, savedTips]);
+
+  const keyExtractor = useCallback((item) => item.id, []);
+
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <ChevronLeft size={24} color="#fff" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Pet Care Tips</Text>
-        <View style={styles.placeholder} />
-      </View>
-      <View style={styles.content}>
-        <BookOpen size={80} color="#F59E0B" />
-        <Text style={styles.title}>Pet Care Tips</Text>
-        <Text style={styles.subtitle}>Expert advice for your pets</Text>
-        <Text style={styles.comingSoon}>Coming Soon</Text>
-      </View>
-    </View>
+    <SafeAreaView style={styles.safe}>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS2.primary} />
+      <Header onBack={() => router.back()} />
+
+      <FlatList
+        data={listTips}
+        keyExtractor={keyExtractor}
+        renderItem={renderItem}
+        ListHeaderComponent={
+          <View style={styles.listHeader}>
+            <SearchBar
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              onClear={() => setSearchQuery('')}
+            />
+            <View style={styles.filterWrap}>
+              <CategoryFilter
+                selectedCategory={selectedCategory}
+                onSelectCategory={handleCategorySelect}
+              />
+            </View>
+            {showFeatured && (
+              <FeaturedTip tip={featuredTip} onPress={handlePressTip} />
+            )}
+          </View>
+        }
+        ListEmptyComponent={
+          <EmptyState
+            message="No tips found"
+            subtitle="Try a different search term or browse another category."
+          />
+        }
+        contentContainerStyle={styles.listContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        initialNumToRender={4}
+        maxToRenderPerBatch={4}
+        windowSize={5}
+        removeClippedSubviews={true}
+        getItemLayout={(_, index) => ({ length: 134, offset: 134 * index, index })}
+      />
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8F9FA' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#4E8D7C', paddingTop: 50, paddingBottom: 16, paddingHorizontal: 16 },
-  backButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255, 255, 255, 0.2)', justifyContent: 'center', alignItems: 'center' },
-  headerTitle: { fontSize: 20, fontWeight: 'bold', color: '#fff', flex: 1, textAlign: 'center' },
-  placeholder: { width: 40 },
-  content: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
-  title: { fontSize: 24, fontWeight: '700', color: '#2C3E50', marginTop: 20 },
-  subtitle: { fontSize: 16, color: '#7D7D7D', marginTop: 8, textAlign: 'center' },
-  comingSoon: { marginTop: 16, fontSize: 14, color: '#4E8D7C', fontWeight: '600' }
+  safe: { flex: 1, backgroundColor: '#fff' },
+  listHeader: {
+    backgroundColor: '#fff',
+  },
+  filterWrap: {
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS2.border,
+  },
+  listContent: {
+    backgroundColor: '#fff',
+    paddingBottom: 32,
+    flexGrow: 1,
+  },
 });
