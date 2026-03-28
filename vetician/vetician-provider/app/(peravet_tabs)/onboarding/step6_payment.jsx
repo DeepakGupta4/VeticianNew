@@ -219,7 +219,7 @@ const styles = StyleSheet.create({
   },
   progressBar: {
     height: 4,
-    backgroundColor: '#00B0FF',
+    backgroundColor: '#4CAF50',
   },
   contentContainer: {
     padding: 24,
@@ -250,8 +250,8 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   paymentOptionSelected: {
-    borderColor: '#00B0FF',
-    backgroundColor: '#E8F4FD',
+    borderColor: '#4CAF50',
+    backgroundColor: '#E8F5E9',
   },
   radioContainer: {
     marginRight: 12,
@@ -296,7 +296,7 @@ const styles = StyleSheet.create({
   },
   infoBox: {
     flexDirection: 'row',
-    backgroundColor: '#E8F4FD',
+    backgroundColor: '#E8F5E9',
     borderRadius: 8,
     padding: 12,
     marginTop: 24,
@@ -304,7 +304,7 @@ const styles = StyleSheet.create({
   },
   infoText: {
     fontSize: 12,
-    color: '#0099CC',
+    color: '#2E7D32',
     lineHeight: 18,
     marginLeft: 10,
     flex: 1,
@@ -328,7 +328,7 @@ const styles = StyleSheet.create({
   },
   nextButton: {
     flex: 1,
-    backgroundColor: '#00B0FF',
+    backgroundColor: '#4CAF50',
     borderRadius: 8,
     paddingVertical: 14,
     alignItems: 'center',

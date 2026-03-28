@@ -365,6 +365,13 @@ export default function Profile() {
         </View>
       </Section>
 
+      {/* Logout Button */}
+      <TouchableOpacity style={styles.logoutBtn} onPress={handleSignOut}>
+        <Ionicons name="log-out-outline" size={22} color="#EF4444" />
+        <Text style={styles.logoutText}>Logout</Text>
+      </TouchableOpacity>
+
+      <View style={{ height: 32 }} />
     </ScrollView>
   );
 }
@@ -448,4 +455,18 @@ const styles = StyleSheet.create({
   },
   documentStatus: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   documentStatusText: { fontSize: 14, color: '#666', fontWeight: '600' },
+  logoutBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    marginHorizontal: 16,
+    marginTop: 8,
+    paddingVertical: 18,
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    borderRadius: 16,
+  },
+  logoutText: { fontSize: 16, fontWeight: '700', color: '#EF4444' },
 });

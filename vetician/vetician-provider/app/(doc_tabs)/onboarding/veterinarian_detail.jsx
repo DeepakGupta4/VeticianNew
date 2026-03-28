@@ -260,23 +260,15 @@ export default function VeterinarianProfile() {
 
       const result = await dispatch(isEditMode ? updateVeterinarianUser(submissionData) : veterinarianUser(submissionData)).unwrap();
 
-      console.log('✅ Veterinarian registration result:', result);
-
-      // Direct redirect without alert for web compatibility
-      setTimeout(() => {
-        router.replace('/(doc_tabs)/(tabs)');
-      }, 1000);
-      
-      Alert.alert('Success', 'Profile submitted! Awaiting verification.', [
-        { text: 'OK', onPress: () => router.replace('/(doc_tabs)/(tabs)') }
+      Alert.alert('Success', 'Profile submitted! Awaiting admin verification.', [
+        { text: 'OK', onPress: () => router.replace('/(doc_tabs)/pending-approval') }
       ]);
     } catch (error) {
       console.error('Submit error:', error);
-      
-      // If already applied, redirect to dashboard
+
       if (error.message && (error.message.includes('already applied') || error.message.includes('You have already applied'))) {
         Alert.alert('Already Submitted', 'Your profile is awaiting verification.', [
-          { text: 'OK', onPress: () => router.replace('/(doc_tabs)/(tabs)') }
+          { text: 'OK', onPress: () => router.replace('/(doc_tabs)/pending-approval') }
         ]);
       } else {
         Alert.alert('Error', error.message || 'Submission failed');

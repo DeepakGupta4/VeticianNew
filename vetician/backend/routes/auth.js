@@ -46,7 +46,8 @@ const {
   updateAppointmentStatus,
   getPetParentAppointments,
   getNotifications,
-  markNotificationRead
+  markNotificationRead,
+  changePassword
 } = require('../controllers/authController');
 
 const { auth } = require('../middleware/auth');
@@ -107,6 +108,7 @@ router.post('/logout', auth, logout);
 router.post('/logout-all', auth, logoutAll);
 
 router.post('/delete-account', auth, deleteAccount);
+router.post('/change-password', auth, changePassword);
 
 /* =========================
    PARENT ROUTES

@@ -49,6 +49,15 @@ const UnverifiedPetResorts = () => {
     setSelectedResort(null);
   };
 
+  const getInlineUrl = (url) => {
+    if (!url) return url;
+    const ext = url.split('?')[0].split('.').pop().toLowerCase();
+    if (['pdf', 'doc', 'docx'].includes(ext) || url.includes('/raw/upload/')) {
+      return `https://docs.google.com/viewer?url=${encodeURIComponent(url)}`;
+    }
+    return url;
+  };
+
   const ResortCard = ({ resort }) => {
     const verifiedFields = [
       'resortName',
@@ -272,7 +281,7 @@ const UnverifiedPetResorts = () => {
                       <div>
                         <p className="text-xs text-gray-400">Logo</p>
                         <a
-                          href={selectedResort.logo}
+                          href={getInlineUrl(selectedResort.logo)}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-blue-400 hover:text-blue-300 text-sm flex items-center"

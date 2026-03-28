@@ -1194,9 +1194,29 @@ const deleteUserPet = catchAsync(async (req, res, next) => {
   });
 });
 
+// Change Password
+const changePassword = catchAsync(async (req, res, next) => {
+  const { currentPassword, newPassword } = req.body;
+  const user = req.user;
+
+  if (!currentPassword || !newPassword)
+    return next(new AppError('Current and new password are required', 400));
+
+  if (newPassword.length < 6)
+    return next(new AppError('New password must be at least 6 characters', 400));
+
+  const userWithPass = await User.findById(user._id).select('+password');
+  const isValid = await userWithPass.comparePassword(currentPassword);
+  if (!isValid) return next(new AppError('Current password is incorrect', 401));
+
+  userWithPass.password = newPassword;
+  await userWithPass.save();
+
+  res.json({ success: true, message: 'Password changed successfully' });
+});
+
 // Refresh access token
 const refreshToken = catchAsync(async (req, res, next) => {
-  const { refreshToken: token } = req.body;
 
   if (!token) {
     return next(new AppError('Refresh token is required', 400));
@@ -2156,5 +2176,6 @@ module.exports = {
   updateAppointmentStatus,
   getPetParentAppointments,
   getNotifications,
-  markNotificationRead
+  markNotificationRead,
+  changePassword
 };

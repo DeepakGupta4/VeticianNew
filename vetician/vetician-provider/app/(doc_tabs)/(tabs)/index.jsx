@@ -1,132 +1,51 @@
-import { createDrawerNavigator } from '@react-navigation/drawer';
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
-import { Home as HomeIcon, Calendar, Users, Stethoscope, FileText, User, Settings, LogOut } from 'lucide-react-native';
+import { View, ActivityIndicator, Text } from 'react-native';
 import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useDispatch } from 'react-redux';
+import { useEffect, useState } from 'react';
 import Home from '../../../components/veterinarian/home/Home';
 
-const Drawer = createDrawerNavigator();
+export default function AppHome() {
+    const [checking, setChecking] = useState(true);
+    const [isVerified, setIsVerified] = useState(false);
 
-function CustomDrawerContent({ navigation }) {
-    const dispatch = useDispatch();
-    
-    const handleLogout = async () => {
-        try {
-            await AsyncStorage.multiRemove(['token', 'userId', 'user', 'refreshToken']);
-            dispatch({ type: 'auth/signOut' });
-            router.replace('/(auth)/signin');
-        } catch (error) {
-            console.error('Logout error:', error);
-            router.replace('/(auth)/signin');
-        }
-    };
+    useEffect(() => {
+        const checkVerification = async () => {
+            try {
+                const token = await AsyncStorage.getItem('token');
+                const userId = await AsyncStorage.getItem('userId');
+                const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://vetician-backend-kovk.onrender.com/api';
 
-    const menuItems = [
-        { icon: HomeIcon, label: 'Dashboard', route: '/(doc_tabs)/(tabs)' },
-        { icon: Calendar, label: 'Appointments', route: '/(doc_tabs)/(tabs)/appointment' },
-        { icon: Users, label: 'Patients', route: '/(doc_tabs)/(tabs)/patients' },
-        { icon: Stethoscope, label: 'Surgeries', route: '/(doc_tabs)/(tabs)/surgeries' },
-        { icon: FileText, label: 'Medical Records', route: '/(doc_tabs)/records' },
-        { icon: User, label: 'Profile', route: '/(doc_tabs)/(tabs)/profile' },
-        { icon: Settings, label: 'Settings', route: '/(doc_tabs)/settings' },
-    ];
+                const res = await fetch(`${API_URL}/auth/veterinarian/${userId}`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+                const data = await res.json();
 
-    return (
-        <View style={styles.drawerContainer}>
-            <View style={styles.drawerHeader}>
-                <Text style={styles.drawerTitle}>Veterinarian</Text>
-                <Text style={styles.drawerSubtitle}>Dashboard Menu</Text>
+                if (data.success && data.data?.profile?.isVerified) {
+                    setIsVerified(true);
+                } else if (data.success && data.data?.profile) {
+                    router.replace('/(doc_tabs)/pending-approval');
+                } else {
+                    router.replace('/(doc_tabs)/onboarding/onboarding_conf');
+                }
+            } catch (e) {
+                router.replace('/(doc_tabs)/onboarding/onboarding_conf');
+            } finally {
+                setChecking(false);
+            }
+        };
+        checkVerification();
+    }, []);
+
+    if (checking) {
+        return (
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
+                <ActivityIndicator size="large" color="#7CB342" />
+                <Text style={{ marginTop: 12, color: '#6B7280' }}>Checking account status...</Text>
             </View>
+        );
+    }
 
-            <View style={styles.menuItems}>
-                {menuItems.map((item, index) => (
-                    <TouchableOpacity
-                        key={index}
-                        style={styles.menuItem}
-                        onPress={() => router.push(item.route)}
-                    >
-                        <item.icon size={22} color="#1a1a1a" />
-                        <Text style={styles.menuText}>{item.label}</Text>
-                    </TouchableOpacity>
-                ))}
-            </View>
+    if (!isVerified) return null;
 
-            <TouchableOpacity style={styles.logoutItem} onPress={handleLogout}>
-                <LogOut size={22} color="#FF3B30" />
-                <Text style={[styles.menuText, { color: '#FF3B30' }]}>Logout</Text>
-            </TouchableOpacity>
-        </View>
-    );
-}
-
-const styles = StyleSheet.create({
-    drawerContainer: {
-        flex: 1,
-        backgroundColor: '#fff',
-        paddingTop: 50,
-    },
-    drawerHeader: {
-        padding: 20,
-        borderBottomWidth: 1,
-        borderBottomColor: '#f0f0f0',
-        marginBottom: 10,
-    },
-    drawerTitle: {
-        fontSize: 24,
-        fontWeight: 'bold',
-        color: '#1a1a1a',
-        marginBottom: 4,
-    },
-    drawerSubtitle: {
-        fontSize: 14,
-        color: '#8E8E93',
-    },
-    menuItems: {
-        flex: 1,
-        paddingTop: 10,
-    },
-    menuItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: 16,
-        paddingHorizontal: 20,
-        gap: 16,
-    },
-    menuText: {
-        fontSize: 16,
-        color: '#1a1a1a',
-        fontWeight: '500',
-    },
-    logoutItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: 16,
-        paddingHorizontal: 20,
-        gap: 16,
-        borderTopWidth: 1,
-        borderTopColor: '#f0f0f0',
-        marginTop: 10,
-    },
-});
-
-export default function AppDrawer() {
-    return (
-        <Drawer.Navigator
-            initialRouteName="Home"
-            drawerContent={(props) => <CustomDrawerContent {...props} />}
-            screenOptions={{
-                headerShown: false,
-                drawerStyle: {
-                    width: 280,
-                },
-            }}
-        >
-            <Drawer.Screen
-                name="Home"
-                component={Home}
-                options={{ title: 'Dashboard' }}
-            />
-        </Drawer.Navigator>
-    );
+    return <Home />;
 }

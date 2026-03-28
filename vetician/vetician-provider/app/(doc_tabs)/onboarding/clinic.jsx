@@ -1,469 +1,141 @@
-// import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
-// import AsyncStorage from '@react-native-async-storage/async-storage';
-// import { Stethoscope, Clock, CalendarDays, Menu, Plus } from 'lucide-react-native';
-// import { DrawerActions, useNavigation } from '@react-navigation/native';
-// import { useDispatch } from 'react-redux';
-// import { checkVeterinarianVerification } from '../../../store/slices/authSlice';
-
-// export default function AddClinic() {
-//   const navigation = useNavigation();
-//   const dispatch = useDispatch();
-
-//   const openDrawer = () => {
-//     navigation.dispatch(DrawerActions.openDrawer());
-//   };
-
-//   const handleClinic = async () => {
-//     try {
-//       const userId = await AsyncStorage.getItem('userId');
-//       if (!userId) {
-//         Alert.alert('Error', 'User not authenticated');
-//         return;
-//       }
-
-//       const resultAction = await dispatch(checkVeterinarianVerification()).unwrap();
-//       const { isVerified, message } = resultAction;
-
-//       if (isVerified) {
-//         Alert.alert(
-//           'Verified',
-//           message || 'Your account is verified',
-//           [
-//             {
-//               text: 'Cancel',
-//               style: 'cancel',
-//             },
-//             {
-//               text: 'Continue',
-//               onPress: () => navigation.navigate('onboarding/addclinicform'),
-//             }
-//           ]
-//         );
-//       } else {
-//         Alert.alert(
-//           'Verification Required',
-//           message || 'Your account is not yet verified. Please complete verification first.',
-//           [
-//             {
-//               text: 'OK',
-//               // onPress: () => navigation.navigate('VerificationStatus'),
-//             }
-//           ]
-//         );
-//       }
-//     } catch (error) {
-//       Alert.alert('Error', error.message || 'Failed to check verification status');
-//     }
-//   };
-
-//   return (
-//     <View style={styles.container}>
-//       {/* Header */}
-//       <View style={styles.header}>
-//         <TouchableOpacity onPress={openDrawer} style={styles.menuButton}>
-//           <Menu size={28} color="#333" />
-//         </TouchableOpacity>
-//         <Text style={styles.headerTitle}>Add Your Clinic</Text>
-//         <View style={styles.headerSpacer} />
-//       </View>
-
-//       {/* Main Content */}
-//       <View style={styles.content}>
-//         <View style={styles.card}>
-//           <View style={styles.iconCircle}>
-//             <Plus size={32} color="#fff" />
-//           </View>
-          
-//           <Text style={styles.title}>Register Your Veterinary Clinic</Text>
-//           <Text style={styles.subtitle}>
-//             Join our network of professional veterinarians
-//           </Text>
-          
-//           <View style={styles.divider} />
-          
-//           <Text style={styles.description}>
-//             Add your clinic to start managing appointments, staff, and services with our comprehensive tools.
-//           </Text>
-          
-//           <View style={styles.featuresContainer}>
-//             <View style={styles.featureItem}>
-//               <View style={[styles.featureIcon, { backgroundColor: '#E3F2FD' }]}>
-//                 <Clock size={20} color="#1976D2" />
-//               </View>
-//               <Text style={styles.featureText}>Manage clinic hours and availability</Text>
-//             </View>
-            
-//             <View style={styles.featureItem}>
-//               <View style={[styles.featureIcon, { backgroundColor: '#E8F5E9' }]}>
-//                 <CalendarDays size={20} color="#388E3C" />
-//               </View>
-//               <Text style={styles.featureText}>Set up services and pricing</Text>
-//             </View>
-            
-//             <View style={styles.featureItem}>
-//               <View style={[styles.featureIcon, { backgroundColor: '#F3E5F5' }]}>
-//                 <Stethoscope size={20} color="#8E24AA" />
-//               </View>
-//               <Text style={styles.featureText}>Manage staff and permissions</Text>
-//             </View>
-//           </View>
-//         </View>
-        
-//         <TouchableOpacity
-//           style={styles.primaryButton}
-//           onPress={handleClinic}
-//           activeOpacity={0.9}
-//         >
-//           <Text style={styles.buttonText}>Add New Clinic</Text>
-//         </TouchableOpacity>
-//       </View>
-//     </View>
-//   );
-// }
-
-// const styles = StyleSheet.create({
-//   container: {
-//     flex: 1,
-//     backgroundColor: '#fff',
-//   },
-//   header: {
-//     flexDirection: 'row',
-//     alignItems: 'center',
-//     justifyContent: 'space-between',
-//     padding: 20,
-//     paddingTop: 50,
-//     backgroundColor: '#fff',
-//     borderBottomWidth: 1,
-//     borderBottomColor: '#f0f0f0',
-//   },
-//   menuButton: {
-//     padding: 4,
-//   },
-//   headerTitle: {
-//     fontSize: 22,
-//     fontWeight: '700',
-//     color: '#333',
-//   },
-//   headerSpacer: {
-//     width: 28,
-//   },
-//   content: {
-//     flex: 1,
-//     padding: 20,
-//   },
-//   card: {
-//     backgroundColor: '#fff',
-//     borderRadius: 16,
-//     padding: 24,
-//     marginBottom: 20,
-//     shadowColor: '#000',
-//     shadowOffset: { width: 0, height: 2 },
-//     shadowOpacity: 0.08,
-//     shadowRadius: 8,
-//     elevation: 3,
-//     alignItems: 'center',
-//   },
-//   iconCircle: {
-//     width: 64,
-//     height: 64,
-//     borderRadius: 32,
-//     backgroundColor: '#4285F4',
-//     justifyContent: 'center',
-//     alignItems: 'center',
-//     marginBottom: 16,
-//   },
-//   title: {
-//     fontSize: 22,
-//     fontWeight: '700',
-//     color: '#333',
-//     marginBottom: 8,
-//     textAlign: 'center',
-//   },
-//   subtitle: {
-//     fontSize: 16,
-//     color: '#666',
-//     textAlign: 'center',
-//     marginBottom: 20,
-//   },
-//   divider: {
-//     height: 1,
-//     width: '100%',
-//     backgroundColor: '#f0f0f0',
-//     marginVertical: 16,
-//   },
-//   description: {
-//     fontSize: 16,
-//     color: '#555',
-//     textAlign: 'center',
-//     marginBottom: 24,
-//     lineHeight: 24,
-//   },
-//   featuresContainer: {
-//     width: '100%',
-//     gap: 16,
-//   },
-//   featureItem: {
-//     flexDirection: 'row',
-//     alignItems: 'center',
-//     gap: 12,
-//     padding: 12,
-//     borderRadius: 12,
-//     backgroundColor: '#fafafa',
-//   },
-//   featureIcon: {
-//     width: 40,
-//     height: 40,
-//     borderRadius: 20,
-//     justifyContent: 'center',
-//     alignItems: 'center',
-//   },
-//   featureText: {
-//     fontSize: 15,
-//     color: '#444',
-//     flex: 1,
-//     fontWeight: '500',
-//   },
-//   primaryButton: {
-//     backgroundColor: '#4285F4',
-//     padding: 18,
-//     borderRadius: 12,
-//     alignItems: 'center',
-//     justifyContent: 'center',
-//     shadowColor: '#4285F4',
-//     shadowOffset: { width: 0, height: 4 },
-//     shadowOpacity: 0.3,
-//     shadowRadius: 8,
-//     elevation: 5,
-//   },
-//   buttonText: {
-//     color: '#fff',
-//     fontSize: 18,
-//     fontWeight: '600',
-//   },
-// });
-
-
-
-
-
-
-
-
-import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView } from 'react-native';
+import {
+  View, Text, StyleSheet, TouchableOpacity,
+  Alert, ScrollView, SafeAreaView, StatusBar, Platform
+} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Stethoscope, Clock, CalendarDays, ArrowLeft, Plus } from 'lucide-react-native';
+import { Stethoscope, Clock, CalendarDays, X, Plus, MapPin, Users } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
-import { useDispatch } from 'react-redux';
-import { checkVeterinarianVerification } from '../../../store/slices/authSlice';
+import { LinearGradient } from 'expo-linear-gradient';
 
 export default function AddClinic() {
   const router = useRouter();
-  const dispatch = useDispatch();
 
-  const handleGoBack = () => {
-    router.back();
-  };
-
-  const handleClinic = async () => {
+  const handleAddClinic = async () => {
     try {
       const userId = await AsyncStorage.getItem('userId');
-      if (!userId) {
-        Alert.alert('Error', 'User not authenticated');
-        return;
-      }
-
-      // Direct navigate to form
+      if (!userId) { Alert.alert('Error', 'User not authenticated'); return; }
       router.push('onboarding/addclinicform');
     } catch (error) {
       Alert.alert('Error', error.message || 'Failed to proceed');
     }
   };
 
-  return (
-    <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={handleGoBack} style={styles.backButton}>
-          <ArrowLeft size={28} color="#333" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Add Your Clinic</Text>
-        <View style={styles.headerSpacer} />
-      </View>
+  const features = [
+    { icon: Clock,       color: '#2563EB', bg: '#DBEAFE', text: 'Manage clinic hours and availability' },
+    { icon: CalendarDays,color: '#7CB342', bg: '#D1FAE5', text: 'Set up services and appointment slots' },
+    { icon: Stethoscope, color: '#9333EA', bg: '#E9D5FF', text: 'Handle treatments and medical records' },
+    { icon: Users,       color: '#EA580C', bg: '#FED7AA', text: 'Manage staff and permissions' },
+    { icon: MapPin,      color: '#0891B2', bg: '#CFFAFE', text: 'Show your clinic location to pet owners' },
+  ];
 
-      {/* Main Content */}
-      <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.content}>
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar backgroundColor="#7CB342" barStyle="light-content" translucent={false} />
+
+      {/* Header */}
+      <LinearGradient colors={['#7CB342', '#558B2F']} style={styles.header}>
+        <View style={styles.headerTop}>
+          <View>
+            <Text style={styles.headerTitle}>My Clinic</Text>
+            <Text style={styles.headerSub}>Register your veterinary clinic</Text>
+          </View>
+          <TouchableOpacity onPress={() => router.replace('/(doc_tabs)/(tabs)/profile')} style={styles.closeBtn}>
+            <X size={22} color="#fff" />
+          </TouchableOpacity>
+        </View>
+      </LinearGradient>
+
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Icon + Title Card */}
         <View style={styles.card}>
           <View style={styles.iconCircle}>
             <Plus size={32} color="#fff" />
           </View>
-          
-          <Text style={styles.title}>Register Your Veterinary Clinic</Text>
-          <Text style={styles.subtitle}>
-            Join our network of professional veterinarians
+          <Text style={styles.cardTitle}>Register Your Veterinary Clinic</Text>
+          <Text style={styles.cardSubtitle}>
+            Join our network of professional veterinarians and start managing your clinic digitally
           </Text>
-          
-          <View style={styles.divider} />
-          
-          <Text style={styles.description}>
-            Add your clinic to start managing appointments, staff, and services with our comprehensive tools.
-          </Text>
-          
-          <View style={styles.featuresContainer}>
-            <View style={styles.featureItem}>
-              <View style={[styles.featureIcon, { backgroundColor: '#E3F2FD' }]}>
-                <Clock size={20} color="#1976D2" />
-              </View>
-              <Text style={styles.featureText}>Manage clinic hours and availability</Text>
-            </View>
-            
-            <View style={styles.featureItem}>
-              <View style={[styles.featureIcon, { backgroundColor: '#E8F5E9' }]}>
-                <CalendarDays size={20} color="#388E3C" />
-              </View>
-              <Text style={styles.featureText}>Set up services and pricing</Text>
-            </View>
-            
-            <View style={styles.featureItem}>
-              <View style={[styles.featureIcon, { backgroundColor: '#F3E5F5' }]}>
-                <Stethoscope size={20} color="#8E24AA" />
-              </View>
-              <Text style={styles.featureText}>Manage staff and permissions</Text>
-            </View>
-          </View>
         </View>
-        
-        <TouchableOpacity
-          style={styles.primaryButton}
-          onPress={handleClinic}
-          activeOpacity={0.9}
-        >
-          <Text style={styles.buttonText}>Add New Clinic</Text>
+
+        {/* Features */}
+        <View style={styles.featuresCard}>
+          <Text style={styles.sectionTitle}>What you can do</Text>
+          {features.map((f, i) => (
+            <View key={i} style={[styles.featureRow, i < features.length - 1 && styles.featureBorder]}>
+              <View style={[styles.featureIcon, { backgroundColor: f.bg }]}>
+                <f.icon size={20} color={f.color} />
+              </View>
+              <Text style={styles.featureText}>{f.text}</Text>
+            </View>
+          ))}
+        </View>
+
+        {/* Add Button */}
+        <TouchableOpacity style={styles.addButton} onPress={handleAddClinic} activeOpacity={0.85}>
+          <Plus size={20} color="#fff" />
+          <Text style={styles.addButtonText}>Add New Clinic</Text>
         </TouchableOpacity>
+
+        <View style={{ height: 40 }} />
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  scrollContainer: {
-    flex: 1,
-  },
+  safeArea: { flex: 1, backgroundColor: '#F5F5F5' },
+
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 20,
-    paddingTop: 50,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    paddingTop: Platform.OS === 'android' ? 12 : 12,
+    paddingBottom: 20,
+    paddingHorizontal: 16,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
   },
-  backButton: {
-    padding: 4,
-  },
-  headerTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#333',
-  },
-  headerSpacer: {
-    width: 28,
-  },
-  content: {
-    flexGrow: 1,
-    padding: 20,
-  },
+  headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  headerTitle: { fontSize: 22, fontWeight: '700', color: '#fff' },
+  headerSub: { fontSize: 13, color: 'rgba(255,255,255,0.8)', marginTop: 2 },
+  closeBtn: { padding: 6, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 20 },
+
+  scroll: { flex: 1 },
+  content: { padding: 16 },
+
   card: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 24,
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
-    alignItems: 'center',
+    backgroundColor: '#fff', borderRadius: 16,
+    padding: 24, marginBottom: 14, alignItems: 'center',
+    elevation: 2, shadowColor: '#000',
+    shadowOpacity: 0.06, shadowRadius: 6, shadowOffset: { width: 0, height: 2 },
   },
   iconCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: '#4285F4',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 16,
+    width: 68, height: 68, borderRadius: 34,
+    backgroundColor: '#7CB342', justifyContent: 'center',
+    alignItems: 'center', marginBottom: 16,
   },
-  title: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#333',
-    marginBottom: 8,
-    textAlign: 'center',
+  cardTitle: { fontSize: 18, fontWeight: '700', color: '#1A1A1A', textAlign: 'center', marginBottom: 8 },
+  cardSubtitle: { fontSize: 14, color: '#888', textAlign: 'center', lineHeight: 20 },
+
+  featuresCard: {
+    backgroundColor: '#fff', borderRadius: 16,
+    padding: 16, marginBottom: 14,
+    elevation: 2, shadowColor: '#000',
+    shadowOpacity: 0.06, shadowRadius: 6, shadowOffset: { width: 0, height: 2 },
   },
-  subtitle: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-    marginBottom: 20,
+  sectionTitle: { fontSize: 15, fontWeight: '700', color: '#1A1A1A', marginBottom: 14 },
+  featureRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 12 },
+  featureBorder: { borderBottomWidth: 1, borderBottomColor: '#F0F0F0' },
+  featureIcon: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
+  featureText: { fontSize: 14, color: '#444', flex: 1, fontWeight: '500' },
+
+  addButton: {
+    backgroundColor: '#7CB342', borderRadius: 14,
+    paddingVertical: 16, flexDirection: 'row',
+    alignItems: 'center', justifyContent: 'center', gap: 8,
+    elevation: 3, shadowColor: '#7CB342',
+    shadowOpacity: 0.3, shadowRadius: 8, shadowOffset: { width: 0, height: 4 },
   },
-  divider: {
-    height: 1,
-    width: '100%',
-    backgroundColor: '#f0f0f0',
-    marginVertical: 16,
-  },
-  description: {
-    fontSize: 16,
-    color: '#555',
-    textAlign: 'center',
-    marginBottom: 24,
-    lineHeight: 24,
-  },
-  featuresContainer: {
-    width: '100%',
-    gap: 16,
-  },
-  featureItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    padding: 12,
-    borderRadius: 12,
-    backgroundColor: '#fafafa',
-  },
-  featureIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  featureText: {
-    fontSize: 15,
-    color: '#444',
-    flex: 1,
-    fontWeight: '500',
-  },
-  primaryButton: {
-    backgroundColor: '#4285F4',
-    padding: 18,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#4285F4',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '600',
-  },
+  addButtonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 });

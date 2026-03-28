@@ -1,14 +1,31 @@
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Switch } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Switch, Alert } from 'react-native';
 import { useState } from 'react';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import { useRouter } from 'expo-router';
-import { Bell, Shield, Palette, Globe, CircleHelp as HelpCircle, ChevronRight } from 'lucide-react-native';
+import { Bell, Shield, Palette, Globe, CircleHelp as HelpCircle, ChevronRight, LogOut } from 'lucide-react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function Settings() {
   const { user } = useSelector(state => state.auth);
   const router = useRouter();
+  const dispatch = useDispatch();
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [darkModeEnabled, setDarkModeEnabled] = useState(false);
+
+  const handleLogout = () => {
+    Alert.alert('Logout', 'Are you sure you want to logout?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Logout',
+        style: 'destructive',
+        onPress: async () => {
+          await AsyncStorage.multiRemove(['token', 'userId', 'user', 'refreshToken']);
+          dispatch({ type: 'auth/signOut' });
+          router.replace('/(auth)/signin');
+        },
+      },
+    ]);
+  };
 
   const settingsGroups = [
     {
@@ -129,12 +146,17 @@ export default function Settings() {
               <Text style={styles.appInfoLabel}>Version</Text>
               <Text style={styles.appInfoValue}>1.0.0</Text>
             </View>
-            <View style={styles.appInfoItem}>
+            <View style={[styles.appInfoItem, { borderBottomWidth: 0 }]}>
               <Text style={styles.appInfoLabel}>Build</Text>
               <Text style={styles.appInfoValue}>100</Text>
             </View>
           </View>
         </View>
+
+        <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
+          <LogOut size={20} color="#EF4444" />
+          <Text style={styles.logoutText}>Logout</Text>
+        </TouchableOpacity>
       </View>
     </ScrollView>
   );
@@ -273,6 +295,24 @@ const styles = StyleSheet.create({
     padding: 20,
     borderBottomWidth: 1,
     borderBottomColor: '#e1e5e9',
+  },
+  logoutBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    borderRadius: 16,
+    paddingVertical: 18,
+    marginTop: 8,
+    marginBottom: 32,
+  },
+  logoutText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#EF4444',
   },
   appInfoLabel: {
     fontSize: 16,

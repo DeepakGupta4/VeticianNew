@@ -67,6 +67,9 @@ export default function OTPScreen() {
         // Also save to AsyncStorage for persistence
         await AsyncStorage.setItem('token', data.token);
         await AsyncStorage.setItem('user', JSON.stringify(data.user));
+        if (data.user?._id) {
+          await AsyncStorage.setItem('userId', data.user._id);
+        }
         if (data.refreshToken) {
           await AsyncStorage.setItem('refreshToken', data.refreshToken);
         }
@@ -79,7 +82,7 @@ export default function OTPScreen() {
           `Welcome back! You're now signed in to your account.`,
           [{ 
             text: 'Continue', 
-            onPress: () => handlePostLoginRouting(data.user?.role || 'vetician')
+            onPress: () => handlePostLoginRouting(data.user?.role || 'vetician', data.user?._id, data.token)
           }]
         );
       } else {
@@ -116,31 +119,31 @@ export default function OTPScreen() {
     setLoading(false);
   };
 
-  const handlePostLoginRouting = async (userRole) => {
-    console.log('🔵 Routing user with role:', userRole);
-    
-    switch(userRole) {
-      case 'veterinarian':
-        console.log('🏥 Routing to veterinarian dashboard');
-        router.replace('/(doc_tabs)');
-        break;
-      case 'pet_resort':
-        console.log('🏨 Routing to pet resort dashboard');
-        router.replace('/(pet_resort_tabs)');
-        break;
-      case 'paravet':
-        console.log('🐕 Routing to paravet dashboard');
-        router.replace('/(peravet_tabs)/(tabs)');
-        break;
-      default: // vetician (pet parent)
-        console.log('👤 Routing to pet parent dashboard');
-        // Check if tour has been completed for pet parents
-        const tourCompleted = await AsyncStorage.getItem('tourCompleted');
-        if (!tourCompleted) {
-          router.replace('/(vetician_tabs)/pages/QuickTour');
+  const handlePostLoginRouting = async (userRole, userId, token) => {
+    if (userRole === 'veterinarian') {
+      try {
+        const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://vetician-backend-kovk.onrender.com/api';
+        const res = await fetch(`${API_URL}/auth/veterinarian/${userId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+
+        if (data.success && data.data?.profile?.isVerified) {
+          router.replace('/(doc_tabs)/(tabs)');
+        } else if (data.success && data.data?.profile) {
+          router.replace('/(doc_tabs)/pending-approval');
         } else {
-          router.replace('/(vetician_tabs)');
+          router.replace('/(doc_tabs)/onboarding/onboarding_conf');
         }
+      } catch (e) {
+        router.replace('/(doc_tabs)/onboarding/onboarding_conf');
+      }
+    } else if (userRole === 'pet_resort') {
+      router.replace('/(pet_resort_tabs)');
+    } else if (userRole === 'paravet') {
+      router.replace('/(peravet_tabs)/(tabs)');
+    } else {
+      router.replace('/(auth)/signin');
     }
   };
 

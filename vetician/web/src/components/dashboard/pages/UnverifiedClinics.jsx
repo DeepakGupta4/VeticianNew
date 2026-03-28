@@ -49,6 +49,15 @@ const UnverifiedClinics = () => {
     setSelectedClinic(null);
   };
 
+  const getInlineUrl = (url) => {
+    if (!url) return url;
+    const ext = url.split('?')[0].split('.').pop().toLowerCase();
+    if (['pdf', 'doc', 'docx'].includes(ext) || url.includes('/raw/upload/')) {
+      return `https://docs.google.com/viewer?url=${encodeURIComponent(url)}`;
+    }
+    return url;
+  };
+
   const ClinicCard = ({ clinic }) => {
     const verifiedFields = [
       'clinicName',
@@ -264,7 +273,7 @@ const UnverifiedClinics = () => {
                       <div>
                         <p className="text-xs text-gray-400">Owner Proof</p>
                         <a
-                          href={selectedClinic.ownerProof}
+                          href={getInlineUrl(selectedClinic.ownerProof)}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-blue-400 hover:text-blue-300 text-sm flex items-center"
@@ -278,7 +287,7 @@ const UnverifiedClinics = () => {
                       <div>
                         <p className="text-xs text-gray-400">Registration Document</p>
                         <a
-                          href={selectedClinic.registrationDocument}
+                          href={getInlineUrl(selectedClinic.registrationDocument)}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-blue-400 hover:text-blue-300 text-sm flex items-center"
@@ -292,7 +301,7 @@ const UnverifiedClinics = () => {
                       <div key={index}>
                         <p className="text-xs text-gray-400">Additional Document {index + 1}</p>
                         <a
-                          href={doc}
+                          href={getInlineUrl(doc)}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-blue-400 hover:text-blue-300 text-sm flex items-center"

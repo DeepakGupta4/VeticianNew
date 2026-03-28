@@ -1,9 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// ✅ EXPO SAFE ENV - Use localhost for development
-const API_BASE_URL = __DEV__ 
-  ? 'http://localhost:3000/api'
-  : (process.env.EXPO_PUBLIC_API_URL || 'https://vetician-backend-kovk.onrender.com/api');
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://vetician-backend-kovk.onrender.com/api';
 
 console.log('API_BASE_URL:', API_BASE_URL);
 
