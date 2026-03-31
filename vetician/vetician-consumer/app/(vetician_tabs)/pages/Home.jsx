@@ -122,24 +122,24 @@ const PROMOTIONS = [
 const HEALTH_TIPS = [
   {
     id: '1',
-    title: 'Summer Pet Care',
+    title: 'Training commands',
     description:
       'Keep your pets hydrated and avoid walking them on hot pavement during peak temperatures. Provide plenty of shade and fresh water.',
     extendedInfo:
       'Signs of heatstroke include excessive panting, drooling, lethargy, and vomiting. If you suspect heatstroke, move your pet to a cool area immediately and contact your vet.',
     image:
-      'https://images.unsplash.com/photo-1551290464-66719418ca54?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60',
+      'https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=800&q=80',
     category: 'seasonal',
   },
   {
     id: '2',
-    title: 'Vaccination Reminder',
+    title: 'Healthy Diet Tips',
     description:
       'Annual vaccines are due next month. Schedule an appointment with your veterinarian to keep your pet protected.',
     extendedInfo:
       'Core vaccines for dogs include rabies, distemper, parvovirus, and adenovirus. For cats: rabies, feline distemper, calicivirus, and herpesvirus.',
     image:
-      'https://images.unsplash.com/photo-1583511655826-05700442b31f?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60',
+       'https://images.unsplash.com/photo-1548199973-03cce0bbc87b?w=800&q=80',
     category: 'preventive',
   },
 ];
@@ -804,7 +804,7 @@ export default function VeticionHome() {
         {/* Health Tips Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Health Tips</Text>
+            <Text style={styles.sectionTitle}>Pet Care Tips</Text>
             <Text style={styles.sectionSubtitleSmall}>Stay informed</Text>
           </View>
           <FlatList
@@ -814,6 +814,7 @@ export default function VeticionHome() {
               <TouchableOpacity
                 style={styles.healthTipCard}
                 activeOpacity={0.8}
+                onPress={() => router.push('/(vetician_tabs)/pet-care')}
               >
                 <Image
                   source={{ uri: item.image }}

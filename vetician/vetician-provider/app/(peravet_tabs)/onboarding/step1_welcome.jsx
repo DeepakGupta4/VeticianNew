@@ -1,7 +1,6 @@
-import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { Activity, Star, TrendingUp, ChevronRight } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
-import { Smile, Activity, Star, TrendingUp, ChevronRight } from 'lucide-react-native';
 
 export default function Step1Welcome() {
   const router = useRouter();
@@ -10,40 +9,35 @@ export default function Step1Welcome() {
     {
       icon: 'visibility',
       title: 'Increased Visibility',
-      description: 'Get visible to pet owners searching for paravet professionals in your area'
+      description: 'Get visible to pet owners searching for paravet professionals in your area',
     },
     {
       icon: 'consult',
       title: 'Home Visit Requests',
-      description: 'Accept home service requests and provide care at pet owners\' doorsteps'
+      description: "Accept home service requests and provide care at pet owners' doorsteps",
     },
     {
       icon: 'earnings',
       title: 'Steady Earnings',
-      description: 'Earn money through service requests and collaborate with veterinarians'
-    }
+      description: 'Earn money through service requests and collaborate with veterinarians',
+    },
   ];
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.greeting}>Welcome to Vetician</Text>
-        <Text style={styles.subtitle}>Paravet Partner Program</Text>
+        <View>
+          <Text style={styles.greeting}>Welcome to Vetician</Text>
+          <Text style={styles.subtitle}>Complete Your Paravet Profile</Text>
+        </View>
       </View>
 
-      {/* Welcome Message */}
       <View style={styles.contentContainer}>
-        <View style={styles.messageBox}>
-          <Text style={styles.messageTitle}>Help pets across your city with your expertise</Text>
-          <Text style={styles.messageText}>
-            Welcome to Vetician's Paravet Partner Program. Provide post-op care, vaccinations, and other non-critical pet services from the comfort of pet owners' homes.
-          </Text>
-        </View>
+        <Text style={styles.introText}>
+          Let's get you started with Vetician Paravet Program. This will give you access to home visit requests, client bookings, and steady earnings.
+        </Text>
 
-        {/* Benefits */}
         <View style={styles.benefitsContainer}>
-          <Text style={styles.sectionTitle}>Why Join Vetician?</Text>
           {benefits.map((benefit, index) => (
             <View key={index} style={styles.benefitCard}>
               <View style={styles.benefitIcon}>
@@ -55,24 +49,16 @@ export default function Step1Welcome() {
                 <Text style={styles.benefitTitle}>{benefit.title}</Text>
                 <Text style={styles.benefitDescription}>{benefit.description}</Text>
               </View>
-              <ChevronRight size={20} color="#999" />
+              <ChevronRight size={20} color="#666" />
             </View>
           ))}
         </View>
 
-        {/* CTA Button */}
-        <TouchableOpacity 
-          style={styles.primaryButton} 
+        <TouchableOpacity
+          style={styles.primaryButton}
           onPress={() => router.push('./step2_eligibility')}
         >
-          <Text style={styles.primaryButtonText}>GET STARTED</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={styles.secondaryButton} 
-          onPress={() => router.replace('/(peravet_tabs)/(tabs)/home')}
-        >
-          <Text style={styles.secondaryButtonText}>SKIP FOR NOW</Text>
+          <Text style={styles.primaryButtonText}>CREATE MY PARAVET PROFILE</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>
@@ -100,95 +86,64 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: 16,
     color: '#666',
-    fontWeight: '500',
   },
   contentContainer: {
     padding: 24,
   },
-  messageBox: {
-    backgroundColor: '#E8F4FD',
-    borderLeftWidth: 4,
-    borderLeftColor: '#00B0FF',
-    padding: 16,
-    borderRadius: 8,
-    marginBottom: 24,
-  },
-  messageTitle: {
+  introText: {
     fontSize: 16,
-    fontWeight: '700',
-    color: '#1a1a1a',
-    marginBottom: 8,
-  },
-  messageText: {
-    fontSize: 14,
     color: '#333',
-    lineHeight: 20,
+    lineHeight: 24,
+    marginBottom: 32,
   },
   benefitsContainer: {
     marginBottom: 32,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1a1a1a',
-    marginBottom: 16,
   },
   benefitCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#fff',
+    borderRadius: 12,
     padding: 16,
-    borderRadius: 8,
-    marginBottom: 12,
+    marginBottom: 16,
     borderWidth: 1,
     borderColor: '#e1e5e9',
   },
   benefitIcon: {
-    width: 50,
-    height: 50,
-    borderRadius: 12,
-    backgroundColor: '#f0f2f5',
-    alignItems: 'center',
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#4CAF5020',
     justifyContent: 'center',
-    marginRight: 12,
+    alignItems: 'center',
+    marginRight: 16,
   },
   benefitText: {
     flex: 1,
   },
   benefitTitle: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '600',
     color: '#1a1a1a',
     marginBottom: 4,
   },
   benefitDescription: {
-    fontSize: 13,
+    fontSize: 14,
     color: '#666',
-    lineHeight: 18,
+    lineHeight: 20,
   },
   primaryButton: {
-    backgroundColor: '#00B0FF',
-    borderRadius: 12,
+    backgroundColor: '#4CAF50',
+    borderRadius: 8,
     padding: 16,
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 16,
   },
   primaryButtonText: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: '700',
-  },
-  secondaryButton: {
-    backgroundColor: '#f0f2f5',
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-  },
-  secondaryButtonText: {
-    color: '#333',
-    fontSize: 16,
-    fontWeight: '600',
+    fontWeight: 'bold',
   },
 });

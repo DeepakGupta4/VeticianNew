@@ -299,7 +299,7 @@ const styles = StyleSheet.create({
   },
   progressBar: {
     height: 4,
-    backgroundColor: '#00B0FF',
+    backgroundColor: '#4CAF50',
   },
   contentContainer: {
     padding: 24,
@@ -397,7 +397,7 @@ const styles = StyleSheet.create({
   },
   nextButton: {
     flex: 1,
-    backgroundColor: '#00B0FF',
+    backgroundColor: '#4CAF50',
     borderRadius: 8,
     paddingVertical: 14,
     alignItems: 'center',
@@ -421,7 +421,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   sendOTPButton: {
-    backgroundColor: '#00B0FF',
+    backgroundColor: '#4CAF50',
     borderRadius: 8,
     paddingHorizontal: 14,
     paddingVertical: 12,

@@ -72,12 +72,10 @@ export default function Step9Preview() {
       
       if (result.success) {
         setSubmitted(true);
-        // Set flag for home page popup
         await AsyncStorage.setItem('onboarding_completed', 'true');
-        // Redirect to home page
         setTimeout(() => {
           resetOnboarding();
-          router.replace('/(peravet_tabs)/(tabs)');
+          router.replace('/(peravet_tabs)/pending-approval');
         }, 1500);
       } else {
         throw new Error(result.message || 'Submission failed');
@@ -152,7 +150,7 @@ export default function Step9Preview() {
             style={styles.dashboardButton}
             onPress={() => {
               resetOnboarding();
-              router.replace('/(peravet_tabs)/(tabs)');
+              router.replace('/(peravet_tabs)/pending-approval');
             }}
           >
             <Text style={styles.dashboardButtonText}>GO TO DASHBOARD</Text>
@@ -314,7 +312,7 @@ const styles = StyleSheet.create({
   },
   progressBar: {
     height: 4,
-    backgroundColor: '#00B0FF',
+    backgroundColor: '#4CAF50',
   },
   contentContainer: {
     padding: 24,
@@ -429,7 +427,7 @@ const styles = StyleSheet.create({
   },
   submitButton: {
     flexDirection: 'row',
-    backgroundColor: '#34C759',
+    backgroundColor: '#4CAF50',
     borderRadius: 8,
     paddingVertical: 14,
     paddingHorizontal: 16,
@@ -516,7 +514,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#00B0FF',
+    backgroundColor: '#4CAF50',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -542,19 +540,19 @@ const styles = StyleSheet.create({
   notificationBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#E8F4FD',
+    backgroundColor: '#E8F5E9',
     borderRadius: 8,
     padding: 12,
     marginBottom: 24,
   },
   notificationText: {
     fontSize: 12,
-    color: '#0099CC',
+    color: '#2E7D32',
     marginLeft: 10,
     flex: 1,
   },
   dashboardButton: {
-    backgroundColor: '#34C759',
+    backgroundColor: '#4CAF50',
     borderRadius: 8,
     paddingVertical: 14,
     paddingHorizontal: 32,

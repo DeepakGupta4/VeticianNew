@@ -22,6 +22,15 @@
       "expo-dev-client",
       "@react-native-community/datetimepicker",
       [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#7CB342",
+          "defaultChannel": "vetician-provider",
+          "sounds": []
+        }
+      ],
+      [
         "expo-build-properties",
         {
           "android": {
@@ -48,6 +57,7 @@
       }
     },
     "android": {
+      "newArchEnabled": true,
       "package": "com.dkg12.vetician.provider",
       "permissions": [
         "CAMERA",
@@ -56,8 +66,12 @@
         "READ_EXTERNAL_STORAGE",
         "WRITE_EXTERNAL_STORAGE",
         "INTERNET",
-        "ACCESS_NETWORK_STATE"
+        "ACCESS_NETWORK_STATE",
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE",
+        "POST_NOTIFICATIONS"
       ],
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/icon.png",
         "backgroundColor": "#ffffff"

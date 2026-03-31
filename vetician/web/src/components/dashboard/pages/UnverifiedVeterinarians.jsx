@@ -80,6 +80,15 @@ const UnverifiedVeterinarians = () => {
     setSelectedVet(null);
   };
 
+  const getInlineUrl = (url) => {
+    if (!url) return url;
+    const ext = url.split('?')[0].split('.').pop().toLowerCase();
+    if (['pdf', 'doc', 'docx'].includes(ext) || url.includes('/raw/upload/')) {
+      return `https://docs.google.com/viewer?url=${encodeURIComponent(url)}`;
+    }
+    return url;
+  };
+
   const VerificationField = ({ label, value, isVerified, isVerifying, onVerify, isUrl = false }) => {
     return (
       <div className="flex items-center justify-between p-3 bg-gray-800 rounded-lg mb-2">
@@ -93,7 +102,7 @@ const UnverifiedVeterinarians = () => {
           <div className="flex items-center space-x-2">
             {isUrl && value ? (
               <a
-                href={value}
+                href={getInlineUrl(value)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-blue-400 hover:text-blue-300 transition-colors flex items-center"

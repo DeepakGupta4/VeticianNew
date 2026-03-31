@@ -53,15 +53,7 @@ export const ParavetOnboardingProvider = ({ children }) => {
   });
 
   const updateFormData = useCallback((field, value) => {
-    setFormData(prev => {
-      const updated = {
-        ...prev,
-        [field]: value
-      };
-      console.log(`📝 Updated ${field}:`, value);
-      return updated;
-    });
-    
+    setFormData(prev => ({ ...prev, [field]: value }));
     if (errors[field]) {
       setErrors(prev => {
         const newErrors = { ...prev };

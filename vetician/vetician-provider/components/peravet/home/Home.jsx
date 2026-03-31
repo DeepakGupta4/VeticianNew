@@ -26,9 +26,7 @@ export default function Home() {
         onboardingStatus: 'pending' // pending, approved, rejected
     });
 
-    const API_URL = __DEV__ 
-        ? 'http://localhost:3000/api'
-        : (process.env.EXPO_PUBLIC_API_URL || 'https://vetician-backend-kovk.onrender.com/api');
+    const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://vetician-backend-kovk.onrender.com/api';
 
     useEffect(() => {
         const checkOnboardingComplete = async () => {

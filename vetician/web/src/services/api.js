@@ -1,6 +1,5 @@
-// ✅ EXPO SAFE ENV
 const API_BASE_URL =
-  process.env.EXPO_PUBLIC_API_URL || 'https://vetician-backend.onrender.com/api';
+  import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 console.log('API_BASE_URL:', API_BASE_URL);
 
@@ -44,75 +43,52 @@ class ApiService {
      VETERINARIAN
   ========================= */
 
-  getVerifiedVeterinarians(filters = {}) {
-    return this.request('/admin/verified', {
-      method: 'POST',
-      body: JSON.stringify(filters),
-    });
+  getVerifiedVeterinarians() {
+    return this.request('/auth/admin/verified', { method: 'POST' });
   }
 
   getUnverifiedVeterinarians() {
-    return this.request('/admin/unverified', {
-      method: 'POST',
-    });
+    return this.request('/auth/admin/unverified', { method: 'POST' });
   }
 
   verifyVeterinarianField(veterinarianId, fieldName) {
-    return this.request(`/verify/${veterinarianId}/${fieldName}`, {
-      method: 'PATCH',
-    });
+    return this.request(`/auth/verify/${veterinarianId}/${fieldName}`, { method: 'PATCH' });
   }
 
   /* =========================
      CLINIC
   ========================= */
 
-  getVerifiedClinics(filters = {}) {
-    return this.request('/admin/verified/clinic', {
-      method: 'POST',
-      body: JSON.stringify(filters),
-    });
+  getVerifiedClinics() {
+    return this.request('/auth/admin/verified/clinic', { method: 'POST' });
   }
 
   getUnverifiedClinics() {
-    return this.request('/admin/unverified/clinic', {
-      method: 'POST',
-    });
+    return this.request('/auth/admin/unverified/clinic', { method: 'POST' });
   }
 
   verifyClinic(clinicId) {
-    return this.request(`/admin/clinic/verify/${clinicId}`, {
-      method: 'POST',
-    });
+    return this.request(`/auth/admin/clinic/verify/${clinicId}`, { method: 'POST' });
   }
 
   /* =========================
      PET RESORT
   ========================= */
 
-  getVerifiedPetResorts(filters = {}) {
-    return this.request('/admin/verified/petresort', {
-      method: 'POST',
-      body: JSON.stringify(filters),
-    });
+  getVerifiedPetResorts() {
+    return this.request('/auth/admin/verified/petresort', { method: 'POST' });
   }
 
   getUnverifiedPetResorts() {
-    return this.request('/admin/unverified/petresort', {
-      method: 'POST',
-    });
+    return this.request('/auth/admin/unverified/petresort', { method: 'POST' });
   }
 
   verifyPetResort(resortId) {
-    return this.request(`/admin/petresort/verify/${resortId}`, {
-      method: 'POST',
-    });
+    return this.request(`/auth/admin/petresort/verify/${resortId}`, { method: 'POST' });
   }
 
   unverifyPetResort(resortId) {
-    return this.request(`/admin/petresort/unverify/${resortId}`, {
-      method: 'POST',
-    });
+    return this.request(`/auth/admin/petresort/unverify/${resortId}`, { method: 'POST' });
   }
 }
 

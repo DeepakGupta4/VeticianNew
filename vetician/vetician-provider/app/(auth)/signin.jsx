@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useDispatch, useSelector } from 'react-redux';
-import { signInUser, clearLoading } from '../../store/slices/authSlice';
+import { signInUser } from '../../store/slices/authSlice';
 import { validateEmail } from '../../utils/validation';
 import { Eye, EyeOff, Mail, Lock, Stethoscope } from 'lucide-react-native';
 
@@ -10,14 +10,12 @@ const ROLES = [
   { key: 'veterinarian', label: 'Veterinarian' },
   { key: 'paravet', label: 'Paravet' },
   { key: 'pet_resort', label: 'Pet Resort' },
-  { key: 'admin', label: 'Admin' },
 ];
 
 const ROUTES = {
   veterinarian: '/(doc_tabs)',
   paravet: '/(peravet_tabs)/(tabs)',
   pet_resort: '/(pet_resort_tabs)',
-  admin: '/(admin_tabs)',
 };
 
 export default function SignIn() {
@@ -31,8 +29,6 @@ export default function SignIn() {
   const dispatch = useDispatch();
   const { isLoading, error } = useSelector(state => state.auth);
 
-  useEffect(() => { dispatch(clearLoading()); }, [dispatch]);
-
   const handleSignIn = async () => {
     setErrors({});
     const newErrors = {};
@@ -45,9 +41,69 @@ export default function SignIn() {
 
     try {
       const result = await dispatch(signInUser({ email, password, loginType })).unwrap();
-      if (result.success) router.replace(ROUTES[loginType] || '/(doc_tabs)');
+
+      const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://vetician-backend-kovk.onrender.com/api';
+      const userId = result.user?._id;
+
+      if (loginType === 'veterinarian') {
+        const res = await fetch(`${API_URL}/auth/veterinarian/${userId}`, {
+          headers: { Authorization: `Bearer ${result.token}` },
+        });
+        const data = await res.json();
+
+        if (data.success && data.data?.profile?.isVerified) {
+          router.replace('/(doc_tabs)/(tabs)');
+        } else if (data.success && data.data?.profile) {
+          router.replace('/(doc_tabs)/pending-approval');
+        } else {
+          router.replace('/(doc_tabs)/onboarding/onboarding_conf');
+        }
+      } else if (loginType === 'paravet') {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 8000);
+        try {
+          const res = await fetch(`${API_URL}/paravet/profile/${userId}`, {
+            headers: { Authorization: `Bearer ${result.token}` },
+            signal: controller.signal,
+          });
+          clearTimeout(timeout);
+
+          if (res.status === 404) {
+            router.replace('/(peravet_tabs)/onboarding');
+            return;
+          }
+
+          if (!res.ok) {
+            Alert.alert('Error', 'Could not fetch profile. Please check your connection.');
+            return;
+          }
+
+          const data = await res.json();
+          const profile = data.data;
+          const appStatus = profile?.applicationStatus;
+
+          if (!data.success || !profile) {
+            router.replace('/(peravet_tabs)/onboarding');
+          } else if (appStatus?.approvalStatus === 'approved') {
+            router.replace('/(peravet_tabs)/(tabs)');
+          } else if (appStatus?.submitted === true) {
+            router.replace('/(peravet_tabs)/pending-approval');
+          } else {
+            router.replace('/(peravet_tabs)/onboarding');
+          }
+        } catch (e) {
+          clearTimeout(timeout);
+          if (e.name === 'AbortError') {
+            Alert.alert('Timeout', 'Request timed out. Please try again.');
+          } else {
+            router.replace('/(peravet_tabs)/onboarding');
+          }
+        }
+      } else {
+        router.replace(ROUTES[loginType]);
+      }
     } catch (err) {
-      Alert.alert('Login Failed', err || 'Invalid credentials');
+      Alert.alert('Login Failed', typeof err === 'string' ? err : 'Invalid credentials');
     }
   };
 

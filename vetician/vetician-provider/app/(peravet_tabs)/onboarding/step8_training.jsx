@@ -254,7 +254,7 @@ const styles = StyleSheet.create({
   },
   progressBar: {
     height: 4,
-    backgroundColor: '#00B0FF',
+    backgroundColor: '#4CAF50',
   },
   contentContainer: {
     padding: 24,
@@ -280,7 +280,7 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 12,
-    backgroundColor: '#E8F4FD',
+    backgroundColor: '#E8F5E9',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 16,
@@ -319,7 +319,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 8,
-    backgroundColor: '#00B0FF',
+    backgroundColor: '#4CAF50',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -366,7 +366,7 @@ const styles = StyleSheet.create({
   },
   primaryButton: {
     flexDirection: 'row',
-    backgroundColor: '#00B0FF',
+    backgroundColor: '#4CAF50',
     borderRadius: 8,
     paddingVertical: 14,
     paddingHorizontal: 16,

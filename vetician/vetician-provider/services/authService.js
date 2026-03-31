@@ -3,7 +3,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 // const API_BASE_URL = "https://192.168.1.46:3000/api";
 
 // const API_BASE_URL = "http://192.168.101.10:3000/api";
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.46:3000/api';
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://vetician-backend-kovk.onrender.com/api';
 // Helper function to handle API responses
 const handleResponse = async (response) => {
   console.log('🌐 FRONTEND - API Response status:', response.status, response.statusText);

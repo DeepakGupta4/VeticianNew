@@ -18,8 +18,8 @@ import { useParavetOnboarding } from '../../../contexts/ParavetOnboardingContext
 
 // Define theme colors for consistency
 const THEME = {
-  primary: '#0066FF',
-  primaryLight: '#E5F0FF',
+  primary: '#4CAF50',
+  primaryLight: '#E8F5E9',
   textMain: '#111827',
   textSecondary: '#6B7280',
   background: '#F5F7FA',

@@ -118,15 +118,15 @@ const styles = StyleSheet.create({
   },
   progressBar: {
     height: 4,
-    backgroundColor: '#00B0FF',
+    backgroundColor: '#4CAF50',
   },
   contentContainer: {
     padding: 24,
   },
   questionBox: {
-    backgroundColor: '#E8F4FD',
+    backgroundColor: '#E8F5E9',
     borderLeftWidth: 4,
-    borderLeftColor: '#00B0FF',
+    borderLeftColor: '#4CAF50',
     padding: 16,
     borderRadius: 8,
     marginBottom: 24,
@@ -177,14 +177,14 @@ const styles = StyleSheet.create({
   },
   infoBox: {
     flexDirection: 'row',
-    backgroundColor: '#E8F4FD',
+    backgroundColor: '#E8F5E9',
     borderRadius: 8,
     padding: 12,
     marginTop: 24,
   },
   infoText: {
     fontSize: 13,
-    color: '#0099CC',
+    color: '#2E7D32',
     lineHeight: 18,
     marginLeft: 12,
     flex: 1,
