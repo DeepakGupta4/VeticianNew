@@ -1,10 +1,10 @@
 export const SERVICE_ICONS = {
-  Grooming:    { name: 'content-cut',          color: '#7B5EA7' },
-  'Vet Visit': { name: 'stethoscope',           color: '#1976D2' },
-  Training:    { name: 'school-outline',        color: '#E65100' },
-  Vaccination: { name: 'needle',                color: '#C62828' },
-  Daycare:     { name: 'home-heart',           color: '#00838F' },
-  Hostel:      { name: 'bed-outline',           color: '#558B2F' },
+  Grooming:    { name: 'content-cut',   color: '#558B2F' },
+  'Vet Visit': { name: 'stethoscope',   color: '#558B2F' },
+  Training:    { name: 'school-outline',color: '#558B2F' },
+  Vaccination: { name: 'needle',        color: '#558B2F' },
+  Daycare:     { name: 'home-heart',    color: '#558B2F' },
+  Hostel:      { name: 'bed-outline',   color: '#558B2F' },
 };
 
 export const ORDERS_DATA = [

@@ -44,13 +44,6 @@ const sectionStyles = StyleSheet.create({
   },
 });
 
-export const AccountSettings = ({ onEditName, onEditPhone, onEditEmail }) => (
-  <SectionCard iconName="account-circle-outline" title="Account Settings">
-    <SettingItem icon="account-edit-outline" label="Change Name" subtitle="Update your display name" onPress={onEditName} />
-    
-    <SettingItem icon="email-edit-outline" label="Change Email" subtitle="Update your email address" onPress={onEditEmail} isLast />
-  </SectionCard>
-);
 
 export const SecuritySettings = ({ twoFactor, onChangePassword, onToggle2FA }) => (
   <SectionCard iconName="shield-lock-outline" title="Security">
@@ -108,4 +101,4 @@ export const SupportSettings = ({ onHelpCenter, onContactSupport }) => (
   </SectionCard>
 );
 
-export default AccountSettings;
+
