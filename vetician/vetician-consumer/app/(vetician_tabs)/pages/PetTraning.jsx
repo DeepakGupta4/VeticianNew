@@ -1,7 +1,7 @@
 // screens/PetTrainingScreen.js
 // Vatecian App — Pet Training Main Screen
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -44,6 +44,35 @@ const PetTrainingScreen = () => {
   const [selectedCategory, setSelectedCategory] = useState('1');
   const [selectedPet, setSelectedPet] = useState('pet1');
   const [selectedProgram, setSelectedProgram] = useState(null);
+  
+  // API Integration
+  const [services, setServices] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    fetchTrainingServices();
+  }, []);
+
+  const fetchTrainingServices = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await fetch('http://localhost:3000/api/training');
+      const data = await response.json();
+      
+      if (data.success) {
+        setServices(data.data);
+      } else {
+        setError('Failed to load training services');
+      }
+    } catch (err) {
+      console.error('Error fetching training services:', err);
+      setError('Unable to connect to server');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <View style={styles.root}>
@@ -83,22 +112,42 @@ const PetTrainingScreen = () => {
 
         {/* 1. Training Categories */}
         <SectionHeader title="Training Categories" subtitle="Choose what your pet needs" />
-        <FlatList
-          data={TRAINING_CATEGORIES}
-          horizontal
-          keyExtractor={(item) => item.id}
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingLeft: SPACING.md, paddingRight: SPACING.sm }}
-          renderItem={({ item, index }) => (
-            <TrainingCategoryCard
-              item={item}
-              index={index}
-              isSelected={selectedCategory === item.id}
-              onPress={() => setSelectedCategory(item.id)}
-            />
-          )}
-          style={styles.horizontalList}
-        />
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <Text style={styles.loadingText}>Loading services...</Text>
+          </View>
+        ) : error ? (
+          <View style={styles.errorContainer}>
+            <MaterialCommunityIcons name="alert-circle" size={24} color={COLORS.red} />
+            <Text style={styles.errorText}>{error}</Text>
+            <TouchableOpacity onPress={fetchTrainingServices} style={styles.retryButton}>
+              <Text style={styles.retryText}>Retry</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <FlatList
+            data={services.length > 0 ? services : TRAINING_CATEGORIES}
+            horizontal
+            keyExtractor={(item) => item._id || item.id}
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ paddingLeft: SPACING.md, paddingRight: SPACING.sm }}
+            renderItem={({ item, index }) => (
+              <TrainingCategoryCard
+                item={{
+                  id: item._id || item.id,
+                  name: item.name,
+                  description: item.description,
+                  icon: item.icon || 'paw',
+                  color: item.color || COLORS.primaryGreen
+                }}
+                index={index}
+                isSelected={selectedCategory === (item._id || item.id)}
+                onPress={() => setSelectedCategory(item._id || item.id)}
+              />
+            )}
+            style={styles.horizontalList}
+          />
+        )}
 
         {/* 2. Featured Trainer */}
         <View style={styles.section}>
@@ -109,12 +158,20 @@ const PetTrainingScreen = () => {
         {/* 3. Training Programs */}
         <View style={styles.section}>
           <SectionHeader title="Training Programs" subtitle="Choose the right plan" />
-          {TRAINING_PROGRAMS.map((program, index) => (
+          {(services.length > 0 ? services : TRAINING_PROGRAMS).map((program, index) => (
             <TrainingProgramCard
-              key={program.id}
-              program={program}
+              key={program._id || program.id}
+              program={{
+                id: program._id || program.id,
+                name: program.name,
+                level: program.level || 'Beginner',
+                duration: program.duration || '4 Weeks',
+                sessions: program.sessions || 12,
+                price: program.price,
+                focus: program.focus || program.description
+              }}
               index={index}
-              isSelected={selectedProgram === program.id}
+              isSelected={selectedProgram === (program._id || program.id)}
               onSelect={setSelectedProgram}
               onEnroll={(p) => console.log('Enrolling in:', p.name)}
             />
@@ -229,6 +286,38 @@ const styles = StyleSheet.create({
   },
   section: {
     marginTop: SPACING.lg,
+  },
+  loadingContainer: {
+    padding: SPACING.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    fontSize: 14,
+    color: COLORS.textMuted,
+  },
+  errorContainer: {
+    padding: SPACING.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  errorText: {
+    fontSize: 14,
+    color: COLORS.red,
+    textAlign: 'center',
+  },
+  retryButton: {
+    marginTop: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    backgroundColor: COLORS.primaryGreen,
+    borderRadius: 8,
+  },
+  retryText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.white,
   },
 });
 

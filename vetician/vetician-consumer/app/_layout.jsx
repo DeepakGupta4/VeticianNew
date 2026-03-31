@@ -11,6 +11,17 @@ import { View, ActivityIndicator } from 'react-native';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
+// Suppress fontfaceobserver timeout warnings
+if (typeof window !== 'undefined') {
+  const originalError = console.error;
+  console.error = (...args) => {
+    if (args[0]?.includes?.('timeout exceeded') || args[0]?.includes?.('fontfaceobserver')) {
+      return; // Suppress font loading timeout errors
+    }
+    originalError.apply(console, args);
+  };
+}
+
 function AuthGuard({ children }) {
   const router    = useRouter();
   const segments  = useSegments();

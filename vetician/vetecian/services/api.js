@@ -243,6 +243,59 @@ class ApiService {
   }
 
   /* =========================
+     MEDICAL RECORDS
+  ========================= */
+
+  // Get all medical records for a pet
+  getMedicalRecords(petId) {
+    return this.get(`/medical-records/pet/${petId}`);
+  }
+
+  // Get medical records by type
+  getMedicalRecordsByType(petId, type) {
+    return this.get(`/medical-records/pet/${petId}/type/${type}`);
+  }
+
+  // Create a new medical record
+  createMedicalRecord(data) {
+    return this.post('/medical-records', data);
+  }
+
+  // Update a medical record
+  updateMedicalRecord(recordId, data) {
+    return this.patch(`/medical-records/${recordId}`, data);
+  }
+
+  // Delete a medical record
+  deleteMedicalRecord(recordId) {
+    return this.delete(`/medical-records/${recordId}`);
+  }
+
+  // Upload medical document
+  async uploadMedicalDocument(file, petId, documentType) {
+    const token = await this.getToken();
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('petId', petId);
+    formData.append('documentType', documentType);
+
+    const response = await fetch(`${this.baseURL}/medical-records/upload`, {
+      method: 'POST',
+      body: formData,
+      headers: {
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.message || 'Upload failed');
+    }
+
+    return response.json();
+  }
+
+  /* =========================
      VETERINARIAN / CLINIC / PET RESORT
      (Existing functions kept)
   ========================= */

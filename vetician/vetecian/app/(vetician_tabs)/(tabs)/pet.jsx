@@ -88,7 +88,7 @@ function PetDetailForm({ onClose, onSuccess }) {
     gender: 'Male',
     location: '',
     dob: '',
-    bloodGroup: '',
+    bloodGroup: 'Unknown',
     height: '',
     weight: '',
     color: '',
@@ -176,9 +176,21 @@ function PetDetailForm({ onClose, onSuccess }) {
   const handleSubmit = async () => {
     try {
       const userId = await AsyncStorage.getItem('userId');
-      const result = await dispatch(registerPet({ ...formData, userId })).unwrap();
+      
+      // Filter out empty string values and only send non-empty fields
+      const cleanedData = Object.entries(formData).reduce((acc, [key, value]) => {
+        // Only include non-empty values
+        if (value !== '' && value !== null && value !== undefined) {
+          acc[key] = value;
+        }
+        return acc;
+      }, {});
+      
+      console.log('📋 Cleaned pet data:', cleanedData);
+      
+      const result = await dispatch(registerPet({ ...cleanedData, userId })).unwrap();
 
-      if (result.success) {
+      if (result.success || result.pet) {
         Alert.alert(
           'Success',
           'Pet information has been saved successfully!',
@@ -189,9 +201,10 @@ function PetDetailForm({ onClose, onSuccess }) {
         );
       }
     } catch (error) {
+      console.error('❌ Submit error:', error);
       Alert.alert(
         'Error',
-        error.message || 'An error occurred while saving pet information'
+        error || 'An error occurred while saving pet information'
       );
     }
   };
@@ -648,17 +661,18 @@ export default function PetTab() {
 
           <View style={styles.contentSection}>
             {menuItems.map((item) => (
-              <TouchableOpacity
+              <Card 
                 key={item.id}
-                activeOpacity={0.95}
+                style={{ marginVertical: 4 }}
                 onPress={() => {
+                  alert('Clicked: ' + item.title);
+                  console.log('Card clicked:', item.id, item.title);
                   if (item.id === 'details') {
                     setShowForm(true);
                   }
                 }}
               >
-                <Card style={{ marginVertical: 4 }}>
-                  <Card.Content style={{ paddingVertical: 12, paddingHorizontal: 14 }}>
+                <Card.Content style={{ paddingVertical: 12, paddingHorizontal: 14 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 12 }}>
                         <View style={{ width: 44, height: 44, borderRadius: 8, justifyContent: 'center', alignItems: 'center' }}>
@@ -687,7 +701,6 @@ export default function PetTab() {
                     </View>
                   </Card.Content>
                 </Card>
-              </TouchableOpacity>
             ))}
           </View>
 
