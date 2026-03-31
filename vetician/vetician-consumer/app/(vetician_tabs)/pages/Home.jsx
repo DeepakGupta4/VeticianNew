@@ -150,6 +150,10 @@ export default function VeticionHome() {
   const router = useRouter();
   const dispatch = useDispatch();
 
+  console.log('🏠 Home component rendering...');
+  console.log('👤 User:', user?._id || 'No user');
+  console.log('🐾 Pets count:', pets.length);
+
   const [parentData, setParentData] = useState(null);
   const [clinics, setClinics] = useState([]);
   const [refreshing, setRefreshing] = useState(false);

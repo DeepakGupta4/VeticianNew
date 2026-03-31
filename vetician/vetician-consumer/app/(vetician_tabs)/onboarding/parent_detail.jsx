@@ -20,10 +20,10 @@ export default function PetDetail() {
   const [errors, setErrors] = useState({});
   const [isUploading, setIsUploading] = useState(false);
   const navigation = useNavigation();
+  const router = useRouter();
 
   const dispatch = useDispatch();
   const { isLoading, error } = useSelector(state => state.auth);
-  const router = useRouter();
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -178,17 +178,29 @@ export default function PetDetail() {
         gender: formData.gender,
         image: imageUrl
       })).unwrap();
-      console.log(result)
-
-      if (result.success) {
-        Alert.alert(
-          'Success',
-          'Parent information has been saved successfully!',
-          [{ text: 'OK', onPress: () => router.replace('/(vetician_tabs)/pages/VeticianWelcomeScreen') }]
-        );
-      }
+      
+      console.log('✅ Parent registration successful:', result);
+      console.log('📡 Navigating to home page...');
+      
+      // Show alert and navigate
+      Alert.alert(
+        'Success',
+        'Parent information has been saved successfully!',
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              console.log('👉 User pressed OK, navigating now...');
+              // Navigate to the tabs home screen
+              router.replace('/(vetician_tabs)/(tabs)');
+            }
+          }
+        ],
+        { cancelable: false }
+      );
+      
     } catch (error) {
-      console.error('Submission error:', error);
+      console.error('❌ Submission error:', error);
       Alert.alert('Error', error.message || 'An error occurred while saving parent information');
     } finally {
       setIsUploading(false);

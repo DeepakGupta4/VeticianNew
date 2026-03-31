@@ -2,11 +2,12 @@
 // Vatecian App — Static data for Pet Training screen
 
 export const TRAINING_CATEGORIES = [
-  { id: '1', name: 'Obedience',   description: 'Sit, stay, come & leash skills',      icon: 'paw',          color: '#558B2F' },
-  { id: '2', name: 'Agility',     description: 'Speed, jumps & obstacle courses',      icon: 'run-fast',     color: '#7CB342' },
-  { id: '3', name: 'Socialising', description: 'Confidence with people & other pets',  icon: 'dog',          color: '#33691E' },
-  { id: '4', name: 'Puppy',       description: 'Potty, crate & bite inhibition',       icon: 'paw',          color: '#8BC34A' },
-  { id: '5', name: 'Tricks',      description: 'Fun commands & advanced tricks',       icon: 'star-circle',  color: '#558B2F' },
+  { id: '1', name: 'Puppy Training',              description: 'Foundation training for young puppies',    icon: 'paw',          color: '#8BC34A' },
+  { id: '2', name: 'Basic / Obedience Training',  description: 'Sit, stay, come & leash skills',            icon: 'paw',          color: '#558B2F' },
+  { id: '3', name: 'Behavior Correction',         description: 'Fix unwanted behaviors & habits',           icon: 'alert-circle', color: '#7CB342' },
+  { id: '4', name: 'Agility',                     description: 'Speed, jumps & obstacle courses',           icon: 'run-fast',     color: '#7CB342' },
+  { id: '5', name: 'Socialising',                 description: 'Confidence with people & other pets',       icon: 'dog',          color: '#33691E' },
+  { id: '6', name: 'Tricks',                      description: 'Fun commands & advanced tricks',            icon: 'star-circle',  color: '#558B2F' },
 ];
 
 export const FEATURED_TRAINER = {

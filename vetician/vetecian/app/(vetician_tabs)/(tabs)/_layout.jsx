@@ -142,6 +142,7 @@ export default function TabLayout() {
       <Tabs.Screen name="index" />
       <Tabs.Screen name="doorstep" />
       <Tabs.Screen name="pet" />
+      <Tabs.Screen name="MedicalRecordsDetail" options={{ href: null }} />
 
       <Tabs.Screen name="../pages/ClinicListScreen" options={{ href: null }} />
       <Tabs.Screen name="../pages/ClinicDetailScreen" options={{ href: null }} />

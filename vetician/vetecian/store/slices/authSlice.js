@@ -458,14 +458,22 @@ export const getAllVerifiedClinics = createAsyncThunk(
 ========================= */
 export const registerPet = createAsyncThunk(
   'auth/pet',
-  async (petData, { rejectWithValue, getState }) => {
+  async (petData, { rejectWithValue, dispatch }) => {
     try {
+      console.log('🐾 Registering pet with data:', petData);
+      
       if (!petData.name || !petData.species || !petData.gender)
         throw new Error('Missing required information');
       
       const userId = await AsyncStorage.getItem('userId');
+      if (!userId) throw new Error('User not authenticated');
+      
+      console.log('👤 User ID:', userId);
+      
       const BASE_URL = getApiBaseUrl();
       const headers = await getCommonHeaders(true);
+      
+      console.log('📤 Sending pet registration request to:', `${BASE_URL}/parents/pets`);
       
       const res = await fetch(`${BASE_URL}/parents/pets`, {
         method: 'POST',
@@ -473,14 +481,24 @@ export const registerPet = createAsyncThunk(
         body: JSON.stringify({ ...petData, userId }),
       });
       
+      console.log('📡 Response status:', res.status);
+      
       if (!res.ok) {
         const errorText = await res.text();
+        console.error('❌ Registration failed:', errorText);
         throw new Error(`HTTP ${res.status}: ${errorText}`);
       }
       
       const result = await res.json();
+      console.log('✅ Pet registered successfully:', result);
+      
+      // Automatically fetch updated pet list
+      console.log('🔄 Fetching updated pet list...');
+      dispatch(getPetsByUserId());
+      
       return result;
     } catch (error) {
+      console.error('❌ Pet registration error:', error.message);
       return rejectWithValue(error.message || 'Pet registration failed');
     }
   }
@@ -689,6 +707,24 @@ const authSlice = createSlice({
       .addCase(updatePet.rejected, (state, action) => {
         state.userPets.loading = false;
         state.userPets.error = action.payload;
+      })
+      .addCase(registerPet.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(registerPet.fulfilled, (state, action) => {
+        state.isLoading = false;
+        // Add the new pet to the list if it's in the response
+        if (action.payload?.pet) {
+          if (!state.userPets.data) {
+            state.userPets.data = [];
+          }
+          state.userPets.data.push(action.payload.pet);
+        }
+      })
+      .addCase(registerPet.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload;
       })
       .addCase(getAllVerifiedClinics.pending, (state) => {
         if (!state.verifiedClinics) {

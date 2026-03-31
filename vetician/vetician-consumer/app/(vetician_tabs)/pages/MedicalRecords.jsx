@@ -10,17 +10,20 @@ import {
   Modal,
   TextInput,
   Alert,
+  StatusBar,
 } from 'react-native';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useRouter } from 'expo-router';
-import { ChevronLeft } from 'lucide-react-native';
 import { useSelector, useDispatch } from 'react-redux';
 import { getPetsByUserId } from '../../../store/slices/authSlice';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { COLORS } from '../../../constant/theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const RecordsScreen = () => {
   const router = useRouter();
   const dispatch = useDispatch();
+  const insets = useSafeAreaInsets();
   const reduxPets = useSelector(state => state.auth?.userPets?.data || []);
   const [loading, setLoading] = useState(true);
   const [selectedPet, setSelectedPet] = useState(0);
@@ -38,7 +41,57 @@ const RecordsScreen = () => {
   useEffect(() => {
     dispatch(getPetsByUserId()).finally(() => setLoading(false));
     loadRecordsFromStorage();
+    loadRecordsFromDatabase();
   }, []);
+  
+  useEffect(() => {
+    // Load records when selected pet changes
+    if (selectedPetData?._id) {
+      loadRecordsFromDatabase();
+    }
+  }, [selectedPet]);
+
+  const loadRecordsFromDatabase = async () => {
+    try {
+      const petId = pets[selectedPet]?._id;
+      console.log('🔍 Selected Pet Index:', selectedPet);
+      console.log('🔍 Selected Pet Data:', pets[selectedPet]);
+      console.log('🔍 Pet ID for loading records:', petId);
+      
+      if (!petId) {
+        console.log('⚠️ No pet ID found, skipping load');
+        return;
+      }
+      
+      const token = await AsyncStorage.getItem('token');
+      const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api';
+      
+      console.log('📥 Loading medical records from database for pet:', petId);
+      console.log('🌐 Request URL:', `${BASE_URL}/medical-records/pet/${petId}`);
+      
+      const response = await fetch(`${BASE_URL}/medical-records/pet/${petId}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      const data = await response.json();
+      console.log('📊 API Response:', JSON.stringify(data, null, 2));
+      
+      if (data.success && data.medicalRecords) {
+        console.log('✅ Setting medical records:', data.medicalRecords.length, 'records');
+        setMedicalRecords(data.medicalRecords);
+        console.log('✅ Medical records loaded from database:', data.medicalRecords.length);
+      } else {
+        console.log('⚠️ No records found or API error');
+        setMedicalRecords([]);
+      }
+    } catch (error) {
+      console.error('❌ Error loading medical records:', error);
+      setMedicalRecords([]);
+    }
+  };
 
   const loadRecordsFromStorage = async () => {
     try {
@@ -73,30 +126,108 @@ const RecordsScreen = () => {
   const [appointments, setAppointments] = useState([]);
   const [hostelRecords, setHostelRecords] = useState([]);
 
-  const handleAddRecord = () => {
+  const handleAddRecord = async () => {
     if (!newRecord.title || !newRecord.clinic || !newRecord.doctor) {
       Alert.alert('Error', 'Please fill all required fields');
       return;
     }
 
-    const record = {
-      id: Date.now(),
-      ...newRecord,
-    };
-
-    const updatedRecords = [record, ...medicalRecords];
-    setMedicalRecords(updatedRecords);
-    saveRecordsToStorage(updatedRecords);
-    setShowAddModal(false);
-    setNewRecord({
-      title: '',
-      clinic: '',
-      doctor: '',
-      date: new Date().toISOString().split('T')[0],
-      diagnosis: '',
-      prescription: '',
-    });
-    Alert.alert('Success', 'Medical record added successfully');
+    try {
+      console.log('📤 Sending medical record to API...');
+      
+      const userId = await AsyncStorage.getItem('userId');
+      const token = await AsyncStorage.getItem('token');
+      const petId = selectedPetData?._id;
+      
+      if (!petId) {
+        Alert.alert('Error', 'Please select a pet first');
+        return;
+      }
+      
+      console.log('🐾 Adding record for pet:', selectedPetData.name, '(ID:', petId, ')');
+      
+      const recordData = {
+        petId: petId,
+        userId: userId,
+        recordType: 'Prescription',
+        title: newRecord.title,
+        clinic: newRecord.clinic,
+        doctor: newRecord.doctor,
+        date: newRecord.date,
+        diagnosis: newRecord.diagnosis,
+        prescription: newRecord.prescription,
+        status: 'Active'
+      };
+      
+      console.log('📝 Record data:', recordData);
+      
+      const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api';
+      const apiUrl = `${BASE_URL}/medical-records`;
+      
+      console.log('🌐 API URL:', apiUrl);
+      console.log('🔑 Token:', token ? 'Present' : 'Missing');
+      
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(recordData)
+      });
+      
+      console.log('📡 Response status:', response.status);
+      
+      const responseData = await response.json();
+      console.log('📊 Response data:', responseData);
+      
+      if (!response.ok) {
+        console.log('❌ Response error:', responseData);
+        
+        // Check if it's an authentication error
+        if (response.status === 401) {
+          Alert.alert(
+            'Session Expired',
+            'Your session has expired. Please log in again.',
+            [
+              {
+                text: 'OK',
+                onPress: async () => {
+                  // Clear stored credentials
+                  await AsyncStorage.multiRemove(['token', 'userId']);
+                  // Navigate to login screen
+                  router.replace('/login');
+                }
+              }
+            ]
+          );
+          return;
+        }
+        
+        throw new Error(responseData.message || 'Failed to save medical record');
+      }
+      
+      if (responseData.success) {
+        // Reload records from database to show the newly added record
+        await loadRecordsFromDatabase();
+        
+        setShowAddModal(false);
+        setNewRecord({
+          title: '',
+          clinic: '',
+          doctor: '',
+          date: new Date().toISOString().split('T')[0],
+          diagnosis: '',
+          prescription: '',
+        });
+        
+        Alert.alert('Success', 'Medical record saved successfully!');
+        console.log('✅ Medical record saved successfully!');
+      }
+    } catch (error) {
+      console.error('❌ Error saving medical record:', error);
+      Alert.alert('Error', error.message || 'Failed to save medical record');
+    }
   };
 
   const renderTabButton = (tab, label, icon) => (
@@ -104,10 +235,10 @@ const RecordsScreen = () => {
       style={[styles.tabButton, activeTab === tab && styles.activeTabButton]}
       onPress={() => setActiveTab(tab)}
     >
-      <Icon
+      <MaterialCommunityIcons
         name={icon}
         size={20}
-        color={activeTab === tab ? '#4E8D7C' : '#666'}
+        color={activeTab === tab ? COLORS.primaryGreen : '#666'}
       />
       <Text
         style={[styles.tabButtonText, activeTab === tab && styles.activeTabText]}
@@ -124,25 +255,25 @@ const RecordsScreen = () => {
           <View key={record.id || index} style={styles.recordCard}>
             <View style={styles.recordHeader}>
               <View style={styles.recordIconContainer}>
-                <Icon name="clipboard-pulse" size={24} color="#4E8D7C" />
+                <MaterialCommunityIcons name="clipboard-pulse" size={24} color={COLORS.primaryGreen} />
               </View>
               <View style={styles.recordInfo}>
                 <Text style={styles.recordTitle}>{record.title || record.condition || 'Medical Record'}</Text>
                 <Text style={styles.recordDate}>{record.date || 'N/A'}</Text>
               </View>
-              <Icon name="chevron-right" size={24} color="#CCC" />
+              <MaterialCommunityIcons name="chevron-right" size={24} color="#CCC" />
             </View>
             <View style={styles.recordDetails}>
               <View style={styles.detailRow}>
-                <Icon name="hospital-building" size={16} color="#666" />
+                <MaterialCommunityIcons name="hospital-building" size={16} color="#666" />
                 <Text style={styles.detailText}>{record.clinic || 'N/A'}</Text>
               </View>
               <View style={styles.detailRow}>
-                <Icon name="doctor" size={16} color="#666" />
+                <MaterialCommunityIcons name="doctor" size={16} color="#666" />
                 <Text style={styles.detailText}>{record.doctor || record.veterinarian || 'N/A'}</Text>
               </View>
               <View style={styles.detailRow}>
-                <Icon name="stethoscope" size={16} color="#666" />
+                <MaterialCommunityIcons name="stethoscope" size={16} color="#666" />
                 <Text style={styles.detailText}>{record.diagnosis || record.treatment || 'N/A'}</Text>
               </View>
             </View>
@@ -150,12 +281,12 @@ const RecordsScreen = () => {
         ))
       ) : (
         <View style={styles.emptyState}>
-          <Icon name="clipboard-pulse-outline" size={64} color="#CCC" />
+          <MaterialCommunityIcons name="clipboard-pulse-outline" size={64} color="#CCC" />
           <Text style={styles.emptyText}>No medical records yet</Text>
         </View>
       )}
       <TouchableOpacity style={styles.addButton} onPress={() => setShowAddModal(true)}>
-        <Icon name="plus-circle" size={24} color="#4E8D7C" />
+        <MaterialCommunityIcons name="plus-circle" size={24} color={COLORS.primaryGreen} />
         <Text style={styles.addButtonText}>Add Medical Record</Text>
       </TouchableOpacity>
     </View>
@@ -168,7 +299,7 @@ const RecordsScreen = () => {
           <View key={vac.id || index} style={styles.recordCard}>
             <View style={styles.vaccineHeader}>
               <View style={styles.recordIconContainer}>
-                <Icon name="needle" size={24} color="#4E8D7C" />
+                <MaterialCommunityIcons name="needle" size={24} color={COLORS.primaryGreen} />
               </View>
               <View style={styles.vaccineInfo}>
                 <Text style={styles.recordTitle}>{vac.vaccine || vac.name || 'Vaccine'}</Text>
@@ -206,12 +337,12 @@ const RecordsScreen = () => {
         ))
       ) : (
         <View style={styles.emptyState}>
-          <Icon name="needle" size={64} color="#CCC" />
+          <MaterialCommunityIcons name="needle" size={64} color="#CCC" />
           <Text style={styles.emptyText}>No vaccination records yet</Text>
         </View>
       )}
       <TouchableOpacity style={styles.addButton}>
-        <Icon name="plus-circle" size={24} color="#4E8D7C" />
+        <MaterialCommunityIcons name="plus-circle" size={24} color={COLORS.primaryGreen} />
         <Text style={styles.addButtonText}>Add Vaccination Record</Text>
       </TouchableOpacity>
     </View>
@@ -224,7 +355,7 @@ const RecordsScreen = () => {
           <View key={apt.id || index} style={styles.recordCard}>
             <View style={styles.appointmentHeader}>
               <View style={styles.recordIconContainer}>
-                <Icon name="calendar-clock" size={24} color="#4E8D7C" />
+                <MaterialCommunityIcons name="calendar-clock" size={24} color={COLORS.primaryGreen} />
               </View>
               <View style={styles.appointmentInfo}>
                 <Text style={styles.recordTitle}>{apt.service}</Text>
@@ -250,12 +381,12 @@ const RecordsScreen = () => {
         ))
       ) : (
         <View style={styles.emptyState}>
-          <Icon name="calendar-clock" size={64} color="#CCC" />
+          <MaterialCommunityIcons name="calendar-clock" size={64} color="#CCC" />
           <Text style={styles.emptyText}>No appointments yet</Text>
         </View>
       )}
       <TouchableOpacity style={styles.addButton}>
-        <Icon name="plus-circle" size={24} color="#4E8D7C" />
+        <MaterialCommunityIcons name="plus-circle" size={24} color={COLORS.primaryGreen} />
         <Text style={styles.addButtonText}>Book New Appointment</Text>
       </TouchableOpacity>
     </View>
@@ -268,27 +399,27 @@ const RecordsScreen = () => {
           <View key={hostel.id || index} style={styles.recordCard}>
             <View style={styles.recordHeader}>
               <View style={styles.recordIconContainer}>
-                <Icon name="home-heart" size={24} color="#4E8D7C" />
+                <MaterialCommunityIcons name="home-heart" size={24} color={COLORS.primaryGreen} />
               </View>
               <View style={styles.recordInfo}>
                 <Text style={styles.recordTitle}>{hostel.facility}</Text>
                 <Text style={styles.recordDate}>{hostel.duration}</Text>
               </View>
-              <Icon name="chevron-right" size={24} color="#CCC" />
+              <MaterialCommunityIcons name="chevron-right" size={24} color="#CCC" />
             </View>
             <View style={styles.recordDetails}>
               <View style={styles.detailRow}>
-                <Icon name="login" size={16} color="#666" />
+                <MaterialCommunityIcons name="login" size={16} color="#666" />
                 <Text style={styles.detailText}>Check-in: {hostel.checkIn}</Text>
               </View>
               <View style={styles.detailRow}>
-                <Icon name="logout" size={16} color="#666" />
+                <MaterialCommunityIcons name="logout" size={16} color="#666" />
                 <Text style={styles.detailText}>
                   Check-out: {hostel.checkOut}
                 </Text>
               </View>
               <View style={styles.detailRow}>
-                <Icon name="star" size={16} color="#FFB800" />
+                <MaterialCommunityIcons name="star" size={16} color="#FFB800" />
                 <Text style={styles.detailText}>{hostel.feedback}</Text>
               </View>
             </View>
@@ -296,12 +427,12 @@ const RecordsScreen = () => {
         ))
       ) : (
         <View style={styles.emptyState}>
-          <Icon name="home-heart" size={64} color="#CCC" />
+          <MaterialCommunityIcons name="home-heart" size={64} color="#CCC" />
           <Text style={styles.emptyText}>No hostel records yet</Text>
         </View>
       )}
       <TouchableOpacity style={styles.addButton}>
-        <Icon name="plus-circle" size={24} color="#4E8D7C" />
+        <MaterialCommunityIcons name="plus-circle" size={24} color={COLORS.primaryGreen} />
         <Text style={styles.addButtonText}>Add Hostel Record</Text>
       </TouchableOpacity>
     </View>
@@ -310,15 +441,16 @@ const RecordsScreen = () => {
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <ChevronLeft size={28} color="#FFFFFF" />
+        <StatusBar backgroundColor={COLORS.primaryGreen} barStyle="light-content" />
+        <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.headerIcon}>
+            <MaterialCommunityIcons name="arrow-left" size={22} color="#fff" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Pet Records</Text>
-          <View style={{ width: 28 }} />
+          <Text style={styles.headerTitle}>Medical Records</Text>
+          <View style={styles.headerIcon} />
         </View>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#4E8D7C" />
+          <ActivityIndicator size="large" color={COLORS.primaryGreen} />
         </View>
       </SafeAreaView>
     );
@@ -326,13 +458,14 @@ const RecordsScreen = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <ChevronLeft size={28} color="#FFFFFF" />
+      <StatusBar backgroundColor={COLORS.primaryGreen} barStyle="light-content" />
+      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.headerIcon} activeOpacity={0.8}>
+          <MaterialCommunityIcons name="arrow-left" size={22} color="#fff" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Pet Records</Text>
-        <TouchableOpacity>
-          <Icon name="download" size={24} color="#FFFFFF" />
+        <Text style={styles.headerTitle}>Medical Records</Text>
+        <TouchableOpacity style={styles.headerIcon} activeOpacity={0.8}>
+          <MaterialCommunityIcons name="download" size={22} color="#fff" />
         </TouchableOpacity>
       </View>
 
@@ -358,8 +491,8 @@ const RecordsScreen = () => {
               </View>
             </TouchableOpacity>
           ))}
-          <TouchableOpacity style={styles.addPetCard} onPress={() => router.push('/pages/PetList')}>
-            <Icon name="plus" size={20} color="#4E8D7C" />
+          <TouchableOpacity style={styles.addPetCard} onPress={() => router.push('/(vetician_tabs)/pages/PetDetail')}>
+            <MaterialCommunityIcons name="plus" size={20} color={COLORS.primaryGreen} />
             <Text style={styles.addPetText}>Add Pet</Text>
           </TouchableOpacity>
         </ScrollView>
@@ -394,7 +527,7 @@ const RecordsScreen = () => {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Add Medical Record</Text>
               <TouchableOpacity onPress={() => setShowAddModal(false)}>
-                <Icon name="close" size={24} color="#666" />
+                <MaterialCommunityIcons name="close" size={24} color="#666" />
               </TouchableOpacity>
             </View>
             <ScrollView style={styles.modalBody}>
@@ -462,7 +595,7 @@ const RecordsScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
+    backgroundColor: COLORS.background,
   },
   scrollContainer: {
     flex: 1,
@@ -474,43 +607,47 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: COLORS.primaryGreen,
     paddingHorizontal: 16,
-    paddingVertical: 16,
-    backgroundColor: '#4E8D7C',
+    paddingBottom: 16,
   },
-  backButton: {
-    padding: 4,
+  headerIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    flex: 1,
-    textAlign: 'center',
+    fontSize: 19,
+    fontWeight: '800',
+    color: '#fff',
+    letterSpacing: 0.3,
   },
   petSelector: {
-    backgroundColor: '#FFF',
+    backgroundColor: COLORS.surface,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#E8E8E8',
+    borderBottomColor: COLORS.border,
   },
   petCard: {
     alignItems: 'center',
     marginLeft: 12,
     paddingHorizontal: 16,
     paddingVertical: 10,
-    borderRadius: 10,
-    backgroundColor: '#F8F9FA',
+    borderRadius: 12,
+    backgroundColor: COLORS.primaryPale,
     borderWidth: 2,
     borderColor: 'transparent',
     flexDirection: 'row',
     gap: 8,
   },
   selectedPetCard: {
-    backgroundColor: '#E8F5F1',
-    borderColor: '#4E8D7C',
+    backgroundColor: COLORS.primaryPale,
+    borderColor: COLORS.primaryGreen,
   },
   petEmoji: {
     fontSize: 24,
@@ -532,23 +669,23 @@ const styles = StyleSheet.create({
     marginRight: 12,
     paddingHorizontal: 16,
     paddingVertical: 10,
-    borderRadius: 10,
-    backgroundColor: '#FFF',
+    borderRadius: 12,
+    backgroundColor: COLORS.surface,
     borderWidth: 2,
-    borderColor: '#4E8D7C',
+    borderColor: COLORS.primaryGreen,
     borderStyle: 'dashed',
     gap: 6,
   },
   addPetText: {
     fontSize: 14,
-    color: '#4E8D7C',
+    color: COLORS.primaryGreen,
     fontWeight: '600',
   },
   tabsContainer: {
-    backgroundColor: '#FFF',
+    backgroundColor: COLORS.surface,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#E8E8E8',
+    borderBottomColor: COLORS.border,
   },
   tabButton: {
     flexDirection: 'row',
@@ -557,10 +694,10 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     marginLeft: 8,
     borderRadius: 20,
-    backgroundColor: '#F8F9FA',
+    backgroundColor: COLORS.background,
   },
   activeTabButton: {
-    backgroundColor: '#E8F5F1',
+    backgroundColor: COLORS.primaryPale,
   },
   tabButtonText: {
     fontSize: 14,
@@ -569,7 +706,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   activeTabText: {
-    color: '#4E8D7C',
+    color: COLORS.primaryGreen,
     fontWeight: '600',
   },
   content: {
@@ -579,15 +716,15 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   recordCard: {
-    backgroundColor: '#FFF',
+    backgroundColor: COLORS.surface,
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 3,
   },
   recordHeader: {
     flexDirection: 'row',
@@ -597,7 +734,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#E8F5F1',
+    backgroundColor: COLORS.primaryPale,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -703,15 +840,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 16,
     borderRadius: 12,
-    backgroundColor: '#FFF',
+    backgroundColor: COLORS.surface,
     borderWidth: 2,
-    borderColor: '#4E8D7C',
+    borderColor: COLORS.primaryGreen,
     borderStyle: 'dashed',
     marginTop: 8,
   },
   addButtonText: {
     fontSize: 16,
-    color: '#4E8D7C',
+    color: COLORS.primaryGreen,
     fontWeight: '600',
     marginLeft: 8,
   },
@@ -763,9 +900,9 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
   },
   saveButton: {
-    backgroundColor: '#4E8D7C',
+    backgroundColor: COLORS.primaryGreen,
     padding: 16,
-    borderRadius: 10,
+    borderRadius: 12,
     alignItems: 'center',
     marginTop: 20,
     marginBottom: 20,
