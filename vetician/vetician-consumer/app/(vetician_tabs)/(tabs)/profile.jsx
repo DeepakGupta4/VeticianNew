@@ -1154,14 +1154,7 @@ export default function Profile() {
   const averageRating = 4.68;
 
   const menuItems = [
-    {
-      id: 'address',
-      icon: MapPin,
-      title: 'My Address',
-      subtitle: parentData?.address ? (typeof parentData.address === 'string' ? parentData.address.slice(0, 30) + (parentData.address.length > 30 ? '...' : '') : 'Address saved') : 'Add your address',
-      onPress: () => setEditModalVisible(true),
-      color: '#7CB342'
-    },
+  
     {
       id: 'my-pets',
       icon: PawPrint,
@@ -1357,7 +1350,7 @@ export default function Profile() {
 
             {/* Sign Out Button */}
             <Divider />
-            <TouchableOpacity
+            {/* <TouchableOpacity
               style={styles.menuItem}
               onPress={handleSignOut}
               activeOpacity={0.7}
@@ -1370,7 +1363,7 @@ export default function Profile() {
                   Sign Out
                 </Text>
               </View>
-            </TouchableOpacity>
+            </TouchableOpacity> */}
           </Surface>
 
         <View style={styles.bottomSpacing} />

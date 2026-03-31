@@ -101,13 +101,8 @@ export default function SignIn() {
         await AsyncStorage.setItem('userId', data.user._id || data.user.id);
         if (data.refreshToken) await AsyncStorage.setItem('refreshToken', data.refreshToken);
 
-        // Pehli baar aaya hai — name auto-generated hai ya onboarding complete nahi
-        const isNewUser = !data.user.name || data.user.name === 'Pet Parent';
-        if (isNewUser) {
-          router.replace('/(vetician_tabs)/onboarding/parent_detail');
-        } else {
-          router.replace('/(vetician_tabs)/pages/VeticianWelcomeScreen');
-        }
+        // Always go directly to dashboard
+        router.replace('/(vetician_tabs)/(tabs)');
       } else {
         Alert.alert('Wrong OTP', data.message || 'Incorrect OTP. Please try again.');
       }

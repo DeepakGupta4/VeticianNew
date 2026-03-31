@@ -47,7 +47,7 @@ export default function SignUp() {
       setTimeoutWarning(false);
 
       if (signUpUser.fulfilled.match(result)) {
-        router.replace('/(vetician_tabs)/pages/VeticianWelcomeScreen');
+        router.replace('/(vetician_tabs)/(tabs)');
       } else {
         throw new Error(result.payload || 'Sign up failed');
       }
