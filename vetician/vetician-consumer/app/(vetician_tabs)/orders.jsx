@@ -7,7 +7,7 @@ import {
   Alert,
 } from 'react-native';
 import { router } from 'expo-router';
-import { COLORS2 } from '../../constants/colors';
+import { COLORS2 } from '../../constant/theme';
 import { ORDERS_DATA } from '../../data/ordersData';
 
 import Header from '../../components/petparent/orders/Header';
