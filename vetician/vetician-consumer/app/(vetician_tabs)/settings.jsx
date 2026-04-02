@@ -6,9 +6,8 @@ import { signOut } from '../../store/slices/authSlice';
 
 import { COLORS2 } from '../../constant/theme';
 import Header from '../../components/petparent/setting/Header.jsx';
-import ProfileCard from '../../components/petparent/setting/ProfileCard.jsx';
 import {
-  AccountSettings, SecuritySettings,
+   SecuritySettings,
   NotificationSettings, PrivacySettings, SupportSettings,
 } from '../../components/petparent/setting/SettingsSections.jsx';
 import {
@@ -63,14 +62,7 @@ export default function SettingsScreen() {
       <Header onBack={() => router.back()} />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <ProfileCard profile={profile} onEditPress={() => openEdit('name')} />
-        <View style={styles.gap} />
-
-        <AccountSettings
-          onEditName={()  => openEdit('name')}
-          onEditPhone={() => openEdit('phone')}
-          onEditEmail={() => openEdit('email')}
-        />
+        
         <View style={styles.gap} />
 
         <SecuritySettings

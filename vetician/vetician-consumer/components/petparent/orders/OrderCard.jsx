@@ -5,9 +5,9 @@ import { COLORS2, STATUS_COLORS } from './colors';
 import { SERVICE_ICONS } from './ordersData';
 
 const STATUS_DOT = {
-  Active:    '#4CAF50',
-  Completed: '#9E9E9E',
-  Cancelled: '#EF5350',
+  Active:    COLORS2.primary,
+  Completed: COLORS2.secondary,
+  Cancelled: COLORS2.subtext,
 };
 
 const OrderCard = ({ order, onPress, onRebook, index }) => {
@@ -24,9 +24,7 @@ const OrderCard = ({ order, onPress, onRebook, index }) => {
   const statusStyle = STATUS_COLORS[order.status] || STATUS_COLORS.Completed;
   const svcIcon     = SERVICE_ICONS[order.serviceType] || { name: 'paw', color: COLORS2.primary };
 
-  const accentColor =
-    order.status === 'Active'    ? COLORS2.primary :
-    order.status === 'Completed' ? '#9E9E9E'       : '#EF9A9A';
+  const accentColor = order.status === 'Cancelled' ? COLORS2.subtext : COLORS2.primary;
 
   return (
     <Animated.View style={[styles.wrapper, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
@@ -39,8 +37,8 @@ const OrderCard = ({ order, onPress, onRebook, index }) => {
           {/* ── Top row ── */}
           <View style={styles.topRow}>
             {/* Icon box */}
-            <View style={[styles.iconBox, { backgroundColor: svcIcon.color + '18' }]}>
-              <MaterialCommunityIcons name={svcIcon.name} size={22} color={svcIcon.color} />
+            <View style={[styles.iconBox, { backgroundColor: COLORS2.accent }]}>
+              <MaterialCommunityIcons name={svcIcon.name} size={22} color={COLORS2.primary} />
             </View>
 
             {/* Service + pet info */}
@@ -90,7 +88,7 @@ const OrderCard = ({ order, onPress, onRebook, index }) => {
                 <MaterialCommunityIcons name="eye-outline" size={14} color={COLORS2.primary} />
                 <Text style={styles.btnOutlineText}>Details</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.btnPrimary, { backgroundColor: accentColor === '#EF9A9A' ? '#EF5350' : COLORS2.primary }]} onPress={() => onRebook(order)} activeOpacity={0.8}>
+              <TouchableOpacity style={[styles.btnPrimary, { backgroundColor: COLORS2.primary }]} onPress={() => onRebook(order)} activeOpacity={0.8}>
                 <MaterialCommunityIcons
                   name={order.status === 'Active' ? 'map-marker-path' : 'refresh'}
                   size={14}

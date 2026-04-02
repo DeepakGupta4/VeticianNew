@@ -12,18 +12,18 @@ export const COLORS2 = {
 
 export const STATUS_COLORS = {
   Active: {
-    bg: '#E8F5E9',
-    text: '#2E7D32',
-    accent: '#558B2F',
+    bg: COLORS2.accent,
+    text: COLORS2.primary,
+    accent: COLORS2.primary,
   },
   Completed: {
-    bg: '#F5F5F5',
-    text: '#616161',
-    accent: '#9E9E9E',
+    bg: COLORS2.accent,
+    text: COLORS2.secondary,
+    accent: COLORS2.secondary,
   },
   Cancelled: {
-    bg: '#FFEBEE',
-    text: '#C62828',
-    accent: '#EF9A9A',
+    bg: COLORS2.accent,
+    text: COLORS2.subtext,
+    accent: COLORS2.subtext,
   },
 };
