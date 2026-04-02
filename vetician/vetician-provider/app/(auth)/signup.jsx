@@ -13,7 +13,7 @@ const ROLES = [
   { key: 'pet_resort', label: 'Pet Resort', route: '/(pet_resort_tabs)/(tabs)' },
 ];
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://vetician-backend-kovk.onrender.com/api';
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api';
 
 export default function SignUp() {
   const [step, setStep] = useState(1); // 1 = form, 2 = otp
@@ -126,8 +126,19 @@ export default function SignUp() {
     }));
 
     if (signUpUser.fulfilled.match(result)) {
-      const role = ROLES.find(r => r.key === loginType);
-      router.replace(role?.route || '/(doc_tabs)/onboarding/onboarding_conf');
+      const userId = result.payload?.user?._id;
+      const token = result.payload?.token;
+      
+      if (loginType === 'veterinarian' && userId && token) {
+        router.replace('/(doc_tabs)/onboarding/onboarding_conf');
+      } else if (loginType === 'pet_resort') {
+        router.replace('/(pet_resort_tabs)');
+      } else if (loginType === 'paravet') {
+        router.replace('/(peravet_tabs)/onboarding');
+      } else {
+        const role = ROLES.find(r => r.key === loginType);
+        router.replace(role?.route || '/(doc_tabs)/onboarding/onboarding_conf');
+      }
     } else {
       Alert.alert('Sign Up Failed', result.payload || 'An error occurred');
     }
