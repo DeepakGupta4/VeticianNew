@@ -24,7 +24,7 @@ export default function OTPScreen() {
     setLoading(true);
     
     try {
-      const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://vetician-backend-kovk.onrender.com/api';
+      const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api';
       console.log('🔵 Verifying OTP:', enteredOtp);
       console.log('🔵 Phone:', phoneNumber);
       console.log('🔵 Email:', email);
@@ -75,16 +75,11 @@ export default function OTPScreen() {
         }
         
         console.log('✅ Credentials saved successfully');
+        console.log('🔵 User role:', data.user?.role);
         
-        // Show success notification
-        Alert.alert(
-          'Login Successful! 🎉', 
-          `Welcome back! You're now signed in to your account.`,
-          [{ 
-            text: 'Continue', 
-            onPress: () => handlePostLoginRouting(data.user?.role || 'vetician', data.user?._id, data.token)
-          }]
-        );
+        // Navigate directly without alert for smoother UX
+        setLoading(false);
+        await handlePostLoginRouting(data.user?.role || 'vetician', data.user?._id, data.token);
       } else {
         // Handle specific error cases
         if (response.status === 400 && data.message && data.message.includes('verification ID')) {
@@ -122,7 +117,7 @@ export default function OTPScreen() {
   const handlePostLoginRouting = async (userRole, userId, token) => {
     if (userRole === 'veterinarian') {
       try {
-        const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://vetician-backend-kovk.onrender.com/api';
+        const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api';
         const res = await fetch(`${API_URL}/auth/veterinarian/${userId}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -151,7 +146,7 @@ export default function OTPScreen() {
     setResendLoading(true);
     
     try {
-      const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://vetician-backend-kovk.onrender.com/api';
+      const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api';
       const requestBody = otpMethod === 'phone' 
         ? { phoneNumber }
         : { email };
