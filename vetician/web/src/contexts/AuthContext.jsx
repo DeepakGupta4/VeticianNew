@@ -1,5 +1,7 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+
 const AuthContext = createContext();
 
 export const useAuth = () => {
@@ -33,45 +35,72 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (credentials) => {
     try {
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      console.log('🔵 Login attempt:', { email: credentials.email });
       
-      // Restricted login - only allow admin@gmail.com with password "password"
-      if (credentials.email === 'admin@gmail.com' && credentials.password === 'password') {
-        const mockUser = {
-          id: '1',
-          username: 'admin',
-          email: 'admin@gmail.com',
-          role: 'admin'
-        };
-        const mockToken = 'mock-jwt-token-' + Date.now();
+      const response = await fetch(`${API_BASE_URL}/auth/admin/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: credentials.email,
+          password: credentials.password,
+        }),
+      });
+
+      const data = await response.json();
+      console.log('📡 Login response:', data);
+
+      if (response.ok && data.success) {
+        const userData = data.data.user || data.user;
+        const authToken = data.data.token || data.token;
         
-        setUser(mockUser);
-        setToken(mockToken);
-        localStorage.setItem('token', mockToken);
-        localStorage.setItem('user', JSON.stringify(mockUser));
-        return { success: true, data: { user: mockUser, token: mockToken } };
+        setUser(userData);
+        setToken(authToken);
+        localStorage.setItem('token', authToken);
+        localStorage.setItem('user', JSON.stringify(userData));
+        
+        console.log('✅ Login successful');
+        return { success: true, data: { user: userData, token: authToken } };
       } else {
-        return { success: false, error: 'Invalid credentials. Please check your email and password.' };
+        console.log('❌ Login failed:', data.message);
+        return { success: false, error: data.message || 'Invalid credentials. Please check your email and password.' };
       }
     } catch (error) {
-      return { success: false, error: 'Login failed' };
+      console.error('❌ Login error:', error);
+      return { success: false, error: 'Network error. Please check your connection and try again.' };
     }
   };
 
   const register = async (userData) => {
     try {
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      console.log('🔵 Registration attempt:', { email: userData.email, username: userData.username });
       
-      // Universal registration - accept any valid data for testing
-      if (userData.email && userData.password && userData.username) {
-        return { success: true, data: { message: 'Registration successful' } };
+      const response = await fetch(`${API_BASE_URL}/auth/admin/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          username: userData.username,
+          email: userData.email,
+          password: userData.password,
+        }),
+      });
+
+      const data = await response.json();
+      console.log('📡 Registration response:', data);
+
+      if (response.ok && data.success) {
+        console.log('✅ Registration successful');
+        return { success: true, data: data.data || data };
       } else {
-        return { success: false, error: 'All fields are required' };
+        console.log('❌ Registration failed:', data.message);
+        return { success: false, error: data.message || 'Registration failed. Please try again.' };
       }
     } catch (error) {
-      return { success: false, error: 'Registration failed' };
+      console.error('❌ Registration error:', error);
+      return { success: false, error: 'Network error. Please check your connection and try again.' };
     }
   };
 

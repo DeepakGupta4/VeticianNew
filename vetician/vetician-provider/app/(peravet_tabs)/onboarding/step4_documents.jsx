@@ -8,7 +8,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useParavetOnboarding } from '../../../contexts/ParavetOnboardingContext';
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://vetician-backend-kovk.onrender.com/api';
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api';
 
 export default function Step4Documents() {
   const router = useRouter();
@@ -55,35 +55,72 @@ export default function Step4Documents() {
     setIsUploading(docId);
     try {
       const token = await AsyncStorage.getItem('token');
-      const formDataToSend = new FormData();
-
-      formDataToSend.append('file', {
-        uri: file.uri,
-        type: file.mimeType || 'application/octet-stream',
-        name: file.name || `${docId}_${Date.now()}`,
-      });
-      formDataToSend.append('documentType', docId);
-
-      const response = await fetch(`${API_URL}/upload`, {
-        method: 'POST',
-        body: formDataToSend,
-        headers: {
-          ...(token && { Authorization: `Bearer ${token}` }),
-        },
-      });
-
-      if (!response.ok) {
-        const err = await response.json().catch(() => ({}));
-        throw new Error(err.message || 'Upload failed');
+      
+      // Check if running on web
+      const isWeb = typeof window !== 'undefined' && window.document;
+      
+      if (isWeb && file.uri.startsWith('blob:')) {
+        // Web: Convert blob URI to actual file
+        const blob = await fetch(file.uri).then(r => r.blob());
+        const formDataToSend = new FormData();
+        formDataToSend.append('file', blob, file.name || `${docId}_${Date.now()}.pdf`);
+        formDataToSend.append('documentType', docId);
+        
+        console.log('🌐 Web upload:', file.name);
+        
+        const response = await fetch(`${API_URL}/upload`, {
+          method: 'POST',
+          body: formDataToSend,
+          headers: {
+            ...(token && { Authorization: `Bearer ${token}` }),
+          },
+        });
+        
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          throw new Error(err.message || 'Upload failed');
+        }
+        
+        const data = await response.json();
+        const uploadedUrl = data.url || data.fileUrl || file.uri;
+        
+        setUploadedDocs(prev => ({ ...prev, [docId]: true }));
+        updateFormData(`${docId}Url`, uploadedUrl);
+        Alert.alert('Success', `${file.name || 'Document'} uploaded successfully!`);
+      } else {
+        // Mobile: Use React Native FormData
+        const formDataToSend = new FormData();
+        formDataToSend.append('file', {
+          uri: file.uri,
+          type: file.mimeType || 'application/octet-stream',
+          name: file.name || `${docId}_${Date.now()}`,
+        });
+        formDataToSend.append('documentType', docId);
+        
+        console.log('📱 Mobile upload:', file.name);
+        
+        const response = await fetch(`${API_URL}/upload`, {
+          method: 'POST',
+          body: formDataToSend,
+          headers: {
+            ...(token && { Authorization: `Bearer ${token}` }),
+          },
+        });
+        
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          throw new Error(err.message || 'Upload failed');
+        }
+        
+        const data = await response.json();
+        const uploadedUrl = data.url || data.fileUrl || file.uri;
+        
+        setUploadedDocs(prev => ({ ...prev, [docId]: true }));
+        updateFormData(`${docId}Url`, uploadedUrl);
+        Alert.alert('Success', `${file.name || 'Document'} uploaded successfully!`);
       }
-
-      const data = await response.json();
-      const uploadedUrl = data.url || data.fileUrl || file.uri;
-
-      setUploadedDocs(prev => ({ ...prev, [docId]: true }));
-      updateFormData(`${docId}Url`, uploadedUrl);
-      Alert.alert('Success', `${file.name || 'Document'} uploaded successfully!`);
     } catch (err) {
+      console.error('❌ Upload error:', err);
       Alert.alert('Upload Failed', err.message || 'Please try again.');
     } finally {
       setIsUploading(null);
