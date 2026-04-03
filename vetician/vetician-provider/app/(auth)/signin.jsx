@@ -60,7 +60,7 @@ export default function SignIn() {
         }
       } else if (loginType === 'paravet') {
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 8000);
+        const timeout = setTimeout(() => controller.abort(), 60000);
         try {
           const res = await fetch(`${API_URL}/paravet/profile/${userId}`, {
             headers: { Authorization: `Bearer ${result.token}` },
