@@ -1359,20 +1359,60 @@ const ParavetModule = () => {
   return (
     <PaperProvider theme={theme}>
       <View style={styles.container}>
-        <ExpoStatusBar style="light" backgroundColor={COLORS.primaryGreen} />
-        <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-          <TouchableOpacity style={styles.headerIcon} onPress={() => router.back()} activeOpacity={0.8}>
-            <MaterialCommunityIcons name="arrow-left" size={22} color="#fff" />
+        <ExpoStatusBar style="light" backgroundColor='#2E5E10' />
+        <LinearGradient
+          colors={['#2E5E10', '#3D7A18', '#558B2F']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[styles.heroHeader, { paddingTop: insets.top + 12 }]}
+        >
+          <View style={styles.circle1} />
+          <View style={styles.circle2} />
+
+          <View style={styles.navRow}>
+            <TouchableOpacity style={styles.navBtn} onPress={() => router.back()} activeOpacity={0.8}>
+              <MaterialCommunityIcons name="arrow-left" size={20} color="#fff" />
+            </TouchableOpacity>
+            <View style={styles.navSpacer} />
+            <TouchableOpacity style={styles.navBtn} activeOpacity={0.8}>
+              <MaterialCommunityIcons name="bell-outline" size={20} color="#fff" />
+            </TouchableOpacity>
+            <RNText style={styles.navTitle}>Doorstep Service</RNText>
+          </View>
+
+          <View style={styles.heroRow}>
+            <View style={styles.heroIconBox}>
+              <MaterialCommunityIcons name="home-heart" size={26} color="#fff" />
+            </View>
+            <View style={styles.heroTextWrap}>
+              <RNText style={styles.heroTitle}>Doorstep Vet Care</RNText>
+              <RNText style={styles.heroSub}>Professional care delivered to your home</RNText>
+            </View>
+          </View>
+
+          <View style={styles.statsRow}>
+            <View style={styles.statItem}>
+              <MaterialCommunityIcons name="account-check-outline" size={13} color="rgba(255,255,255,0.9)" />
+              <RNText style={styles.statText}>Verified Paravets</RNText>
+            </View>
+            <View style={styles.statDot} />
+            <View style={styles.statItem}>
+              <MaterialCommunityIcons name="clock-fast" size={13} color="rgba(255,255,255,0.9)" />
+              <RNText style={styles.statText}>2hr Emergency</RNText>
+            </View>
+            <View style={styles.statDot} />
+            <View style={styles.statItem}>
+              <MaterialCommunityIcons name="shield-check-outline" size={13} color="rgba(255,255,255,0.9)" />
+              <RNText style={styles.statText}>100% Safe</RNText>
+            </View>
+          </View>
+
+          <TouchableOpacity style={styles.searchBar} activeOpacity={0.85}>
+            <MaterialCommunityIcons name="magnify" size={18} color="#558B2F" />
+            <RNText style={styles.searchBarText}>Search services or paravets...</RNText>
+            <MaterialCommunityIcons name="tune-variant" size={18} color="#aaa" />
           </TouchableOpacity>
-          <RNText style={styles.headerTitle}>Doorstep Service</RNText>
-          <TouchableOpacity style={styles.headerIcon} activeOpacity={0.8}>
-            <MaterialCommunityIcons name="account-circle-outline" size={24} color="#fff" />
-          </TouchableOpacity>
-        </View>
-        <View style={styles.subtitleBanner}>
-          <MaterialCommunityIcons name="information-outline" size={15} color="#fff" />
-          <RNText style={styles.subtitleText}>Professional veterinary services delivered to your home.</RNText>
-        </View>
+        </LinearGradient>
         
         {/* Paravet Selection Modal */}
         <Modal visible={paravetSelectionVisible} animationType="slide">
@@ -1965,42 +2005,69 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: theme.colors.background,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: COLORS.primaryGreen,
-    paddingHorizontal: 16,
-    paddingBottom: 16,
+  heroHeader: {
+    paddingHorizontal: 20,
+    paddingBottom: 22,
+    overflow: 'hidden',
   },
-  headerIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    alignItems: 'center',
-    justifyContent: 'center',
+  circle1: {
+    position: 'absolute', width: 180, height: 180, borderRadius: 90,
+    backgroundColor: 'rgba(255,255,255,0.07)', top: -55, right: -40,
   },
-  headerTitle: {
-    fontSize: 19,
-    fontWeight: '800',
-    color: COLORS.white,
-    letterSpacing: 0.3,
+  circle2: {
+    position: 'absolute', width: 110, height: 110, borderRadius: 55,
+    backgroundColor: 'rgba(255,255,255,0.05)', bottom: -20, left: -20,
   },
-  subtitleBanner: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
-    backgroundColor: COLORS.primaryGreen,
-    paddingHorizontal: 16,
-    paddingTop: 4,
-    paddingBottom: 28,
+  navRow: {
+    flexDirection: 'row', alignItems: 'center', marginBottom: 20,
+    position: 'relative',
   },
-  subtitleText: {
-    flex: 1,
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.88)',
-    lineHeight: 19,
+  navBtn: {
+    width: 38, height: 38, borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.22)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  navSpacer: { flex: 1 },
+  navTitle: {
+    position: 'absolute', left: 0, right: 0,
+    textAlign: 'center', fontSize: 17,
+    fontWeight: '800', color: '#fff', letterSpacing: 0.2,
+    zIndex: 1, pointerEvents: 'none',
+  },
+  heroRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 16,
+  },
+  heroIconBox: {
+    width: 54, height: 54, borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.25)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  heroTextWrap: { flex: 1 },
+  heroTitle: {
+    fontSize: 20, fontWeight: '900', color: '#fff',
+    letterSpacing: -0.3, marginBottom: 3,
+  },
+  heroSub: {
+    fontSize: 12.5, color: 'rgba(255,255,255,0.75)',
+  },
+  statsRow: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.13)',
+    borderRadius: 20, paddingHorizontal: 14,
+    paddingVertical: 8, gap: 6, marginBottom: 16,
+  },
+  statItem: { flexDirection: 'row', alignItems: 'center', gap: 5, flex: 1 },
+  statText: { fontSize: 11, color: 'rgba(255,255,255,0.9)', fontWeight: '600' },
+  statDot: { width: 3, height: 3, borderRadius: 1.5, backgroundColor: 'rgba(255,255,255,0.35)' },
+  searchBar: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: '#fff', borderRadius: 14,
+    paddingHorizontal: 14, paddingVertical: 13,
+  },
+  searchBarText: {
+    flex: 1, fontSize: 13.5, color: '#aaa', fontWeight: '500',
   },
   scrollViewContent: {
     paddingBottom: 20,

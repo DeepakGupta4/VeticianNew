@@ -18,6 +18,7 @@ import {
 import { useRouter } from 'expo-router';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS } from '../../../constant/theme';
 
 const theme = {
@@ -100,42 +101,67 @@ export default function ClinicTab() {
       flex: 1,
       backgroundColor: '#FFFFFF',
     },
-    header: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      backgroundColor: COLORS.primaryGreen,
-      paddingHorizontal: 16,
-      paddingBottom: 16,
+    heroHeader: {
+      paddingHorizontal: 20,
+      paddingBottom: 22,
+      overflow: 'hidden',
     },
-    headerIcon: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      backgroundColor: 'rgba(255,255,255,0.15)',
-      alignItems: 'center',
-      justifyContent: 'center',
+    circle1: {
+      position: 'absolute', width: 180, height: 180, borderRadius: 90,
+      backgroundColor: 'rgba(255,255,255,0.07)', top: -55, right: -40,
     },
-    headerTitle: {
-      fontSize: 19,
-      fontWeight: '800',
-      color: '#fff',
-      letterSpacing: 0.3,
+    circle2: {
+      position: 'absolute', width: 110, height: 110, borderRadius: 55,
+      backgroundColor: 'rgba(255,255,255,0.05)', bottom: -20, left: -20,
     },
-    subtitleBanner: {
-      flexDirection: 'row',
-      alignItems: 'flex-start',
-      gap: 8,
-      backgroundColor: COLORS.primaryGreen,
-      paddingHorizontal: 16,
-      paddingTop: 4,
-      paddingBottom: 28,
+    navRow: {
+      flexDirection: 'row', alignItems: 'center', marginBottom: 20,
     },
-    subtitleText: {
-      flex: 1,
-      fontSize: 13,
-      color: 'rgba(255,255,255,0.88)',
-      lineHeight: 19,
+    navBtn: {
+      width: 38, height: 38, borderRadius: 12,
+      backgroundColor: 'rgba(255,255,255,0.18)',
+      borderWidth: 1, borderColor: 'rgba(255,255,255,0.22)',
+      alignItems: 'center', justifyContent: 'center',
+    },
+    navSpacer: { flex: 1 },
+    navTitle: {
+      position: 'absolute', left: 0, right: 0,
+      textAlign: 'center', fontSize: 17,
+      fontWeight: '800', color: '#fff', letterSpacing: 0.2,
+    },
+    heroRow: {
+      flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 16,
+    },
+    heroIconBox: {
+      width: 54, height: 54, borderRadius: 16,
+      backgroundColor: 'rgba(255,255,255,0.18)',
+      borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.25)',
+      alignItems: 'center', justifyContent: 'center',
+    },
+    heroTextWrap: { flex: 1 },
+    heroTitle: {
+      fontSize: 20, fontWeight: '900', color: '#fff',
+      letterSpacing: -0.3, marginBottom: 3,
+    },
+    heroSub: {
+      fontSize: 12.5, color: 'rgba(255,255,255,0.75)',
+    },
+    statsRow: {
+      flexDirection: 'row', alignItems: 'center',
+      backgroundColor: 'rgba(255,255,255,0.13)',
+      borderRadius: 20, paddingHorizontal: 14,
+      paddingVertical: 8, gap: 6, marginBottom: 16,
+    },
+    statItem: { flexDirection: 'row', alignItems: 'center', gap: 5, flex: 1 },
+    statText: { fontSize: 11, color: 'rgba(255,255,255,0.9)', fontWeight: '600' },
+    statDot: { width: 3, height: 3, borderRadius: 1.5, backgroundColor: 'rgba(255,255,255,0.35)' },
+    searchBar: {
+      flexDirection: 'row', alignItems: 'center', gap: 10,
+      backgroundColor: '#fff', borderRadius: 14,
+      paddingHorizontal: 14, paddingVertical: 13,
+    },
+    searchBarText: {
+      flex: 1, fontSize: 13.5, color: '#aaa', fontWeight: '500',
     },
     cityScrollContainer: {
       paddingVertical: 16,
@@ -260,20 +286,66 @@ export default function ClinicTab() {
   return (
     <PaperProvider theme={theme}>
       <View style={styles.container}>
-        <StatusBar backgroundColor={COLORS.primaryGreen} barStyle="light-content" translucent />
-        <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-          <TouchableOpacity style={styles.headerIcon} onPress={() => router.back()} activeOpacity={0.8}>
-            <MaterialCommunityIcons name="arrow-left" size={22} color="#fff" />
+        <StatusBar backgroundColor={DARK_GREEN} barStyle="light-content" translucent={false} />
+
+        <LinearGradient
+          colors={['#2E5E10', '#3D7A18', '#558B2F']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[styles.heroHeader, { paddingTop: insets.top + 12 }]}
+        >
+          {/* Decorative circles */}
+          <View style={styles.circle1} />
+          <View style={styles.circle2} />
+
+          {/* Nav row */}
+          <View style={styles.navRow}>
+            <RNText style={styles.navTitle}>Find Clinics</RNText>
+            <TouchableOpacity style={styles.navBtn} onPress={() => router.back()} activeOpacity={0.8}>
+              <MaterialCommunityIcons name="arrow-left" size={20} color="#fff" />
+            </TouchableOpacity>
+            <View style={styles.navSpacer} />
+            <TouchableOpacity style={styles.navBtn} activeOpacity={0.8}>
+              <MaterialCommunityIcons name="bell-outline" size={20} color="#fff" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Hero identity */}
+          <View style={styles.heroRow}>
+            <View style={styles.heroIconBox}>
+              <MaterialCommunityIcons name="hospital-building" size={26} color="#fff" />
+            </View>
+            <View style={styles.heroTextWrap}>
+              <RNText style={styles.heroTitle}>Verified Vet Clinics</RNText>
+              <RNText style={styles.heroSub}>Trusted care for your pets, nearby</RNText>
+            </View>
+          </View>
+
+          {/* Stats strip */}
+          <View style={styles.statsRow}>
+            <View style={styles.statItem}>
+              <MaterialCommunityIcons name="hospital-marker" size={13} color="rgba(255,255,255,0.9)" />
+              <RNText style={styles.statText}>500+ Clinics</RNText>
+            </View>
+            <View style={styles.statDot} />
+            <View style={styles.statItem}>
+              <MaterialCommunityIcons name="shield-check-outline" size={13} color="rgba(255,255,255,0.9)" />
+              <RNText style={styles.statText}>All Verified</RNText>
+            </View>
+            <View style={styles.statDot} />
+            <View style={styles.statItem}>
+              <MaterialCommunityIcons name="map-marker-radius-outline" size={13} color="rgba(255,255,255,0.9)" />
+              <RNText style={styles.statText}>8 Cities</RNText>
+            </View>
+          </View>
+
+          {/* Search bar */}
+          <TouchableOpacity style={styles.searchBar} activeOpacity={0.85}>
+            <MaterialCommunityIcons name="magnify" size={18} color="#558B2F" />
+            <RNText style={styles.searchBarText}>Search clinics or select a city...</RNText>
+            <MaterialCommunityIcons name="tune-variant" size={18} color="#aaa" />
           </TouchableOpacity>
-          <RNText style={styles.headerTitle}>Find Clinics</RNText>
-          <TouchableOpacity style={styles.headerIcon} activeOpacity={0.8}>
-            <MaterialCommunityIcons name="account-circle-outline" size={24} color="#fff" />
-          </TouchableOpacity>
-        </View>
-        <View style={styles.subtitleBanner}>
-          <MaterialCommunityIcons name="information-outline" size={15} color="#fff" />
-          <RNText style={styles.subtitleText}>Select a city to find verified clinics near you.</RNText>
-        </View>
+        </LinearGradient>
 
         <FlatList
           ref={flatListRef}

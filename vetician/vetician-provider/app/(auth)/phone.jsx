@@ -35,7 +35,7 @@ export default function PhoneScreen() {
     setLoading(true);
     
     try {
-      const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api';
+      const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://10.0.2.2:3000/api';
       console.log('🔵 API URL:', BASE_URL);
       console.log('🔵 OTP Method:', otpMethod);
       console.log('🔵 Sending OTP to:', otpMethod === 'phone' ? formattedPhone : email);
