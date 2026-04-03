@@ -30,7 +30,7 @@ const getApiBaseUrl = () => {
 };
 
 // Fetch with timeout
-const fetchWithTimeout = (url, options = {}, timeout = 10000) => {
+const fetchWithTimeout = (url, options = {}, timeout = 60000) => {
   return Promise.race([
     fetch(url, options),
     new Promise((_, reject) =>
@@ -129,7 +129,7 @@ export const signInUser = createAsyncThunk(
         mode: 'cors',
         headers,
         body: JSON.stringify({ email, password, loginType }),
-      }, 8000); // Reduced from 15000 to 8000ms
+      }, 60000);
       
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({ message: 'Login failed' }));
@@ -166,7 +166,7 @@ export const signUpUser = createAsyncThunk(
         method: 'POST',
         headers,
         body: JSON.stringify({ name, email, phone, password, loginType }),
-      }, 8000);
+      }, 60000);
       
       console.log('📡 SignUp Response Status:', res.status);
       

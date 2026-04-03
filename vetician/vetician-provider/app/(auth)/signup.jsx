@@ -46,6 +46,13 @@ export default function SignUp() {
     return newErrors;
   };
 
+  const fetchWithTimeout = (url, options, timeout = 60000) => {
+    return Promise.race([
+      fetch(url, options),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), timeout)),
+    ]);
+  };
+
   const handleSendOTP = async () => {
     const newErrors = validateForm();
     if (Object.keys(newErrors).length > 0) { setErrors(newErrors); return; }
@@ -56,7 +63,7 @@ export default function SignUp() {
         ? { phoneNumber: `+91${formData.phone.trim()}` }
         : { email: formData.email.trim().toLowerCase() };
 
-      const res = await fetch(`${API_URL}/auth/send-otp`, {
+      const res = await fetchWithTimeout(`${API_URL}/auth/send-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(contact),
@@ -77,7 +84,7 @@ export default function SignUp() {
         Alert.alert('Error', data.message || 'Failed to send OTP');
       }
     } catch (e) {
-      Alert.alert('Network Error', 'Please check your internet connection.');
+      Alert.alert('Error', 'Failed to send OTP. Please try again.');
     } finally {
       setOtpLoading(false);
     }
@@ -96,7 +103,7 @@ export default function SignUp() {
         ? { phoneNumber: `+91${formData.phone.trim()}` }
         : { email: formData.email.trim().toLowerCase() };
 
-      const verifyRes = await fetch(`${API_URL}/auth/verify-otp`, {
+      const verifyRes = await fetchWithTimeout(`${API_URL}/auth/verify-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...contact, otp: enteredOtp, verificationId }),
@@ -110,7 +117,7 @@ export default function SignUp() {
         return;
       }
     } catch (e) {
-      Alert.alert('Network Error', 'Please check your internet connection.');
+      Alert.alert('Error', 'Failed to verify OTP. Please try again.');
       setOtpLoading(false);
       return;
     }
@@ -151,7 +158,7 @@ export default function SignUp() {
         ? { phoneNumber: `+91${formData.phone.trim()}` }
         : { email: formData.email.trim().toLowerCase() };
 
-      const res = await fetch(`${API_URL}/auth/send-otp`, {
+      const res = await fetchWithTimeout(`${API_URL}/auth/send-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(contact),
@@ -164,7 +171,7 @@ export default function SignUp() {
         Alert.alert('Error', data.message || 'Failed to resend OTP');
       }
     } catch (e) {
-      Alert.alert('Network Error', 'Please check your internet connection.');
+      Alert.alert('Error', 'Failed to resend OTP. Please try again.');
     } finally {
       setOtpLoading(false);
     }

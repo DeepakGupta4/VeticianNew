@@ -50,7 +50,7 @@
       "router": {
         "origin": false
       },
-      "EXPO_PUBLIC_API_URL": "http://10.0.2.2:3000/api",
+      "EXPO_PUBLIC_API_URL": "https://vetician-backend-kovk.onrender.com/api",
       "eas": {
         "projectId": "2f6fd0a7-08ec-4c5f-bc9a-c0492f373e64"
       }
