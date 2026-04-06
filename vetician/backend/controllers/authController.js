@@ -539,9 +539,8 @@ const registerVeterinarian = catchAsync(async (req, res, next) => {
   const veterinarianData = {};
   for (const [key, value] of Object.entries(flatData)) {
     if (key === 'userId') continue;
-
     veterinarianData[key] = {
-      value: key === 'experience' ? Number(value) : value,
+      value: key === 'experience' ? Number(value) : String(value),
       verified: false
     };
   }
@@ -595,9 +594,8 @@ const updateVeterinarian = catchAsync(async (req, res, next) => {
   // Update fields
   for (const [key, value] of Object.entries(flatData)) {
     if (key === 'userId') continue;
-    
-    if (veterinarian[key]) {
-      veterinarian[key].value = key === 'experience' ? Number(value) : value;
+    if (veterinarian[key] !== undefined && veterinarian[key] !== null) {
+      veterinarian[key].value = key === 'experience' ? Number(value) : String(value);
     }
   }
 

@@ -13,7 +13,7 @@ const ROLES = [
   { key: 'pet_resort', label: 'Pet Resort', route: '/(pet_resort_tabs)/(tabs)' },
 ];
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api';
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://10.0.2.2:3000/api';
 
 export default function SignUp() {
   const [step, setStep] = useState(1); // 1 = form, 2 = otp

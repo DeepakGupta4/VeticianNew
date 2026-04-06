@@ -20,7 +20,7 @@ const veterinarianSchema = new mongoose.Schema({
       required: [true, 'Name is required'],
       trim: true,
       minlength: [2, 'Name must be at least 2 characters long'],
-      maxlength: [50, 'Name cannot exceed 50 characters']
+      maxlength: [100, 'Name cannot exceed 100 characters']
     },
     verified: {
       type: Boolean,
@@ -78,7 +78,7 @@ const veterinarianSchema = new mongoose.Schema({
       required: [true, 'Profile photo URL is required'],
       validate: {
         validator: function(v) {
-          return /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/.test(v);
+          return /^https?:\/\/.+/.test(v);
         },
         message: props => `${props.value} is not a valid URL!`
       }
@@ -105,7 +105,7 @@ const veterinarianSchema = new mongoose.Schema({
       required: [true, 'Qualification documents URL is required'],
       validate: {
         validator: function(v) {
-          return /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/.test(v);
+          return /^https?:\/\/.+/.test(v);
         },
         message: props => `${props.value} is not a valid URL!`
       }
@@ -132,7 +132,7 @@ const veterinarianSchema = new mongoose.Schema({
       required: [true, 'Registration proof URL is required'],
       validate: {
         validator: function(v) {
-          return /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/.test(v);
+          return /^https?:\/\/.+/.test(v);
         },
         message: props => `${props.value} is not a valid URL!`
       }
@@ -159,7 +159,7 @@ const veterinarianSchema = new mongoose.Schema({
       required: [true, 'Identity proof URL is required'],
       validate: {
         validator: function(v) {
-          return /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/.test(v);
+          return /^https?:\/\/.+/.test(v);
         },
         message: props => `${props.value} is not a valid URL!`
       }

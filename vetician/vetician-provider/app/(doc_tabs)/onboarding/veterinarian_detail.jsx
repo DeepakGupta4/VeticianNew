@@ -187,7 +187,7 @@ export default function VeterinarianProfile() {
     try {
       // Get token for authenticated uploads
       const token = await AsyncStorage.getItem('token');
-      const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api';
+      const API_URL = process.env.EXPO_PUBLIC_API_URL || (Platform.OS === 'web' ? 'http://localhost:3000/api' : 'http://10.0.2.2:3000/api');
       
       const uploadResults = [];
       
