@@ -12,6 +12,22 @@ import { COLORS, RADIUS, SPACING, SHADOWS } from '../../constant/theme';
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://vetician-backend-kovk.onrender.com/api';
 
+const fetchWithRetry = async (url, options, retries = 3, timeout = 15000) => {
+  for (let i = 0; i < retries; i++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeout);
+    try {
+      const res = await fetch(url, { ...options, signal: controller.signal });
+      clearTimeout(timer);
+      return res;
+    } catch (err) {
+      clearTimeout(timer);
+      if (i === retries - 1) throw err;
+      await new Promise(r => setTimeout(r, 2000 * (i + 1)));
+    }
+  }
+};
+
 const ROLES = [
   { key: 'vetician',     label: 'Pet Parent',    emoji: '🐾' },
   { key: 'veterinarian', label: 'Veterinarian',  emoji: '🩺' },
@@ -37,6 +53,7 @@ export default function ConsumerLogin() {
   const [verificationId, setVerificationId] = useState('');
   const [loading,        setLoading]        = useState(false);
   const [timer,          setTimer]          = useState(0);
+  const [serverWaking,   setServerWaking]   = useState(false);
 
   // new-user fields
   const [isNewUser, setIsNewUser] = useState(false);
@@ -62,8 +79,10 @@ export default function ConsumerLogin() {
       return;
     }
     setLoading(true);
+    setServerWaking(false);
+    const wakeTimer = setTimeout(() => setServerWaking(true), 5000);
     try {
-      const res = await fetch(`${BASE_URL}/auth/send-otp`, {
+      const res = await fetchWithRetry(`${BASE_URL}/auth/send-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -91,9 +110,11 @@ export default function ConsumerLogin() {
       } else {
         Alert.alert('Error', data.message || 'Failed to send OTP. Try again.');
       }
-    } catch {
-      Alert.alert('Network Error', 'Please check your internet connection.');
+    } catch (e) {
+      Alert.alert('Network Error', e.name === 'AbortError' ? 'Server is waking up, please try again in a moment.' : 'Please check your internet connection.');
     } finally {
+      clearTimeout(wakeTimer);
+      setServerWaking(false);
       setLoading(false);
     }
   };
@@ -117,7 +138,7 @@ export default function ConsumerLogin() {
     }
     setLoading(true);
     try {
-      const res = await fetch(`${BASE_URL}/auth/verify-otp`, {
+      const res = await fetchWithRetry(`${BASE_URL}/auth/verify-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -145,8 +166,8 @@ export default function ConsumerLogin() {
       } else {
         Alert.alert('Wrong OTP', data.message || 'Incorrect OTP. Please try again.');
       }
-    } catch {
-      Alert.alert('Network Error', 'Please check your internet connection.');
+    } catch (e) {
+      Alert.alert('Network Error', e.name === 'AbortError' ? 'Server is waking up, please try again in a moment.' : 'Please check your internet connection.');
     } finally {
       setLoading(false);
     }
@@ -158,7 +179,7 @@ export default function ConsumerLogin() {
     setOtp(['', '', '', '', '', '']);
     setLoading(true);
     try {
-      const res = await fetch(`${BASE_URL}/auth/send-otp`, {
+      const res = await fetchWithRetry(`${BASE_URL}/auth/send-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phoneNumber: `+91${phone}` }),
@@ -171,8 +192,8 @@ export default function ConsumerLogin() {
       } else {
         Alert.alert('Error', data.message || 'Failed to resend OTP.');
       }
-    } catch {
-      Alert.alert('Network Error', 'Please check your internet connection.');
+    } catch (e) {
+      Alert.alert('Network Error', e.name === 'AbortError' ? 'Server is waking up, please try again in a moment.' : 'Please check your internet connection.');
     } finally {
       setLoading(false);
     }
@@ -271,6 +292,11 @@ export default function ConsumerLogin() {
                     : <Text style={styles.btnText}>Get OTP</Text>
                   }
                 </TouchableOpacity>
+                {loading && serverWaking && (
+                  <Text style={{ textAlign: 'center', color: COLORS.textMuted, fontSize: 12, marginTop: 8 }}>
+                    ⏳ Server is starting up, please wait...
+                  </Text>
+                )}
 
                 {/* Toggle new / existing user */}
                 <TouchableOpacity

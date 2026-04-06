@@ -67,6 +67,7 @@ export default function OTPScreen() {
         // Also save to AsyncStorage for persistence
         await AsyncStorage.setItem('token', data.token);
         await AsyncStorage.setItem('user', JSON.stringify(data.user));
+        await AsyncStorage.setItem('userId', data.user._id || data.user.id);
         if (data.refreshToken) {
           await AsyncStorage.setItem('refreshToken', data.refreshToken);
         }

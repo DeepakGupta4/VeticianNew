@@ -635,6 +635,9 @@ const authSlice = createSlice({
       state.refreshToken = action.payload.refreshToken;
       state.isAuthenticated = true;
       state.error = null;
+      const userId = action.payload.user?._id || action.payload.user?.id;
+      if (userId) AsyncStorage.setItem('userId', userId);
+      if (action.payload.token) AsyncStorage.setItem('token', action.payload.token);
     },
   },
   extraReducers: builder => {

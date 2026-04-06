@@ -6,27 +6,22 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 ========================= */
 // Helper to extract error message from HTML or JSON response
 const parseErrorMessage = (responseText) => {
-  // Try to parse as JSON first
   try {
     const json = JSON.parse(responseText);
     return json.message || json.error || 'An error occurred';
   } catch (e) {
-    // If HTML, extract error message
     if (responseText.includes('<pre>')) {
       const match = responseText.match(/<pre>([^<]+)<\/pre>/);
-      if (match && match[1]) {
-        // Extract just the error message, not the stack trace
-        const errorLine = match[1].split('<br>')[0].replace('Error: ', '');
-        return errorLine.trim();
+      if (match?.[1]) {
+        return match[1].split('<br>')[0].replace('Error: ', '').trim();
       }
     }
-    // Return original text if can't parse
-    return responseText.substring(0, 100);
+    return responseText.substring(0, 150);
   }
 };
 
 const getApiBaseUrl = () => {
-  return process.env.EXPO_PUBLIC_API_URL || 'http://10.0.2.2:3000/api';
+  return process.env.EXPO_PUBLIC_API_URL || 'https://vetician-backend-kovk.onrender.com/api';
 };
 
 // Fetch with timeout
@@ -294,24 +289,23 @@ export const veterinarianUser = createAsyncThunk(
   async (vetData, { rejectWithValue }) => {
     try {
       const userId = await AsyncStorage.getItem('userId');
-      if (!userId) throw new Error('User not authenticated');
-      
+      if (!userId) return rejectWithValue('User not authenticated. Please log in again.');
+
       const BASE_URL = getApiBaseUrl();
       const headers = await getCommonHeaders(true);
-      const res = await fetch(`${BASE_URL}/auth/veterinarian-register`, {
+      const res = await fetchWithTimeout(`${BASE_URL}/auth/veterinarian-register`, {
         method: 'POST',
         headers,
-        body: JSON.stringify({ ...vetData, userId }),
-      });
-      
+        body: JSON.stringify({ ...vetData, userId: String(userId) }),
+      }, 90000);
+
+      const responseText = await res.text();
       if (!res.ok) {
-        const errorText = await res.text();
-        throw new Error(`HTTP ${res.status}: ${errorText}`);
+        return rejectWithValue(parseErrorMessage(responseText));
       }
-      
-      return await res.json();
+      return JSON.parse(responseText);
     } catch (error) {
-      return rejectWithValue(error.message || 'Failed to save veterinarian data');
+      return rejectWithValue(error.message || 'Network error. Please check your connection.');
     }
   }
 );
@@ -322,24 +316,23 @@ export const updateVeterinarianUser = createAsyncThunk(
     try {
       const state = getState();
       const userId = state.auth.user?._id || await AsyncStorage.getItem('userId');
-      if (!userId) throw new Error('User not authenticated');
-      
+      if (!userId) return rejectWithValue('User not authenticated. Please log in again.');
+
       const BASE_URL = getApiBaseUrl();
       const headers = await getCommonHeaders(true);
-      const res = await fetch(`${BASE_URL}/auth/veterinarian-update`, {
+      const res = await fetchWithTimeout(`${BASE_URL}/auth/veterinarian-update`, {
         method: 'PUT',
         headers,
-        body: JSON.stringify({ ...vetData, userId }),
-      });
-      
+        body: JSON.stringify({ ...vetData, userId: String(userId) }),
+      }, 90000);
+
+      const responseText = await res.text();
       if (!res.ok) {
-        const errorText = await res.text();
-        throw new Error(`HTTP ${res.status}: ${errorText}`);
+        return rejectWithValue(parseErrorMessage(responseText));
       }
-      
-      return await res.json();
+      return JSON.parse(responseText);
     } catch (error) {
-      return rejectWithValue(error.message || 'Failed to update veterinarian data');
+      return rejectWithValue(error.message || 'Network error. Please check your connection.');
     }
   }
 );

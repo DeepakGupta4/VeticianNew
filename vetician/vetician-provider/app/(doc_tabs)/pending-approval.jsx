@@ -1,9 +1,10 @@
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, SafeAreaView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useDispatch } from 'react-redux';
 import { Clock, CheckCircle, FileText, AlertCircle, LogOut, RefreshCw } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useState } from 'react';
+import { COLORS, RADIUS, SPACING, SHADOWS, FONT } from '../../constant/theme';
 
 export default function PendingApproval() {
   const router = useRouter();
@@ -41,121 +42,174 @@ export default function PendingApproval() {
   };
 
   const steps = [
-    { icon: FileText, label: 'Profile Submitted', done: true, color: '#10B981' },
-    { icon: Clock,    label: 'Admin Review',      done: false, color: '#F59E0B' },
-    { icon: CheckCircle, label: 'Account Activated', done: false, color: '#6B7280' },
+    { icon: FileText,    label: 'Profile Submitted',  done: true,  activeColor: COLORS.primary },
+    { icon: Clock,       label: 'Admin Review',        done: false, activeColor: COLORS.amber },
+    { icon: CheckCircle, label: 'Account Activated',   done: false, activeColor: COLORS.textMuted },
   ];
 
   return (
-    <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-      {/* Icon */}
-      <View style={styles.iconWrap}>
-        <Clock size={56} color="#F59E0B" />
-      </View>
+    <SafeAreaView style={styles.safe}>
+      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
 
-      <Text style={styles.title}>Verification Pending</Text>
-      <Text style={styles.subtitle}>
-        Your profile has been submitted successfully. Our admin will review your documents and activate your account within 7 business days.
-      </Text>
+        {/* Header badge */}
+        <View style={styles.badge}>
+          <Text style={styles.badgeText}>UNDER REVIEW</Text>
+        </View>
 
-      {/* Steps */}
-      <View style={styles.stepsCard}>
-        {steps.map((step, i) => (
-          <View key={i} style={styles.stepRow}>
-            <View style={[styles.stepIcon, { backgroundColor: step.color + '20' }]}>
-              <step.icon size={20} color={step.color} />
-            </View>
-            <Text style={[styles.stepLabel, !step.done && styles.stepLabelPending]}>
-              {step.label}
-            </Text>
-            {step.done && <CheckCircle size={16} color="#10B981" />}
-          </View>
-        ))}
-      </View>
+        {/* Icon */}
+        <View style={styles.iconWrap}>
+          <Clock size={52} color={COLORS.primary} />
+        </View>
 
-      {/* Info box */}
-      <View style={styles.infoBox}>
-        <AlertCircle size={18} color="#3B82F6" />
-        <Text style={styles.infoText}>
-          You will be notified once your account is approved. Make sure your documents are clear and valid.
+        <Text style={styles.title}>Verification Pending</Text>
+        <Text style={styles.subtitle}>
+          Your profile has been submitted successfully. Our team will review your documents and activate your account within 7 business days.
         </Text>
-      </View>
 
-      {/* Check Status Button */}
-      <TouchableOpacity style={styles.checkBtn} onPress={handleCheckStatus} disabled={checking}>
-        {checking
-          ? <ActivityIndicator color="#fff" />
-          : <>
-              <RefreshCw size={18} color="#fff" />
-              <Text style={styles.checkBtnText}>Check Approval Status</Text>
-            </>
-        }
-      </TouchableOpacity>
+        {/* Progress Steps */}
+        <View style={styles.stepsCard}>
+          <Text style={styles.stepsHeading}>Application Progress</Text>
+          {steps.map((step, i) => (
+            <View key={i}>
+              <View style={styles.stepRow}>
+                <View style={[styles.stepIcon, { backgroundColor: step.done ? COLORS.primaryPale : '#F3F4F6' }]}>
+                  <step.icon size={20} color={step.done ? step.activeColor : COLORS.textMuted} />
+                </View>
+                <View style={styles.stepContent}>
+                  <Text style={[styles.stepLabel, !step.done && styles.stepLabelPending]}>
+                    {step.label}
+                  </Text>
+                  <Text style={styles.stepStatus}>
+                    {step.done ? 'Completed' : i === 1 ? 'In progress…' : 'Waiting'}
+                  </Text>
+                </View>
+                {step.done && <CheckCircle size={18} color={COLORS.primary} />}
+              </View>
+              {i < steps.length - 1 && <View style={styles.stepDivider} />}
+            </View>
+          ))}
+        </View>
 
-      {/* Edit Profile */}
-      <TouchableOpacity
-        style={styles.editBtn}
-        onPress={() => router.push('/(doc_tabs)/onboarding/veterinarian_detail')}
-      >
-        <FileText size={18} color="#4A90E2" />
-        <Text style={styles.editBtnText}>Edit / Resubmit Profile</Text>
-      </TouchableOpacity>
+        {/* Info box */}
+        <View style={styles.infoBox}>
+          <AlertCircle size={18} color={COLORS.primary} />
+          <Text style={styles.infoText}>
+            You will be notified once your account is approved. Ensure your documents are clear and valid.
+          </Text>
+        </View>
 
-      {/* Logout */}
-      <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-        <LogOut size={18} color="#EF4444" />
-        <Text style={styles.logoutText}>Logout</Text>
-      </TouchableOpacity>
-    </ScrollView>
+        {/* Check Status */}
+        <TouchableOpacity style={styles.primaryBtn} onPress={handleCheckStatus} disabled={checking}>
+          {checking
+            ? <ActivityIndicator color={COLORS.white} />
+            : <>
+                <RefreshCw size={18} color={COLORS.white} />
+                <Text style={styles.primaryBtnText}>Check Approval Status</Text>
+              </>
+          }
+        </TouchableOpacity>
+
+        {/* Edit Profile */}
+        <TouchableOpacity
+          style={styles.outlineBtn}
+          onPress={() => router.push('/(doc_tabs)/onboarding/veterinarian_detail')}
+        >
+          <FileText size={18} color={COLORS.primary} />
+          <Text style={styles.outlineBtnText}>Edit / Resubmit Profile</Text>
+        </TouchableOpacity>
+
+        {/* Logout */}
+        <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
+          <LogOut size={16} color={COLORS.red} />
+          <Text style={styles.logoutText}>Logout</Text>
+        </TouchableOpacity>
+
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safe: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
   container: {
     flexGrow: 1,
-    backgroundColor: '#F9FAFB',
     alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingTop: 80,
-    paddingBottom: 40,
+    paddingHorizontal: SPACING.lg,
+    paddingTop: 56,
+    paddingBottom: SPACING.xl,
+  },
+  badge: {
+    backgroundColor: COLORS.primaryPale,
+    borderRadius: RADIUS.xl,
+    paddingHorizontal: 14,
+    paddingVertical: 5,
+    marginBottom: SPACING.lg,
+  },
+  badgeText: {
+    fontSize: 11,
+    fontWeight: FONT.bold,
+    color: COLORS.primary,
+    letterSpacing: 1.2,
   },
   iconWrap: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: '#FEF3C7',
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: COLORS.primaryPale,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: SPACING.lg,
+    borderWidth: 2,
+    borderColor: COLORS.border,
+    ...SHADOWS.card,
   },
   title: {
     fontSize: 26,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 12,
+    fontWeight: FONT.bold,
+    color: COLORS.textDark,
+    marginBottom: 10,
     textAlign: 'center',
   },
   subtitle: {
-    fontSize: 15,
-    color: '#6B7280',
+    fontSize: 14,
+    color: COLORS.textSecondary,
     textAlign: 'center',
     lineHeight: 22,
-    marginBottom: 32,
+    marginBottom: SPACING.xl,
   },
   stepsCard: {
     width: '100%',
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 20,
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.md,
+    padding: SPACING.md,
+    marginBottom: SPACING.md,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    gap: 16,
+    borderColor: COLORS.border,
+    ...SHADOWS.card,
+  },
+  stepsHeading: {
+    fontSize: 13,
+    fontWeight: FONT.bold,
+    color: COLORS.textMuted,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    marginBottom: SPACING.md,
   },
   stepRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+    paddingVertical: 4,
+  },
+  stepDivider: {
+    height: 20,
+    width: 1.5,
+    backgroundColor: COLORS.border,
+    marginLeft: 19,
+    marginVertical: 2,
   },
   stepIcon: {
     width: 40,
@@ -164,73 +218,86 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  stepLabel: {
+  stepContent: {
     flex: 1,
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#111827',
+  },
+  stepLabel: {
+    fontSize: 14,
+    fontWeight: FONT.bold,
+    color: COLORS.textDark,
   },
   stepLabelPending: {
-    color: '#9CA3AF',
+    color: COLORS.textMuted,
+    fontWeight: FONT.medium,
+  },
+  stepStatus: {
+    fontSize: 12,
+    color: COLORS.textMuted,
+    marginTop: 1,
   },
   infoBox: {
     width: '100%',
     flexDirection: 'row',
-    backgroundColor: '#EFF6FF',
-    borderRadius: 12,
-    padding: 16,
+    backgroundColor: COLORS.primaryPale,
+    borderRadius: RADIUS.sm,
+    padding: SPACING.md,
     gap: 10,
-    marginBottom: 28,
+    marginBottom: SPACING.lg,
     alignItems: 'flex-start',
+    borderLeftWidth: 3,
+    borderLeftColor: COLORS.primary,
   },
   infoText: {
     flex: 1,
     fontSize: 13,
-    color: '#1D4ED8',
+    color: COLORS.textSecondary,
     lineHeight: 20,
   },
-  checkBtn: {
+  primaryBtn: {
     width: '100%',
-    backgroundColor: '#10B981',
-    borderRadius: 12,
+    backgroundColor: COLORS.primary,
+    borderRadius: RADIUS.md,
     paddingVertical: 16,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     gap: 10,
-    marginBottom: 12,
+    marginBottom: SPACING.sm,
+    ...SHADOWS.card,
   },
-  checkBtnText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+  primaryBtnText: {
+    color: COLORS.white,
+    fontSize: 15,
+    fontWeight: FONT.bold,
   },
-  editBtn: {
+  outlineBtn: {
     width: '100%',
     borderWidth: 1.5,
-    borderColor: '#4A90E2',
-    borderRadius: 12,
+    borderColor: COLORS.primary,
+    borderRadius: RADIUS.md,
     paddingVertical: 14,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     gap: 10,
-    marginBottom: 12,
+    marginBottom: SPACING.md,
+    backgroundColor: COLORS.surface,
   },
-  editBtnText: {
-    color: '#4A90E2',
+  outlineBtnText: {
+    color: COLORS.primary,
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: FONT.bold,
   },
   logoutBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    paddingVertical: 12,
+    paddingVertical: 10,
+    marginTop: 4,
   },
   logoutText: {
-    color: '#EF4444',
-    fontSize: 15,
-    fontWeight: '500',
+    color: COLORS.red,
+    fontSize: 14,
+    fontWeight: FONT.medium,
   },
 });

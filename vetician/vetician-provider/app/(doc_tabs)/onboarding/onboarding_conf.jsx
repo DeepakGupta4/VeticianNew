@@ -59,7 +59,7 @@ export default function VeticianProfileSetup() {
                     <Text style={styles.primaryButtonText}>CREATE MY VET PROFILE</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity style={styles.secondaryButton} onPress={() => router.replace('/(tabs)')}>
+                <TouchableOpacity style={styles.secondaryButton} onPress={() => router.replace('/(doc_tabs)/(tabs)')}>
                     <Text style={styles.secondaryButtonText}>SETUP LATER</Text>
                 </TouchableOpacity>
             </View>

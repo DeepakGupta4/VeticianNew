@@ -20,9 +20,13 @@ export default function AppHome() {
                 });
                 const data = await res.json();
 
-                if (data.success && data.data?.profile?.isVerified) {
+                const profile = data.data?.profile;
+                const clinics = data.data?.clinics || [];
+                const hasVerifiedClinic = clinics.some(c => c.verified);
+
+                if (data.success && (profile?.isVerified || hasVerifiedClinic)) {
                     setIsVerified(true);
-                } else if (data.success && data.data?.profile) {
+                } else if (data.success && profile) {
                     router.replace('/(doc_tabs)/pending-approval');
                 } else {
                     router.replace('/(doc_tabs)/onboarding/onboarding_conf');

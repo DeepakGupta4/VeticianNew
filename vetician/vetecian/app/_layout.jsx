@@ -4,14 +4,26 @@ import { StatusBar } from 'expo-status-bar';
 import { Provider, useSelector } from 'react-redux';
 import { PersistGate } from 'redux-persist/integration/react';
 import { store, persistor } from '../store/store';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useEffect, useState } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { useNetworkStatus } from '../hooks/useNetworkStatus';
 
 function LoadingScreen() {
   return (
     <View style={styles.loadingContainer}>
       <Text style={styles.loadingText}>Loading...</Text>
+    </View>
+  );
+}
+
+function NoInternetBanner({ onRetry }) {
+  return (
+    <View style={styles.banner}>
+      <Text style={styles.bannerText}>⚠️ No internet connection</Text>
+      <TouchableOpacity onPress={onRetry} style={styles.retryBtn}>
+        <Text style={styles.retryText}>Retry</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -51,7 +63,14 @@ function AuthGuard({ children }) {
     }
   }, [segments, isAuthenticated, user, navigationState?.key]);
 
-  return children;
+  const { isConnected, checkConnection } = useNetworkStatus();
+
+  return (
+    <>
+      {!isConnected && <NoInternetBanner onRetry={checkConnection} />}
+      {children}
+    </>
+  );
 }
 
 export default function RootLayout() {
@@ -81,4 +100,16 @@ const styles = StyleSheet.create({
     color: '#666',
     fontWeight: '500',
   },
+  banner: {
+    backgroundColor: '#EF4444',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    zIndex: 999,
+  },
+  bannerText: { color: '#fff', fontSize: 14, fontWeight: '600' },
+  retryBtn: { backgroundColor: 'rgba(255,255,255,0.25)', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 6 },
+  retryText: { color: '#fff', fontSize: 13, fontWeight: '700' },
 });

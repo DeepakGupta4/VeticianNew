@@ -10,7 +10,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { setCredentials } from '../../store/slices/authSlice';
 import { COLORS, RADIUS, SPACING, SHADOWS } from '../../constant/theme';
 
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api';
+const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://vetician-backend-kovk.onrender.com/api';
 const { width } = Dimensions.get('window');
 
 export default function SignIn() {

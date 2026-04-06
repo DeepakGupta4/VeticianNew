@@ -55,7 +55,7 @@ export default function VeterinarianProfile() {
       if (!granted) { Alert.alert('Permission Required', 'Please allow access to photos'); return; }
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],
         allowsEditing: true, aspect: [1, 1], quality: 0.8,
       });
 

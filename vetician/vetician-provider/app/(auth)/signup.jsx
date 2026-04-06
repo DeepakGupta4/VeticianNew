@@ -8,7 +8,7 @@ import { Eye, EyeOff, Mail, Lock, User, Phone, Stethoscope } from 'lucide-react-
 import OTPInput from '../../components/auth/OTPInput';
 
 const ROLES = [
-  { key: 'veterinarian', label: 'Veterinarian', route: '/(doc_tabs)/onboarding/onboarding_conf' },
+  { key: 'veterinarian', label: 'Veterinarian', route: '/(doc_tabs)/onboarding/veterinarian_detail' },
   { key: 'paravet', label: 'Paravet', route: '/(peravet_tabs)/onboarding' },
   { key: 'pet_resort', label: 'Pet Resort', route: '/(pet_resort_tabs)/(tabs)' },
 ];
@@ -137,14 +137,14 @@ export default function SignUp() {
       const token = result.payload?.token;
       
       if (loginType === 'veterinarian' && userId && token) {
-        router.replace('/(doc_tabs)/onboarding/onboarding_conf');
+        router.replace('/(doc_tabs)/onboarding/veterinarian_detail');
       } else if (loginType === 'pet_resort') {
         router.replace('/(pet_resort_tabs)');
       } else if (loginType === 'paravet') {
         router.replace('/(peravet_tabs)/onboarding');
       } else {
         const role = ROLES.find(r => r.key === loginType);
-        router.replace(role?.route || '/(doc_tabs)/onboarding/onboarding_conf');
+        router.replace(role?.route || '/(doc_tabs)/onboarding/veterinarian_detail');
       }
     } else {
       Alert.alert('Sign Up Failed', result.payload || 'An error occurred');
