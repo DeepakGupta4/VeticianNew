@@ -90,6 +90,66 @@ class ApiService {
   unverifyPetResort(resortId) {
     return this.request(`/auth/admin/petresort/unverify/${resortId}`, { method: 'POST' });
   }
+
+  /* =========================
+     SUPPORT ENQUIRIES
+  ========================= */
+
+  getSupportEnquiries(params = {}) {
+    const queryString = new URLSearchParams(params).toString();
+    return this.request(`/support/enquiries${queryString ? `?${queryString}` : ''}`);
+  }
+
+  updateSupportEnquiryStatus(id, data) {
+    return this.request(`/support/enquiries/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data)
+    });
+  }
+
+  deleteSupportEnquiry(id) {
+    return this.request(`/support/enquiries/${id}`, { method: 'DELETE' });
+  }
+
+  /* =========================
+     GROOMING BOOKINGS
+  ========================= */
+
+  getAllGroomingBookings() {
+    return this.request('/grooming/bookings/all');
+  }
+
+  updateGroomingBookingStatus(bookingId, status) {
+    return this.request(`/grooming/bookings/${bookingId}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status })
+    });
+  }
+
+  /* =========================
+     PARAVET VERIFICATION
+  ========================= */
+
+  getUnverifiedParavets() {
+    return this.request('/paravet/admin/unverified');
+  }
+
+  verifyParavet(paravetId) {
+    return this.request(`/paravet/admin/verify/${paravetId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ approvalStatus: 'approved' })
+    });
+  }
+
+  rejectParavet(paravetId, reason) {
+    return this.request(`/paravet/admin/verify/${paravetId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ 
+        approvalStatus: 'rejected',
+        rejectionReason: reason 
+      })
+    });
+  }
 }
 
 export default new ApiService();

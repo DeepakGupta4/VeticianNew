@@ -8,6 +8,9 @@ import VerifiedClinics from './pages/VerifiedClinics';
 import UnverifiedClinics from './pages/UnverifiedClinics';
 import VerifiedPetResorts from './pages/VerifiedPetResorts';
 import UnverifiedPetResorts from './pages/UnverifiedPetResorts';
+import UnverifiedParavets from './pages/UnverifiedParavets';
+import GroomingBookings from './pages/GroomingBookings';
+import SupportEnquiries from './pages/SupportEnquiries';
 import apiService from '../../services/api';
 
 const AdminDashboard = () => {
@@ -21,6 +24,9 @@ const AdminDashboard = () => {
     unverifiedClinics: 0,
     verifiedPetResorts: 0,
     unverifiedPetResorts: 0,
+    unverifiedParavets: 0,
+    groomingBookings: 0,
+    supportEnquiries: 0,
   });
 
   // Categories configuration
@@ -73,6 +79,30 @@ const AdminDashboard = () => {
       bgColor: "bg-pink-500/10",
       borderColor: "border-pink-500/20",
     },
+    {
+      id: "verify-paravet",
+      name: "Verify Paravet",
+      icon: "UserCog",
+      color: "text-orange-400",
+      bgColor: "bg-orange-500/10",
+      borderColor: "border-orange-500/20",
+    },
+    {
+      id: "grooming-bookings",
+      name: "Grooming Bookings",
+      icon: "Calendar",
+      color: "text-cyan-400",
+      bgColor: "bg-cyan-500/10",
+      borderColor: "border-cyan-500/20",
+    },
+    {
+      id: "support-enquiries",
+      name: "Support Enquiries",
+      icon: "MessageSquare",
+      color: "text-indigo-400",
+      bgColor: "bg-indigo-500/10",
+      borderColor: "border-indigo-500/20",
+    },
   ];
 
   // Fetch stats on component mount
@@ -88,7 +118,10 @@ const AdminDashboard = () => {
         verifiedClinics, 
         unverifiedClinics,
         verifiedPetResorts,
-        unverifiedPetResorts
+        unverifiedPetResorts,
+        unverifiedParavets,
+        groomingBookings,
+        supportEnquiries
       ] = await Promise.all([
         apiService.getVerifiedVeterinarians(),
         apiService.getUnverifiedVeterinarians(),
@@ -96,6 +129,9 @@ const AdminDashboard = () => {
         apiService.getUnverifiedClinics(),
         apiService.getVerifiedPetResorts(),
         apiService.getUnverifiedPetResorts(),
+        apiService.getUnverifiedParavets(),
+        apiService.getAllGroomingBookings(),
+        apiService.getSupportEnquiries(),
       ]);
 
       setStats({
@@ -105,6 +141,9 @@ const AdminDashboard = () => {
         unverifiedClinics: unverifiedClinics.count || 0,
         verifiedPetResorts: verifiedPetResorts.count || 0,
         unverifiedPetResorts: unverifiedPetResorts.count || 0,
+        unverifiedParavets: unverifiedParavets.count || 0,
+        groomingBookings: groomingBookings.count || 0,
+        supportEnquiries: supportEnquiries.stats?.total || 0,
       });
     } catch (error) {
       console.error('Error fetching stats:', error);
@@ -126,6 +165,12 @@ const AdminDashboard = () => {
         return stats.verifiedPetResorts;
       case "unverified-pet-resort":
         return stats.unverifiedPetResorts;
+      case "verify-paravet":
+        return stats.unverifiedParavets;
+      case "grooming-bookings":
+        return stats.groomingBookings;
+      case "support-enquiries":
+        return stats.supportEnquiries;
       default:
         return 0;
     }
@@ -146,6 +191,12 @@ const AdminDashboard = () => {
         return <VerifiedPetResorts />;
       case "unverified-pet-resort":
         return <UnverifiedPetResorts />;
+      case "verify-paravet":
+        return <UnverifiedParavets />;
+      case "grooming-bookings":
+        return <GroomingBookings />;
+      case "support-enquiries":
+        return <SupportEnquiries />;
       default:
         return <VerifiedVeterinarians />;
     }

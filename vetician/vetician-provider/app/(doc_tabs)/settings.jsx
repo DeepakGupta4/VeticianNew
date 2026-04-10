@@ -12,6 +12,7 @@ import {
   X, ChevronRight, Bell, Lock, Globe, HelpCircle,
   Info, Trash2, LogOut, Shield, Phone, Mail, Eye, EyeOff
 } from 'lucide-react-native';
+import { signOut as signOutThunk } from '../../store/slices/authSlice';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://vetician-backend-kovk.onrender.com/api';
 const NOTIF_KEY = 'vet_notif_settings';
@@ -94,25 +95,36 @@ export default function Settings() {
     await AsyncStorage.setItem(NOTIF_KEY, JSON.stringify({ ...current, [key]: value }));
   };
 
-  const handleSignOut = () => {
-    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Sign Out', style: 'destructive', onPress: async () => {
-          const token = await AsyncStorage.getItem('token');
-          try {
-            await fetch(`${API_URL}/auth/logout`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-              body: JSON.stringify({ refreshToken: token }),
-            });
-          } catch (_) {}
-          await AsyncStorage.multiRemove(['token', 'userId', 'user', 'refreshToken']);
-          dispatch({ type: 'auth/signOut' });
-          router.replace('/(auth)/signin');
-        }
-      }
-    ]);
+  const handleSignOut = async () => {
+    console.log('🔵 handleSignOut called - Starting immediate sign out');
+    try {
+      console.log('🔓 Starting sign out process...');
+      console.log('📦 Dispatch function:', typeof dispatch);
+      console.log('📦 signOutThunk function:', typeof signOutThunk);
+      
+      // Dispatch the signOut thunk which handles backend API call and storage cleanup
+      console.log('🚀 About to dispatch signOutThunk...');
+      const result = await dispatch(signOutThunk()).unwrap();
+      console.log('✅ signOutThunk result:', result);
+      
+      console.log('✅ Sign out complete!');
+      
+      // Navigate to sign in screen
+      console.log('🔄 Navigating to sign in screen...');
+      router.replace('/(auth)/signin');
+      console.log('✅ Navigation complete!');
+      
+    } catch (error) {
+      console.error('❌ Sign out error:', error);
+      console.error('❌ Error stack:', error.stack);
+      
+      // Force sign out even if there's an error
+      console.log('⚠️ Force sign out initiated due to error');
+      await AsyncStorage.clear();
+      dispatch({ type: 'auth/signOut' });
+      router.replace('/(auth)/signin');
+      console.log('✅ Force sign out complete');
+    }
   };
 
   const handleChangePassword = async () => {
@@ -244,7 +256,15 @@ export default function Settings() {
 
         <SectionHeader title="ACCOUNT ACTIONS" />
         <View style={styles.card}>
-          <TouchableOpacity style={styles.row} onPress={handleSignOut} activeOpacity={0.7}>
+
+          <TouchableOpacity 
+            style={styles.row} 
+            onPress={() => {
+              console.log('🟢 Sign Out button pressed!');
+              handleSignOut();
+            }} 
+            activeOpacity={0.7}
+          >
             <View style={[styles.iconWrap, { backgroundColor: '#FEE2E2' }]}>
               <LogOut size={19} color="#EF4444" />
             </View>

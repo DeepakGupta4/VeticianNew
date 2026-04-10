@@ -8,13 +8,18 @@ import {
   StyleSheet,
   ScrollView,
   Animated,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MaterialIcons } from '@expo/vector-icons';
 import { COLORS2 } from './colors';
 import { SERVICES, PETS } from './data';
 import ServiceSelector from './ServiceSelector';
 import PetSelector     from './PetSelector';
 import DateTimePicker  from './DateTimePicker';
+
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://vetician-backend-kovk.onrender.com/api';
 
 /**
  * BookingForm
@@ -32,6 +37,7 @@ export default function BookingForm({ onBookingConfirmed }) {
   const [date,    setDate   ] = useState(null);
   const [time,    setTime   ] = useState(null);
   const [notes,   setNotes  ] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const scaleAnim     = useRef(new Animated.Value(1)).current;
   const isFormComplete = !!(service && pet && date && time);
@@ -53,28 +59,118 @@ export default function BookingForm({ onBookingConfirmed }) {
   };
 
   /* ── Confirm booking ── */
-  const handleConfirm = () => {
-    if (!isFormComplete) return;
+  const handleConfirm = async () => {
+    if (!isFormComplete || loading) return;
 
-    const serviceObj = SERVICES.find((s) => s.id === service);
-    const petObj     = PETS.find((p) => p.id === pet);
+    setLoading(true);
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const userId = await AsyncStorage.getItem('userId');
+      
+      if (!token) {
+        Alert.alert('Error', 'Please login to book an appointment');
+        setLoading(false);
+        return;
+      }
 
-    const newAppointment = {
-      id:          `appt_${Date.now()}`,
-      service:     serviceObj.label,
-      serviceIcon: serviceObj.icon,
-      pet:         petObj.name,
-      petIcon:     petObj.icon,
-      date,
-      time,
-      status:      'upcoming',
-      address:     '24 Green Paws Clinic, MG Road',
-      assignedTo:  'Dr. Priya Sharma',
-      notes:       notes.trim(),
-    };
+      const serviceObj = SERVICES.find((s) => s.id === service);
+      const petObj     = PETS.find((p) => p.id === pet);
 
-    onBookingConfirmed(newAppointment);
-    resetForm();
+      // Combine date and time into a single Date object
+      const [hours, minutes] = time.split(':');
+      const appointmentDate = new Date(date);
+      appointmentDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+
+      // Fetch user's pets to get actual pet data
+      let actualPetData = null;
+      try {
+        const petsResponse = await fetch(`${API_URL}/auth/pets/user/${userId}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const petsData = await petsResponse.json();
+        if (petsData.success && petsData.pets && petsData.pets.length > 0) {
+          actualPetData = petsData.pets[0]; // Use first pet for now
+        }
+      } catch (e) {
+        console.log('Could not fetch pets:', e);
+      }
+
+      // Fetch available clinics
+      let clinicId = null;
+      try {
+        const clinicsResponse = await fetch(`${API_URL}/auth/petparent/verified/all-clinic`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const clinicsData = await clinicsResponse.json();
+        if (clinicsData.success && clinicsData.clinics && clinicsData.clinics.length > 0) {
+          clinicId = clinicsData.clinics[0]._id; // Use first clinic for now
+        }
+      } catch (e) {
+        console.log('Could not fetch clinics:', e);
+      }
+
+      if (!clinicId) {
+        Alert.alert('Error', 'No clinics available. Please try again later.');
+        setLoading(false);
+        return;
+      }
+
+      // Prepare API payload
+      const payload = {
+        clinicId: clinicId,
+        veterinarianId: null, // Optional - can be selected by user
+        petName: actualPetData?.name || petObj.name,
+        petType: actualPetData?.type || actualPetData?.species || 'Dog',
+        breed: actualPetData?.breed || petObj.breed || 'Mixed',
+        illness: serviceObj.label + (notes ? ` - ${notes.trim()}` : ''),
+        date: appointmentDate.toISOString(),
+        bookingType: serviceObj.id === 'vet' ? 'in-clinic' : 'in-clinic', // Changed to 'in-clinic'
+        contactInfo: await AsyncStorage.getItem('userPhone') || 'Not provided',
+        petPic: actualPetData?.profilePic || actualPetData?.petPhoto || `https://ui-avatars.com/api/?name=${encodeURIComponent(actualPetData?.name || petObj.name)}&background=4CAF50&color=fff`
+      };
+
+      console.log('Booking appointment with payload:', payload);
+
+      const response = await fetch(`${API_URL}/auth/petparent/appointments/book`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const result = await response.json();
+      console.log('Booking response:', result);
+
+      if (response.ok && result.success) {
+        // Create local appointment object for UI
+        const newAppointment = {
+          id: result.data.appointmentDetails._id,
+          service: serviceObj.label,
+          serviceIcon: serviceObj.icon,
+          pet: petObj.name,
+          petIcon: petObj.icon,
+          date,
+          time,
+          status: 'upcoming',
+          address: result.data.clinicDetails?.clinicName || '24 Green Paws Clinic',
+          assignedTo: result.data.veterinarianDetails?.name || 'Veterinarian',
+          notes: notes.trim(),
+        };
+
+        onBookingConfirmed(newAppointment);
+        resetForm();
+        Alert.alert('Success', 'Appointment booked successfully!');
+      } else {
+        Alert.alert('Error', result.message || 'Failed to book appointment');
+      }
+    } catch (error) {
+      console.error('Booking error:', error);
+      Alert.alert('Error', 'Network error. Please check your connection and try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -120,16 +216,22 @@ export default function BookingForm({ onBookingConfirmed }) {
         <TouchableOpacity
           style={[
             styles.confirmBtn,
-            !isFormComplete && styles.confirmBtnDisabled,
+            (!isFormComplete || loading) && styles.confirmBtnDisabled,
           ]}
           onPress={handleConfirm}
           onPressIn={handlePressIn}
           onPressOut={handlePressOut}
           activeOpacity={1}
-          disabled={!isFormComplete}
+          disabled={!isFormComplete || loading}
         >
-          <MaterialIcons name="check-circle" size={20} color="#FFFFFF" />
-          <Text style={styles.confirmText}>Confirm Appointment</Text>
+          {loading ? (
+            <ActivityIndicator size="small" color="#FFFFFF" />
+          ) : (
+            <>
+              <MaterialIcons name="check-circle" size={20} color="#FFFFFF" />
+              <Text style={styles.confirmText}>Book Appointment</Text>
+            </>
+          )}
         </TouchableOpacity>
       </Animated.View>
 

@@ -1,6 +1,7 @@
 // screens/NotificationsScreen.js
 import React from 'react';
 import { View, StyleSheet, SafeAreaView, StatusBar } from 'react-native';
+import { useSelector } from 'react-redux';
 import Header from '../../components/petparent/notifications/Header';
 import FilterTabs from '../../components/petparent/notifications/FilterTabs';
 import { NotificationsList } from '../../components/petparent/notifications/NotificationsList';
@@ -11,12 +12,12 @@ import { COLORS2 } from '../../constant/theme';
  * NotificationsScreen
  *
  * Entry point for the Notifications page.
- * Used in Expo Router as:
- *   app/(dashboard)/notifications.js   (or wherever in your route tree)
- *
- * Props / params: none (userId resolved from auth context internally)
+ * Displays real-time booking information from database
  */
 const NotificationsScreen = () => {
+  const { user } = useSelector(state => state.auth);
+  const userId = user?._id || 'demo_user';
+  
   const {
     notifications,
     loading,
@@ -26,7 +27,7 @@ const NotificationsScreen = () => {
     markAsRead,
     markAllAsRead,
     deleteNotification,
-  } = useNotifications('pet_parent_001'); // Replace with real userId from auth context
+  } = useNotifications(userId);
 
   return (
     <SafeAreaView style={styles.safe}>

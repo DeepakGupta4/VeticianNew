@@ -1,21 +1,18 @@
 // hooks/useNotifications.js
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { mockNotifications } from './mockNotifications';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api';
 
 /**
  * useNotifications Hook
  *
- * Manages notification state with:
- * - Local state + persistence via AsyncStorage
- * - Real-time simulation (replace listener with WebSocket / Firebase in production)
+ * Manages notification state with real-time booking data from database:
+ * - Fetches appointments/bookings from backend
+ * - Transforms booking data into notifications
  * - Mark as read / mark all as read / delete
  * - Unread count badge
- *
- * PRODUCTION SWAP:
- *   Replace the simulateRealTime() block with:
- *   Firebase: onSnapshot(query(collection(db,'notifications'), where('userId','==',uid)), ...)
- *   WebSocket: ws.onmessage = (e) => addNotification(JSON.parse(e.data))
- *   REST polling: setInterval(() => fetchNewNotifications(), 30_000)
+ * - Real-time updates via polling
  */
 
 export const useNotifications = (userId = 'demo_user') => {
@@ -28,77 +25,177 @@ export const useNotifications = (userId = 'demo_user') => {
   useEffect(() => {
     loadNotifications();
     startRealTimeListener();
-    return () => clearInterval(intervalRef.current);
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
   }, [userId]);
 
   const loadNotifications = useCallback(async () => {
     setLoading(true);
     try {
-      // TODO: Replace with real API call
-      // const res = await fetch(`/api/notifications?userId=${userId}`);
-      // const data = await res.json();
-      await new Promise((r) => setTimeout(r, 1200)); // simulate network
-      setNotifications(mockNotifications);
+      console.log('🔔 Fetching notifications from database...');
+      
+      const token = await AsyncStorage.getItem('token');
+      const storedUserId = await AsyncStorage.getItem('userId');
+      
+      if (!token || !storedUserId) {
+        console.log('⚠️ No auth token or userId found');
+        setNotifications([]);
+        setLoading(false);
+        return;
+      }
+
+      // Fetch appointments/bookings
+      const response = await fetch(`${API_URL}/appointments`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('✅ Appointments fetched:', data);
+
+      if (data.success && data.appointments) {
+        // Transform appointments into notifications
+        const transformedNotifications = data.appointments.map(appt => {
+          const statusEmoji = {
+            pending: '⏳',
+            confirmed: '✅',
+            completed: '🎉',
+            cancelled: '❌'
+          };
+
+          const typeMap = {
+            pending: 'appointment',
+            confirmed: 'appointment',
+            completed: 'success',
+            cancelled: 'alert'
+          };
+
+          return {
+            id: appt._id,
+            title: `${statusEmoji[appt.status] || '🐾'} Appointment ${appt.status.charAt(0).toUpperCase() + appt.status.slice(1)}`,
+            description: `${appt.petName} has a ${appt.bookingType} appointment${appt.illness ? ` for ${appt.illness}` : ''}`,
+            type: typeMap[appt.status] || 'appointment',
+            timestamp: appt.createdAt || appt.date,
+            isRead: appt.isRead || false,
+            petName: appt.petName || 'Your Pet',
+            actionRoute: '/appointments',
+            extraDetails: {
+              appointmentId: appt._id,
+              petName: appt.petName,
+              petType: appt.petType,
+              breed: appt.breed,
+              date: new Date(appt.date).toLocaleDateString('en-IN', {
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric'
+              }),
+              time: new Date(appt.date).toLocaleTimeString('en-IN', {
+                hour: '2-digit',
+                minute: '2-digit'
+              }),
+              bookingType: appt.bookingType === 'video' ? 'Video Consultation' : 'In-Clinic Visit',
+              status: appt.status,
+              illness: appt.illness || 'General Checkup',
+              clinicName: appt.clinicName || 'Vetician Clinic',
+              doctorName: appt.doctorName || 'Dr. Veterinarian'
+            }
+          };
+        });
+
+        // Sort by timestamp (newest first)
+        transformedNotifications.sort((a, b) => 
+          new Date(b.timestamp) - new Date(a.timestamp)
+        );
+
+        setNotifications(transformedNotifications);
+        console.log('✅ Notifications transformed:', transformedNotifications.length);
+      } else {
+        setNotifications([]);
+      }
     } catch (err) {
-      console.error('Failed to load notifications:', err);
+      console.error('❌ Failed to load notifications:', err);
+      setNotifications([]);
     } finally {
       setLoading(false);
     }
   }, [userId]);
 
-  // ── Real-time Simulation ───────────────────────────────────────
-  // In production: replace with Firebase onSnapshot or WebSocket listener
+  // ── Real-time Polling ───────────────────────────────────────
+  // Poll for new notifications every 30 seconds
   const startRealTimeListener = useCallback(() => {
-    const incomingQueue = [
-      {
-        id: 'rt_1',
-        title: '🐾 New Order Placed',
-        description: "Your pet food order (Royal Canin 3kg) has been confirmed and will arrive in 2 days.",
-        type: 'order',
-        timestamp: new Date().toISOString(),
-        isRead: false,
-        petName: 'All Pets',
-        actionRoute: '/orders/track',
-        extraDetails: {
-          orderId: 'ORD-2024-7821',
-          items: ['Royal Canin Adult 3kg', 'Pedigree Treats 500g'],
-          total: '₹2,340',
-          delivery: '2–3 Business Days',
-          trackingId: 'VTCTRK00219',
-        },
-      },
-    ];
-
-    let queueIndex = 0;
     intervalRef.current = setInterval(() => {
-      if (queueIndex < incomingQueue.length) {
-        const incoming = incomingQueue[queueIndex];
-        setNotifications((prev) => {
-          const exists = prev.find((n) => n.id === incoming.id);
-          if (exists) return prev;
-          return [{ ...incoming, timestamp: new Date().toISOString() }, ...prev];
-        });
-        queueIndex++;
-      }
-    }, 8000); // push a new notification after 8 seconds for demo
-  }, []);
+      console.log('🔄 Polling for new notifications...');
+      loadNotifications();
+    }, 30000); // Poll every 30 seconds
+  }, [loadNotifications]);
 
   // ── Actions ───────────────────────────────────────────────────
-  const markAsRead = useCallback((id) => {
+  const markAsRead = useCallback(async (id) => {
     setNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
     );
-    // TODO: PATCH /api/notifications/:id { isRead: true }
+    
+    try {
+      const token = await AsyncStorage.getItem('token');
+      if (token) {
+        await fetch(`${API_URL}/notifications/${id}/read`, {
+          method: 'PATCH',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+      }
+    } catch (err) {
+      console.error('Failed to mark as read:', err);
+    }
   }, []);
 
-  const markAllAsRead = useCallback(() => {
+  const markAllAsRead = useCallback(async () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
-    // TODO: PATCH /api/notifications/mark-all-read { userId }
+    
+    try {
+      const token = await AsyncStorage.getItem('token');
+      if (token) {
+        await fetch(`${API_URL}/notifications/mark-all-read`, {
+          method: 'PATCH',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+      }
+    } catch (err) {
+      console.error('Failed to mark all as read:', err);
+    }
   }, []);
 
-  const deleteNotification = useCallback((id) => {
+  const deleteNotification = useCallback(async (id) => {
     setNotifications((prev) => prev.filter((n) => n.id !== id));
-    // TODO: DELETE /api/notifications/:id
+    
+    try {
+      const token = await AsyncStorage.getItem('token');
+      if (token) {
+        await fetch(`${API_URL}/notifications/${id}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+      }
+    } catch (err) {
+      console.error('Failed to delete notification:', err);
+    }
   }, []);
 
   const addNotification = useCallback((notification) => {

@@ -1,4 +1,4 @@
-import { UserCheck, UserX, Users, Crown, Home, Shield, Settings, LogOut } from 'lucide-react';
+import { UserCheck, UserX, Users, Crown, Home, Shield, Settings, LogOut, MessageSquare, Calendar, UserCog } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
 const Sidebar = ({ activeCategory, setActiveCategory, getCategoryStats }) => {
@@ -52,6 +52,30 @@ const Sidebar = ({ activeCategory, setActiveCategory, getCategoryStats }) => {
       color: "text-emerald-400",
       bgColor: "bg-emerald-500/10",
       borderColor: "border-emerald-500/20",
+    },
+    {
+      id: "verify-paravet",
+      name: "Verify Paravet",
+      icon: UserCog,
+      color: "text-orange-400",
+      bgColor: "bg-orange-500/10",
+      borderColor: "border-orange-500/20",
+    },
+    {
+      id: "grooming-bookings",
+      name: "Grooming Bookings",
+      icon: Calendar,
+      color: "text-cyan-400",
+      bgColor: "bg-cyan-500/10",
+      borderColor: "border-cyan-500/20",
+    },
+    {
+      id: "support-enquiries",
+      name: "Support Enquiries",
+      icon: MessageSquare,
+      color: "text-indigo-400",
+      bgColor: "bg-indigo-500/10",
+      borderColor: "border-indigo-500/20",
     },
   ];
 

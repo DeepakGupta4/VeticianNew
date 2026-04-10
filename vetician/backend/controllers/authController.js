@@ -1494,10 +1494,16 @@ const unverifyPetResort = catchAsync(async (req, res, next) => {
 
 // veterinarian's clinic for pet parent
 const getAllClinicsWithVets = catchAsync(async (req, res, next) => {
-  // 1. Fetch all verified clinics
-  const clinics = await Clinic.find({ verified: true }).lean();
+  console.log('🏥 getAllClinicsWithVets called');
+  console.log('📍 Request query:', req.query);
+  console.log('📍 Request body:', req.body);
+  
+  // 1. Fetch all clinics (both verified and unverified)
+  const clinics = await Clinic.find({}).lean();
+  console.log(`🏥 Found ${clinics.length} clinics in database`);
 
   if (!clinics || clinics.length === 0) {
+    console.log('⚠️ No clinics found');
     return res.status(200).json({
       success: true,
       count: 0,
@@ -1507,11 +1513,13 @@ const getAllClinicsWithVets = catchAsync(async (req, res, next) => {
 
   // 2. Get all unique user IDs from clinics
   const userIds = [...new Set(clinics.map(clinic => clinic.userId))];
+  console.log(`👥 Found ${userIds.length} unique user IDs`);
 
   // 3. Fetch all veterinarians associated with these clinics
   const veterinarians = await Veterinarian.find({
     userId: { $in: userIds }
   }).lean();
+  console.log(`👨‍⚕️ Found ${veterinarians.length} veterinarians`);
 
   // 4. Create a map of userId -> veterinarian for quick lookup
   const vetMap = veterinarians.reduce((map, vet) => {
@@ -1533,7 +1541,8 @@ const getAllClinicsWithVets = catchAsync(async (req, res, next) => {
         fees: clinic.fees,
         timings: clinic.timings,
         verified: clinic.verified,
-        clinicId: clinic._id
+        clinicId: clinic._id,
+        _id: clinic._id
       },
       veterinarianDetails: vet ? {
         title: vet.title.value,
@@ -1548,7 +1557,9 @@ const getAllClinicsWithVets = catchAsync(async (req, res, next) => {
       } : null
     };
   });
-  console.log(responseData)
+  
+  console.log(`✅ Returning ${responseData.length} clinics with vet details`);
+  console.log('📦 First clinic:', JSON.stringify(responseData[0], null, 2));
 
   res.status(200).json({
     success: true,
@@ -1559,6 +1570,10 @@ const getAllClinicsWithVets = catchAsync(async (req, res, next) => {
 
 // Appointment Booking
 const createAppointment = catchAsync(async (req, res, next) => {
+  console.log('📝 createAppointment called');
+  console.log('📦 Request body:', JSON.stringify(req.body, null, 2));
+  console.log('👤 User ID:', req.user?._id);
+  
   // 1. Extract data from request body
   const {
     clinicId,
@@ -1572,27 +1587,34 @@ const createAppointment = catchAsync(async (req, res, next) => {
     contactInfo,
     petPic
   } = req.body;
-  console.log(req.body)
 
   // 2. Get user ID from authenticated user
   const userId = req.user._id;
+  console.log('👤 Booking for user:', userId);
 
   // 3. Validate clinic exists
+  console.log('🏥 Looking for clinic:', clinicId);
   const clinic = await Clinic.findById(clinicId);
   if (!clinic) {
+    console.error('❌ Clinic not found:', clinicId);
     return next(new AppError('No clinic found with that ID', 404));
   }
+  console.log('✅ Clinic found:', clinic.clinicName);
 
   // 4. Validate veterinarian exists if provided
   let veterinarian;
   if (veterinarianId) {
+    console.log('👨‍⚕️ Looking for veterinarian:', veterinarianId);
     veterinarian = await Veterinarian.findById(veterinarianId);
     if (!veterinarian) {
+      console.error('❌ Veterinarian not found:', veterinarianId);
       return next(new AppError('No veterinarian found with that ID', 404));
     }
+    console.log('✅ Veterinarian found');
   }
 
   // 5. Create new appointment
+  console.log('📝 Creating appointment...');
   const newAppointment = await Appointment.create({
     clinicId,
     veterinarianId,
@@ -1607,35 +1629,45 @@ const createAppointment = catchAsync(async (req, res, next) => {
     petPic,
     status: 'pending' // Default status
   });
+  console.log('✅ Appointment created:', newAppointment._id);
 
   // 6. Save notification to database and emit real-time notification
-  if (veterinarianId) {
-    // Get veterinarian's userId for socket notification
-    const veterinarian = await Veterinarian.findById(veterinarianId);
-    if (veterinarian && veterinarian.userId) {
-      const notification = await Notification.create({
-        userId: veterinarian.userId,  // Use userId instead of veterinarianId
-        userType: 'Veterinarian',
-        title: 'New Appointment',
-        message: `New ${bookingType} appointment for ${petName}`,
-        type: 'appointment',
-        relatedId: newAppointment._id
-      });
+  // Get the clinic owner's userId to send notification
+  const clinicOwnerUserId = clinic.userId;
+  console.log('📡 Sending notification to clinic owner:', clinicOwnerUserId);
+  
+  // Create notification for clinic owner
+  const notification = await Notification.create({
+    userId: clinicOwnerUserId,
+    userType: 'Veterinarian',
+    title: 'New Appointment Booking',
+    message: `New ${bookingType} appointment for ${petName} at ${clinic.clinicName}`,
+    type: 'appointment',
+    relatedId: newAppointment._id
+  });
+  console.log('✅ Notification saved to database');
 
-      const io = req.app.get('io');
-      if (io) {
-        // Emit to veterinarian's userId socket room
-        io.to(`vet-${veterinarian.userId}`).emit('new-appointment', {
-          appointmentId: newAppointment._id,
-          petName: newAppointment.petName,
-          petType: newAppointment.petType,
-          date: newAppointment.date,
-          bookingType: newAppointment.bookingType,
-          message: `New ${bookingType} appointment for ${petName}`
-        });
-        console.log(`📡 Notification sent to vet-${veterinarian.userId}`);
-      }
-    }
+  const io = req.app.get('io');
+  if (io) {
+    // Emit to clinic owner's socket room
+    io.to(`vet-${clinicOwnerUserId}`).emit('new-appointment', {
+      appointmentId: newAppointment._id,
+      clinicId: clinic._id,
+      clinicName: clinic.clinicName,
+      petName: newAppointment.petName,
+      petType: newAppointment.petType,
+      breed: newAppointment.breed,
+      illness: newAppointment.illness,
+      date: newAppointment.date,
+      bookingType: newAppointment.bookingType,
+      contactInfo: newAppointment.contactInfo,
+      status: newAppointment.status,
+      message: `New ${bookingType} appointment for ${petName} at ${clinic.clinicName}`,
+      notification: notification
+    });
+    console.log(`📡 Appointment notification sent to clinic owner: vet-${clinicOwnerUserId}`);
+  } else {
+    console.warn('⚠️ Socket.IO not available');
   }
 
   // 7. Format the response data similar to your clinic/vet format
@@ -1667,6 +1699,7 @@ const createAppointment = catchAsync(async (req, res, next) => {
     } : null
   };
 
+  console.log('✅ Sending success response');
   res.status(201).json({
     success: true,
     data: responseData

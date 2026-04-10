@@ -4,25 +4,68 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import FadeInCard from './FadeInCard';
 import { COLORS2 } from '../../../constant/theme';
 
-const DATES = ['Today', 'Tomorrow', 'This Week'];
-const TIMES = ['9:00 AM', '11:00 AM', '1:00 PM', '3:00 PM'];
+// Generate next 7 days
+const generateDates = () => {
+  const dates = [];
+  const today = new Date();
+  
+  for (let i = 0; i < 7; i++) {
+    const date = new Date(today);
+    date.setDate(today.getDate() + i);
+    
+    const dayName = i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : date.toLocaleDateString('en-US', { weekday: 'short' });
+    const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    
+    dates.push({
+      label: `${dayName}, ${dateStr}`,
+      value: date.toISOString().split('T')[0],
+      date: date
+    });
+  }
+  
+  return dates;
+};
 
-export default function DaycareBookingSection({ selectedPlan, onBook, delay = 420 }) {
+// Generate time slots (9 AM to 6 PM, every 2 hours)
+const generateTimeSlots = () => {
+  const times = [];
+  for (let hour = 9; hour <= 18; hour += 2) {
+    const period = hour >= 12 ? 'PM' : 'AM';
+    const displayHour = hour > 12 ? hour - 12 : hour;
+    times.push({
+      label: `${displayHour}:00 ${period}`,
+      value: `${String(hour).padStart(2, '0')}:00`
+    });
+  }
+  return times;
+};
+
+export default function DaycareBookingSection({ selectedPlan, selectedPlanPrice, onBook, delay = 420 }) {
   const scale = useRef(new Animated.Value(1)).current;
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedTime, setSelectedTime] = useState(null);
+  const [dates] = useState(generateDates());
+  const [times] = useState(generateTimeSlots());
 
   const handlePressIn  = () => Animated.spring(scale, { toValue: 0.97, useNativeDriver: true }).start();
   const handlePressOut = () => Animated.spring(scale, { toValue: 1,    useNativeDriver: true }).start();
 
   const handleBook = () => {
+    if (!selectedPlan) {
+      Alert.alert('No Plan Selected', 'Please select a plan from the Available Plans section above.');
+      return;
+    }
     if (!selectedDate || !selectedTime) {
       Alert.alert('Incomplete Booking', 'Please select a date and drop-off time before booking.');
       return;
     }
+    
+    const selectedDateObj = dates.find(d => d.value === selectedDate);
+    const selectedTimeObj = times.find(t => t.value === selectedTime);
+    
     Alert.alert(
       'Booking Confirmed! 🐾',
-      `Plan: ${selectedPlan || 'Not selected'}\nDate: ${selectedDate}\nDrop-off: ${selectedTime}`,
+      `Plan: ${selectedPlan}\nPrice: ₹${selectedPlanPrice?.toLocaleString('en-IN') || 'N/A'}\nDate: ${selectedDateObj?.label}\nDrop-off: ${selectedTimeObj?.label}`,
       [{ text: 'OK', onPress: onBook }]
     );
   };
@@ -38,17 +81,30 @@ export default function DaycareBookingSection({ selectedPlan, onBook, delay = 42
         <Text style={styles.infoValue}>{selectedPlan || 'No plan selected'}</Text>
       </View>
 
+      {/* Price Display */}
+      {selectedPlanPrice && (
+        <View style={[styles.infoRow, { backgroundColor: '#E8F5E9', borderColor: '#4CAF50' }]}>
+          <MaterialCommunityIcons name="currency-inr" size={16} color="#4CAF50" />
+          <Text style={[styles.infoLabel, { color: '#4CAF50' }]}>Price</Text>
+          <Text style={[styles.infoValue, { color: '#2E7D32', fontWeight: '700' }]}>
+            ₹{selectedPlanPrice.toLocaleString('en-IN')}
+          </Text>
+        </View>
+      )}
+
       {/* Date picker */}
       <Text style={styles.fieldTitle}>Select Date</Text>
       <View style={styles.pillRow}>
-        {DATES.map(d => (
+        {dates.map(d => (
           <TouchableOpacity
-            key={d}
-            style={[styles.pill, selectedDate === d && styles.pillActive]}
-            onPress={() => setSelectedDate(d)}
+            key={d.value}
+            style={[styles.pill, selectedDate === d.value && styles.pillActive]}
+            onPress={() => setSelectedDate(d.value)}
             activeOpacity={0.8}
           >
-            <Text style={[styles.pillText, selectedDate === d && styles.pillTextActive]}>{d}</Text>
+            <Text style={[styles.pillText, selectedDate === d.value && styles.pillTextActive]}>
+              {d.label}
+            </Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -56,14 +112,16 @@ export default function DaycareBookingSection({ selectedPlan, onBook, delay = 42
       {/* Time picker */}
       <Text style={styles.fieldTitle}>Drop-off Time</Text>
       <View style={styles.pillRow}>
-        {TIMES.map(t => (
+        {times.map(t => (
           <TouchableOpacity
-            key={t}
-            style={[styles.pill, selectedTime === t && styles.pillActive]}
-            onPress={() => setSelectedTime(t)}
+            key={t.value}
+            style={[styles.pill, selectedTime === t.value && styles.pillActive]}
+            onPress={() => setSelectedTime(t.value)}
             activeOpacity={0.8}
           >
-            <Text style={[styles.pillText, selectedTime === t && styles.pillTextActive]}>{t}</Text>
+            <Text style={[styles.pillText, selectedTime === t.value && styles.pillTextActive]}>
+              {t.label}
+            </Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -75,7 +133,8 @@ export default function DaycareBookingSection({ selectedPlan, onBook, delay = 42
           onPressIn={handlePressIn}
           onPressOut={handlePressOut}
           activeOpacity={0.9}
-          style={styles.ctaBtn}
+          style={[styles.ctaBtn, !selectedPlan && styles.ctaBtnDisabled]}
+          disabled={!selectedPlan}
         >
           <MaterialCommunityIcons name="paw" size={18} color="#fff" style={{ marginRight: 8 }} />
           <Text style={styles.ctaText}>Book Day Care Slot</Text>
@@ -110,7 +169,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingVertical: 10,
     paddingHorizontal: 12,
-    marginBottom: 16,
+    marginBottom: 12,
     borderWidth: 1,
     borderColor: COLORS2.border,
   },
@@ -134,15 +193,16 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.6,
     marginBottom: 8,
+    marginTop: 8,
   },
   pillRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginBottom: 16,
+    marginBottom: 8,
   },
   pill: {
-    paddingVertical: 7,
-    paddingHorizontal: 14,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
     borderRadius: 20,
     backgroundColor: COLORS2.card,
     borderWidth: 1.5,
@@ -155,7 +215,7 @@ const styles = StyleSheet.create({
     borderColor: COLORS2.primary,
   },
   pillText: {
-    fontSize: 12.5,
+    fontSize: 11.5,
     fontWeight: '600',
     color: COLORS2.text,
   },
@@ -174,6 +234,12 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
     elevation: 5,
+    marginTop: 8,
+  },
+  ctaBtnDisabled: {
+    backgroundColor: COLORS2.subtext,
+    shadowOpacity: 0,
+    elevation: 0,
   },
   ctaText: {
     color: '#fff',

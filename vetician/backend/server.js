@@ -56,6 +56,9 @@ const resortRoutes  = require('./routes/resortRoutes');
 const cameraRoutes  = require('./routes/cameraRoutes');
 const trainingRoutes = require('./routes/trainingRoutes');
 const medicalRecordRoutes = require('./routes/medicalRecordRoutes');
+const supportRoutes = require('./routes/supportRoutes');
+const daycarePricingRoutes = require('./routes/daycarePricingRoutes');
+const groomingRoutes = require('./routes/groomingRoutes');
 console.log('📹 Loading video call routes...');
 const videoCallRoutes = require('./routes/videoCall');
 const videoSDKRoutes = require('./routes/videoSDK');
@@ -100,6 +103,9 @@ app.use('/api/resorts', resortRoutes);
 app.use('/api/cameras', cameraRoutes);
 app.use('/api/training', trainingRoutes);
 app.use('/api/medical-records', medicalRecordRoutes);
+app.use('/api/support', supportRoutes);
+app.use('/api/daycare', daycarePricingRoutes);
+app.use('/api/grooming', groomingRoutes);
 console.log('📹 Registering video route at /api/video');
 app.use('/api/video', videoCallRoutes);
 app.use('/api/videosdk', videoSDKRoutes);
@@ -135,6 +141,12 @@ const onlineDoctors = new Set();
 
 io.on('connection', (socket) => {
   console.log('✅ Client connected:', socket.id);
+
+  // Support Admin Room - for real-time support enquiries
+  socket.on('join-support-admin', () => {
+    socket.join('support-admin');
+    console.log('🎧 Support admin joined');
+  });
 
   socket.on('join-paravet', (paravetId) => {
     socket.join(`paravet-${paravetId}`);

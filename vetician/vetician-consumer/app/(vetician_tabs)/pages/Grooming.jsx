@@ -225,71 +225,32 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, ScrollView, StyleSheet,
-  TextInput, TouchableOpacity, Animated,
+  TextInput, TouchableOpacity, Animated, ActivityIndicator
 } from 'react-native';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSelector, useDispatch } from 'react-redux';
+import { getPetsByUserId } from '../../../store/slices/authSlice';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { COLORS, FONT, RADIUS } from '../../../constant/theme2';
-import GroomingServiceCard  from '../../../components/petparent/Grooming/GroomingServiceCard';
-import SubscriptionPlanCard from '../../../components/petparent/Grooming/SubscriptionPlanCard';
 import HowItWorksCard       from '../../../components/petparent/Grooming/HowItWorksCard';
-import { GroomerCard, GroomingAddonCard, GroomingTipCard, BookingSection } from '../../../components/petparent/Grooming/GroomerCard';
+import GroomingPricingTable from '../../../components/petparent/Grooming/GroomingPricingTable';
+import BookingSection from '../../../components/petparent/Grooming/BookingSection';
+import { GroomerCard, GroomingTipCard } from '../../../components/petparent/Grooming/GroomerCard';
+
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api';
 
 // ── DATA ─────────────────────────────────────────────────────────
 
-const PETS = [
-  { id:1, name:'Rocky', breed:'Golden Retriever', icon:'dog' },
-  { id:2, name:'Bella', breed:'Persian Cat',      icon:'cat' },
-  { id:3, name:'Milo',  breed:'Pomeranian',       icon:'dog-side' },
-];
-
-const SERVICES = [
-  { id:1, name:'Full Grooming',    desc:'Complete spa care',    icon:'scissors-cutting' },
-  { id:2, name:'Bath & Blow Dry',  desc:'Fresh & fluffy coat',  icon:'shower-head' },
-  { id:3, name:'Hair Trimming',    desc:'Neat & shaped cut',    icon:'content-cut' },
-  { id:4, name:'Nail Clipping',    desc:'Safe & painless',      icon:'hand-clap' },
-  { id:5, name:'Ear Cleaning',     desc:'Hygienic & gentle',    icon:'ear-hearing' },
-  { id:6, name:'Teeth Cleaning',   desc:'Fresh breath care',    icon:'tooth-outline' },
-];
-
-const PLANS = [
-  {
-    id:1, name:'Weekly Grooming', price:'₹2,499', perMonth:'/month',
-    save:'Save ₹700', badge:'POPULAR',
-    features:['4 Grooming Sessions','Free Nail Trimming','Priority Booking'],
-  },
-  {
-    id:2, name:'Daily Walking', price:'₹3,999', perMonth:'/month',
-    save:'Save ₹1,200', badge:'BEST VALUE',
-    features:['30 Walking Sessions','30 min per session','Activity Report'],
-  },
-  {
-    id:3, name:'Monthly Care', price:'₹1,299', perMonth:'/month',
-    save:'Save ₹300', badge:null,
-    features:['2 Grooming Sessions','Basic Nail Trim','Email Support'],
-  },
-];
+// Removed dummy PETS data - will fetch from database
 
 const HOW_STEPS = [
   { id:1, number:'1', title:'Choose Service & Book',         description:'Select the service you need and pick a convenient time slot' },
   { id:2, number:'2', title:'Partner Assigned & Arrives',    description:'Verified professional reaches your home at scheduled time' },
   { id:3, number:'3', title:'Service Completed & Pay',       description:'Pay online or cash after service completion' },
   { id:4, number:'4', title:'Get Care Tips & Reminders',     description:'Receive follow-up care instructions and next session reminder' },
-];
-
-const GROOMERS = [
-  { id:1, name:'Rahul Sharma', rating:'4.8', exp:'5 yrs exp', distance:'1.2 km', icon:'account' },
-  { id:2, name:'Priya Mehta',  rating:'4.9', exp:'7 yrs exp', distance:'2.0 km', icon:'account-outline' },
-  { id:3, name:'Arjun Nair',   rating:'4.7', exp:'3 yrs exp', distance:'3.1 km', icon:'account-circle-outline' },
-];
-
-const ADDONS = [
-  { id:1, name:'Pet Perfume',      price:'+ ₹99',  icon:'spray' },
-  { id:2, name:'Anti-Tick Spray',  price:'+ ₹149', icon:'shield-bug-outline' },
-  { id:3, name:'Coat Conditioner', price:'+ ₹199', icon:'bottle-tonic-outline' },
-  { id:4, name:'De-Shedding',      price:'+ ₹249', icon:'brush' },
 ];
 
 const TIPS = [
@@ -315,16 +276,134 @@ const sh = StyleSheet.create({
 // ── SCREEN ───────────────────────────────────────────────────────
 const GroomingScreen = ({ navigation }) => {
   const router = useRouter();
+  const dispatch = useDispatch();
   const insets = useSafeAreaInsets();
-  const [activePetId, setActivePetId] = useState(PETS[0].id);
+  const { userPets } = useSelector(state => state.auth);
+  
+  const [pets, setPets] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [activePetId, setActivePetId] = useState(null);
+  const [selectedGroomerId, setSelectedGroomerId] = useState(null);
   const [search, setSearch] = useState('');
+  const [groomingPricing, setGroomingPricing] = useState([]);
+  const [pricingLoading, setPricingLoading] = useState(true);
+  const [groomers, setGroomers] = useState([]);
+  const [groomersLoading, setGroomersLoading] = useState(true);
 
   const opacity = useRef(new Animated.Value(0)).current;
+  
   useEffect(() => {
     Animated.timing(opacity, { toValue:1, duration:380, useNativeDriver:true }).start();
+    fetchPets();
+    fetchGroomingPricing();
+    fetchGroomers();
   }, []);
+  
+  const fetchGroomingPricing = async () => {
+    try {
+      console.log('💰 Fetching grooming pricing from database...');
+      setPricingLoading(true);
+      
+      const response = await fetch(`${API_URL}/grooming/pricing`);
+      const data = await response.json();
+      
+      if (data.success && data.pricing) {
+        console.log('✅ Grooming pricing loaded:', data.pricing.length, 'categories');
+        setGroomingPricing(data.pricing);
+      } else {
+        console.log('⚠️ No grooming pricing found');
+        setGroomingPricing([]);
+      }
+    } catch (error) {
+      console.error('❌ Error fetching grooming pricing:', error);
+      setGroomingPricing([]);
+    } finally {
+      setPricingLoading(false);
+    }
+  };
+  
+  const fetchGroomers = async () => {
+    try {
+      console.log('👨‍⚕️ Fetching verified groomers from database...');
+      setGroomersLoading(true);
+      
+      const response = await fetch(`${API_URL}/paravet/verified`);
+      const data = await response.json();
+      
+      if (data.success && data.data) {
+        // Filter paravets who have grooming in their expertise
+        const groomingParavets = data.data.filter(paravet => {
+          const expertise = paravet.experience?.areasOfExpertise?.value || [];
+          return expertise.some(skill => 
+            skill.toLowerCase().includes('groom') || 
+            skill.toLowerCase().includes('bath') ||
+            skill.toLowerCase().includes('hair') ||
+            skill.toLowerCase().includes('trim')
+          );
+        });
+        
+        // Transform to groomer format
+        const formattedGroomers = groomingParavets.map(paravet => ({
+          id: paravet._id,
+          name: paravet.name,
+          rating: paravet.rating?.toFixed(1) || '4.5',
+          exp: `${paravet.experience?.yearsOfExperience?.value || 0} yrs exp`,
+          distance: paravet.distance || 'N/A',
+          icon: 'account',
+          photo: paravet.photo,
+          city: paravet.city,
+          specialization: paravet.specialization,
+          verified: paravet.verified
+        }));
+        
+        console.log('✅ Groomers loaded:', formattedGroomers.length);
+        setGroomers(formattedGroomers);
+      } else {
+        console.log('⚠️ No groomers found');
+        setGroomers([]);
+      }
+    } catch (error) {
+      console.error('❌ Error fetching groomers:', error);
+      setGroomers([]);
+    } finally {
+      setGroomersLoading(false);
+    }
+  };
+  
+  const fetchPets = async () => {
+    try {
+      console.log('🐾 Fetching pets from database...');
+      setLoading(true);
+      
+      await dispatch(getPetsByUserId()).unwrap();
+      
+      const fetchedPets = userPets.data || [];
+      console.log('✅ Pets fetched:', fetchedPets.length);
+      
+      const transformedPets = fetchedPets.map(pet => ({
+        id: pet._id,
+        name: pet.name,
+        breed: pet.breed || pet.species,
+        icon: pet.species?.toLowerCase() === 'cat' ? 'cat' : 'dog',
+        species: pet.species,
+        age: pet.age,
+        weight: pet.weight,
+        profilePic: pet.profilePic
+      }));
+      
+      setPets(transformedPets);
+      if (transformedPets.length > 0) {
+        setActivePetId(transformedPets[0].id);
+      }
+    } catch (error) {
+      console.error('❌ Error fetching pets:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const activePet = PETS.find(p => p.id === activePetId);
+  const activePet = pets.find(p => p.id === activePetId);
+  const selectedGroomer = groomers.find(g => g.id === selectedGroomerId);
 
   return (
     <Animated.View style={[styles.root, { opacity }]}>
@@ -373,38 +452,53 @@ const GroomingScreen = ({ navigation }) => {
 
         {/* Pet selector — horizontal pill row */}
         <SectionTitle title="Select Your Pet" subtitle="Choose who's getting pampered today" />
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.hs}>
-          {PETS.map(p => (
-            <TouchableOpacity
-              key={p.id}
-              style={[styles.petPill, activePetId === p.id && styles.petPillOn]}
-              onPress={() => setActivePetId(p.id)}
-            >
-              <Icon name={p.icon} size={18} color={activePetId === p.id ? COLORS.white : COLORS.primary} style={{ marginRight: 6 }} />
-              <Text style={[styles.petName, activePetId === p.id && styles.petNameOn]}>{p.name}</Text>
+        {loading ? (
+          <View style={{ padding: 20, alignItems: 'center' }}>
+            <ActivityIndicator size="small" color={COLORS.primary} />
+            <Text style={{ marginTop: 8, color: COLORS.textMuted, fontSize: 12 }}>Loading your pets...</Text>
+          </View>
+        ) : pets.length === 0 ? (
+          <View style={{ padding: 20, alignItems: 'center', backgroundColor: COLORS.white, borderRadius: 12, marginHorizontal: 16, marginBottom: 22 }}>
+            <Icon name="paw-off" size={32} color={COLORS.textMuted} />
+            <Text style={{ marginTop: 8, color: COLORS.textMuted, fontSize: 13 }}>No pets registered yet</Text>
+            <TouchableOpacity style={{ marginTop: 12, backgroundColor: COLORS.primary, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 }} onPress={() => router.push('/(vetician_tabs)/(tabs)/pet')}>
+              <Text style={{ color: COLORS.white, fontWeight: '600', fontSize: 13 }}>Add Your First Pet</Text>
             </TouchableOpacity>
-          ))}
-          <TouchableOpacity style={styles.petPill}>
-            <Icon name="plus-circle-outline" size={18} color={COLORS.primary} style={{ marginRight: 6 }} />
-            <Text style={styles.petName}>Add Pet</Text>
-          </TouchableOpacity>
-        </ScrollView>
+          </View>
+        ) : (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.hs}>
+            {pets.map(p => (
+              <TouchableOpacity
+                key={p.id}
+                style={[styles.petPill, activePetId === p.id && styles.petPillOn]}
+                onPress={() => setActivePetId(p.id)}
+              >
+                <Icon name={p.icon} size={18} color={activePetId === p.id ? COLORS.white : COLORS.primary} style={{ marginRight: 6 }} />
+                <Text style={[styles.petName, activePetId === p.id && styles.petNameOn]}>{p.name}</Text>
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity style={styles.petPill} onPress={() => router.push('/(vetician_tabs)/(tabs)/pet')}>
+              <Icon name="plus-circle-outline" size={18} color={COLORS.primary} style={{ marginRight: 6 }} />
+              <Text style={styles.petName}>Add Pet</Text>
+            </TouchableOpacity>
+          </ScrollView>
+        )}
 
-        {/* Services — 2 column grid */}
-        <SectionTitle title="Grooming Services" subtitle="Pick the care your pet deserves" />
-        <View style={styles.svcGrid}>
-          {SERVICES.map(s => (
-            <GroomingServiceCard key={s.id} service={s} onPress={() => {}} />
-          ))}
-        </View>
-
-        {/* Subscription plans — horizontal scroll */}
-        <SectionTitle title="Subscription Plans" subtitle="Save more with regular care" />
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.hs}>
-          {PLANS.map((p, i) => (
-            <SubscriptionPlanCard key={p.id} plan={p} featured={i === 0} onSubscribe={() => {}} />
-          ))}
-        </ScrollView>
+        {/* Grooming Pricing Table */}
+        <SectionTitle title="Grooming Pricing" subtitle="Transparent pricing based on pet weight" />
+        {pricingLoading ? (
+          <View style={{ padding: 20, alignItems: 'center', backgroundColor: COLORS.white, borderRadius: 12, marginBottom: 22 }}>
+            <ActivityIndicator size="small" color={COLORS.primary} />
+            <Text style={{ marginTop: 8, color: COLORS.textMuted, fontSize: 12 }}>Loading pricing...</Text>
+          </View>
+        ) : groomingPricing.length === 0 ? (
+          <View style={{ padding: 20, alignItems: 'center', backgroundColor: COLORS.white, borderRadius: 12, marginBottom: 22 }}>
+            <Icon name="currency-inr" size={32} color={COLORS.textMuted} />
+            <Text style={{ marginTop: 8, color: COLORS.textMuted, fontSize: 13 }}>Pricing information not available</Text>
+          </View>
+        ) : (
+          <GroomingPricingTable pricingData={groomingPricing} />
+        )}
 
         {/* How It Works */}
         <SectionTitle title="How It Works" subtitle="Simple steps to a happy pet" />
@@ -416,24 +510,39 @@ const GroomingScreen = ({ navigation }) => {
 
         {/* Groomers */}
         <SectionTitle title="Groomers Near You" subtitle="Verified professionals in your area" />
-        <View style={styles.section}>
-          {GROOMERS.map(g => (
-            <GroomerCard key={g.id} groomer={g} onBook={() => {}} />
-          ))}
-        </View>
-
-        {/* Add-ons */}
-        <SectionTitle title="Grooming Add-ons" subtitle="Optional extras for your pet" />
-        <View style={styles.section}>
-          {ADDONS.map(a => (
-            <GroomingAddonCard key={a.id} addon={a} />
-          ))}
-        </View>
+        {groomersLoading ? (
+          <View style={{ padding: 20, alignItems: 'center', backgroundColor: COLORS.white, borderRadius: 12, marginBottom: 22 }}>
+            <ActivityIndicator size="small" color={COLORS.primary} />
+            <Text style={{ marginTop: 8, color: COLORS.textMuted, fontSize: 12 }}>Loading groomers...</Text>
+          </View>
+        ) : groomers.length === 0 ? (
+          <View style={{ padding: 20, alignItems: 'center', backgroundColor: COLORS.white, borderRadius: 12, marginBottom: 22 }}>
+            <Icon name="account-off" size={32} color={COLORS.textMuted} />
+            <Text style={{ marginTop: 8, color: COLORS.textMuted, fontSize: 13 }}>No groomers available</Text>
+            <Text style={{ marginTop: 4, color: COLORS.textMuted, fontSize: 11, textAlign: 'center' }}>Check back later for verified grooming professionals</Text>
+          </View>
+        ) : (
+          <View style={styles.section}>
+            {groomers.map(g => (
+              <GroomerCard 
+                key={g.id} 
+                groomer={g} 
+                selected={selectedGroomerId === g.id}
+                onBook={() => setSelectedGroomerId(g.id)} 
+              />
+            ))}
+          </View>
+        )}
 
         {/* Booking */}
         <SectionTitle title="Book Appointment" subtitle="Choose your date, time and groomer" />
+        {selectedGroomer && (
+          <View style={{ backgroundColor: '#e8f5e9', padding: 12, borderRadius: 8, marginBottom: 12, marginHorizontal: 16 }}>
+            <Text style={{ fontSize: 13, fontWeight: '600', color: '#558B2F' }}>Selected Groomer: {selectedGroomer.name}</Text>
+          </View>
+        )}
         <View style={styles.section}>
-          <BookingSection selectedPet={activePet} />
+          <BookingSection selectedPet={activePet} selectedGroomer={selectedGroomer} />
         </View>
 
         {/* Tips */}
@@ -494,13 +603,6 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: 16, paddingTop: 20 },
   hs:      { marginHorizontal: -16, paddingHorizontal: 16, marginBottom: 22 },
   section: { marginBottom: 8 },
-
-  svcGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    marginBottom: 22,
-  },
 
   // Pet pills
   petPill: {

@@ -1,9 +1,12 @@
 import React from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Image, StyleSheet, Alert, Platform } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Image, StyleSheet, Platform } from 'react-native';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { COLORS } from '../../../constant/theme';
 
 export default function HostelList({ hostels, selected, onSelect }) {
+  const router = useRouter();
+  
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.hs}>
       {hostels.map(h => {
@@ -44,7 +47,7 @@ export default function HostelList({ hostels, selected, onSelect }) {
               </Text>
               <TouchableOpacity
                 style={[styles.detailsBtn, active && styles.detailsBtnOn]}
-                onPress={() => Alert.alert(h.name, `⭐ ${h.rating}  📍 ${h.distance}\n🛏 ${h.rooms} rooms available\n💰 From ₹${h.price}/night`)}
+                onPress={() => router.push({ pathname: '/(vetician_tabs)/pages/HostelDetails', params: { hostelId: h.id } })}
                 activeOpacity={0.8}
               >
                 <Text style={[styles.detailsTxt, active && { color: '#fff' }]}>View Details</Text>

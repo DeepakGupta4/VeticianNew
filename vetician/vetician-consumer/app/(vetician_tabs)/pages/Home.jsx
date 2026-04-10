@@ -255,13 +255,20 @@ export default function VeticionHome() {
 
   const fetchClinics = async (coords) => {
     try {
+      console.log('🏥 fetchClinics called with coords:', coords);
       const loc = coords || userLocation;
       const locationParams = loc
         ? { userLat: loc.latitude, userLon: loc.longitude }
         : {};
+      
+      console.log('📍 Location params:', locationParams);
+      console.log('🚀 Calling ApiService.getAllVerifiedClinics...');
 
       const data = await ApiService.getAllVerifiedClinics(locationParams);
+      console.log('📦 API Response:', JSON.stringify(data, null, 2));
+      
       const clinicsList = Array.isArray(data) ? data : data?.data || [];
+      console.log(`🏥 Clinics list length: ${clinicsList.length}`);
       
       console.log('🏥 First clinic raw:', JSON.stringify(clinicsList[0], null, 2));
 
@@ -285,9 +292,11 @@ export default function VeticionHome() {
           return distA - distB;
         });
 
+      console.log(`✅ Setting ${clinicsWithDistance.length} clinics to state`);
       setClinics(clinicsWithDistance);
     } catch (err) {
-      console.error('Clinics fetch failed:', err.message);
+      console.error('❌ Clinics fetch failed:', err.message);
+      console.error('❌ Full error:', err);
       setClinics([]);
     }
   };

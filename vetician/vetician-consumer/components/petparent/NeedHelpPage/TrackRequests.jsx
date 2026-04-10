@@ -1,23 +1,32 @@
 // components/needhelp/TrackRequests.js
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { COLORS2 } from './colors';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useSelector } from 'react-redux';
+
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api';
 
 const STATUS_COLORS = {
-  'In Progress': { bg: '#FFF8E1', text: '#F57F17', dot: '#FFB300' },
-  'Resolved': { bg: '#E8F5E9', text: '#2E7D32', dot: '#43A047' },
-  'Open': { bg: '#E3F2FD', text: '#1565C0', dot: '#1E88E5' },
+  'in-progress': { bg: '#FFF8E1', text: '#F57F17', dot: '#FFB300' },
+  'resolved': { bg: '#E8F5E9', text: '#2E7D32', dot: '#43A047' },
+  'open': { bg: '#E3F2FD', text: '#1565C0', dot: '#1E88E5' },
+  'closed': { bg: '#F3F4F6', text: '#6B7280', dot: '#9CA3AF' },
 };
 
-const SAMPLE_TICKETS = [
-  { id: '#VT-1042', issue: 'Payment not processed', date: 'Mar 23, 2025', status: 'In Progress' },
-  { id: '#VT-1038', issue: 'Location not detected', date: 'Mar 20, 2025', status: 'Resolved' },
-  { id: '#VT-1031', issue: 'App loading slowly', date: 'Mar 15, 2025', status: 'Resolved' },
-];
-
 function TicketCard({ ticket }) {
-  const s = STATUS_COLORS[ticket.status] || STATUS_COLORS['Open'];
+  const s = STATUS_COLORS[ticket.status] || STATUS_COLORS['open'];
+  
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  };
+
+  const formatStatus = (status) => {
+    return status.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+  };
+
   return (
     <View style={styles.ticketCard}>
       <View style={styles.ticketLeft}>
@@ -25,20 +34,92 @@ function TicketCard({ ticket }) {
           <MaterialIcons name="confirmation-number" size={18} color={COLORS2.primary} />
         </View>
         <View style={{ flex: 1, marginLeft: 10 }}>
-          <Text style={styles.ticketId}>{ticket.id}</Text>
-          <Text style={styles.ticketIssue}>{ticket.issue}</Text>
-          <Text style={styles.ticketDate}>{ticket.date}</Text>
+          <Text style={styles.ticketId}>{ticket.ticketId}</Text>
+          <Text style={styles.ticketIssue}>{ticket.issueType}</Text>
+          <Text style={styles.ticketDate}>{formatDate(ticket.createdAt)}</Text>
         </View>
       </View>
       <View style={[styles.statusBadge, { backgroundColor: s.bg }]}>
         <View style={[styles.statusDot, { backgroundColor: s.dot }]} />
-        <Text style={[styles.statusText, { color: s.text }]}>{ticket.status}</Text>
+        <Text style={[styles.statusText, { color: s.text }]}>{formatStatus(ticket.status)}</Text>
       </View>
     </View>
   );
 }
 
 export default function TrackRequests({ onViewAll }) {
+  const { user } = useSelector(state => state.auth);
+  const [tickets, setTickets] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchUserEnquiries();
+  }, []);
+
+  const fetchUserEnquiries = async () => {
+    try {
+      setLoading(true);
+      const token = await AsyncStorage.getItem('token');
+      const userId = await AsyncStorage.getItem('userId');
+      
+      const response = await fetch(`${API_URL}/support/enquiries/user/${userId || user?._id}`, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` })
+        }
+      });
+      
+      const data = await response.json();
+      
+      if (data.success && data.enquiries) {
+        // Show only the 3 most recent enquiries
+        setTickets(data.enquiries.slice(0, 3));
+        console.log('✅ Enquiries loaded:', data.enquiries.length);
+      }
+    } catch (error) {
+      console.error('❌ Error fetching enquiries:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.sectionHeaderRow}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>My Requests</Text>
+            <View style={styles.dot} />
+            <Text style={styles.sectionSub}>Track your tickets</Text>
+          </View>
+        </View>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="small" color={COLORS2.primary} />
+          <Text style={styles.loadingText}>Loading your requests...</Text>
+        </View>
+      </View>
+    );
+  }
+
+  if (tickets.length === 0) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.sectionHeaderRow}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>My Requests</Text>
+            <View style={styles.dot} />
+            <Text style={styles.sectionSub}>Track your tickets</Text>
+          </View>
+        </View>
+        <View style={styles.emptyState}>
+          <MaterialIcons name="inbox" size={48} color={COLORS2.subtext} />
+          <Text style={styles.emptyText}>No support requests yet</Text>
+          <Text style={styles.emptySubtext}>Your submitted tickets will appear here</Text>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <View style={styles.sectionHeaderRow}>
@@ -47,13 +128,15 @@ export default function TrackRequests({ onViewAll }) {
           <View style={styles.dot} />
           <Text style={styles.sectionSub}>Track your tickets</Text>
         </View>
-        <TouchableOpacity onPress={onViewAll}>
-          <Text style={styles.viewAll}>View All</Text>
-        </TouchableOpacity>
+        {tickets.length > 0 && (
+          <TouchableOpacity onPress={onViewAll}>
+            <Text style={styles.viewAll}>View All</Text>
+          </TouchableOpacity>
+        )}
       </View>
       <View style={styles.ticketsList}>
-        {SAMPLE_TICKETS.map((t) => (
-          <TicketCard key={t.id} ticket={t} />
+        {tickets.map((t) => (
+          <TicketCard key={t._id} ticket={t} />
         ))}
       </View>
     </View>
@@ -161,5 +244,31 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: 11,
     fontWeight: '700',
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 13,
+    color: COLORS2.subtext,
+  },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+  },
+  emptyText: {
+    marginTop: 12,
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS2.text,
+  },
+  emptySubtext: {
+    marginTop: 4,
+    fontSize: 12,
+    color: COLORS2.subtext,
   },
 });

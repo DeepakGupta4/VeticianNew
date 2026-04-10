@@ -65,6 +65,7 @@ export default function BookScreen() {
   const confirmBooking = async () => {
     try {
       setLoading(true);
+      console.log('📝 Starting booking process...');
       
       // Map service to bookingType
       const bookingTypeMap = {
@@ -97,7 +98,7 @@ export default function BookScreen() {
       appointmentDate.setHours(hour, parseInt(minutes), 0, 0);
       
       const bookingData = {
-        clinicId: selectedClinic?.clinicId || null,
+        clinicId: selectedClinic?.clinicId || selectedClinic?._id || null,
         veterinarianId: selectedClinic?.vetId || null,
         petName: selectedPet.name,
         petType: selectedPet.species || 'Dog',
@@ -106,11 +107,18 @@ export default function BookScreen() {
         date: appointmentDate.toISOString(),
         bookingType: bookingTypeMap[selectedService] || 'in-clinic',
         contactInfo: '1234567890',
-        petPic: selectedPet.petPhoto || selectedPet.image || '🐾',
+        petPic: selectedPet.petPhoto || selectedPet.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedPet.name)}&background=4CAF50&color=fff`,
       };
 
+      console.log('📦 Booking data:', JSON.stringify(bookingData, null, 2));
+
       const token = await AsyncStorage.getItem('token');
-      const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL || 'https://vetician-backend-kovk.onrender.com/api'}/auth/petparent/appointments/book`, {
+      const apiUrl = `${process.env.EXPO_PUBLIC_API_URL || 'https://vetician-backend-kovk.onrender.com/api'}/auth/petparent/appointments/book`;
+      
+      console.log('🚀 API URL:', apiUrl);
+      console.log('🔑 Token exists:', !!token);
+      
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -119,9 +127,12 @@ export default function BookScreen() {
         body: JSON.stringify(bookingData)
       });
 
+      console.log('📡 Response status:', response.status);
       const result = await response.json();
+      console.log('📦 Response data:', JSON.stringify(result, null, 2));
 
       if (response.ok) {
+        console.log('✅ Booking successful!');
         // Immediately redirect to MyBookings page
         router.push('/(vetician_tabs)/pages/MyBookings');
         
@@ -133,11 +144,11 @@ export default function BookScreen() {
           );
         }, 500);
       } else {
-        console.error('Booking error:', result);
+        console.error('❌ Booking error:', result);
         Alert.alert('Error', result.message || 'Failed to book appointment');
       }
     } catch (error) {
-      console.error('Booking error:', error);
+      console.error('❌ Booking exception:', error);
       Alert.alert('Error', 'Failed to book appointment. Please try again.');
     } finally {
       setLoading(false);

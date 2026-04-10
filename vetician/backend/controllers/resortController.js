@@ -1,4 +1,5 @@
 const PetResort = require('../models/PetResort');
+const User = require('../models/User');
 const { catchAsync } = require('../utils/catchAsync');
 const { AppError } = require('../utils/appError');
 
@@ -105,7 +106,7 @@ const getUnverifiedPetResorts = catchAsync(async (req, res, next) => {
   });
 });
 
-// Get verified pet resorts (admin)
+// Get verified pet resorts (public - for consumer app)
 const getVerifiedPetResorts = catchAsync(async (req, res, next) => {
   const filter = { isVerified: true };
   
@@ -113,37 +114,14 @@ const getVerifiedPetResorts = catchAsync(async (req, res, next) => {
   if (req.query.city) filter.city = req.query.city;
   if (req.query.services) filter.services = { $in: req.query.services.split(',') };
 
-  const petResorts = await PetResort.find(filter)
-    .lean();
+  const petResorts = await PetResort.find(filter).lean();
 
-  // Get all unique user IDs from pet resorts
-  const userIds = [...new Set(petResorts.map(r => r.userId))];
-
-  // Get all related users in one query
-  const users = await User.find({
-    _id: { $in: userIds }
-  }).lean();
-
-  // Create a map of userId -> user
-  const userMap = new Map();
-  users.forEach(user => {
-    userMap.set(user._id.toString(), {
-      name: user.name,
-      email: user.email,
-      phone: user.phone,
-      profilePhoto: user.profilePhoto
-    });
-  });
-
-  const formattedPetResorts = petResorts.map(resort => ({
-    ...resort, // Preserve all pet resort properties
-    user: userMap.get(resort.userId.toString()) || null
-  }));
+  console.log('✅ Found', petResorts.length, 'verified pet resorts');
 
   res.status(200).json({
     success: true,
-    count: formattedPetResorts.length,
-    petResorts: formattedPetResorts
+    count: petResorts.length,
+    resorts: petResorts // Changed from petResorts to resorts for consistency
   });
 });
 
@@ -221,6 +199,22 @@ const getResortProfile = catchAsync(async (req, res, next) => {
   });
 });
 
+// Get single resort by ID (public)
+const getResortById = catchAsync(async (req, res, next) => {
+  const { id } = req.params;
+
+  const resort = await PetResort.findById(id).lean();
+  
+  if (!resort) {
+    return next(new AppError('Resort not found', 404));
+  }
+
+  res.status(200).json({
+    success: true,
+    resort
+  });
+});
+
 
 
 module.exports = {
@@ -229,5 +223,6 @@ module.exports = {
   getVerifiedPetResorts,
   verifyPetResort,
   unverifyPetResort,
-  getResortProfile
+  getResortProfile,
+  getResortById
 };

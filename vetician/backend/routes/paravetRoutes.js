@@ -43,33 +43,49 @@ router.get('/dashboard/:userId', async (req, res) => {
     const { userId } = req.params;
     const Paravet = require('../models/Paravet');
     const DoorstepService = require('../models/DoorstepService');
+    const GroomingBooking = require('../models/GroomingBooking');
     
     console.log('📊 Dashboard request for userId:', userId);
     const paravet = await Paravet.findOne({ userId });
     
-    // Calculate stats from confirmed bookings
     let totalEarnings = 0;
     let totalPatients = 0;
     let recentActivities = [];
+    
     try {
-      const confirmedBookings = await DoorstepService.find({ 
-        servicePartnerId: userId,
-        status: 'confirmed'
-      })
-      .populate('userId', 'name phone')
-      .populate('petIds', 'name species')
-      .sort('-appointmentDate')
-      .limit(10);
+      const [doorstepBookings, groomingBookings] = await Promise.all([
+        DoorstepService.find({ 
+          servicePartnerId: userId,
+          status: 'confirmed'
+        })
+        .populate('userId', 'name phone')
+        .populate('petIds', 'name species')
+        .sort('-appointmentDate')
+        .limit(10),
+        
+        GroomingBooking.find({ 
+          groomerId: userId,
+          status: { $in: ['confirmed', 'completed'] }
+        })
+        .populate('userId', 'name phone')
+        .populate('petId', 'name species')
+        .sort('-appointmentDate')
+        .limit(10)
+      ]);
       
-      // Calculate total earnings
-      totalEarnings = confirmedBookings.reduce((sum, booking) => sum + (booking.totalAmount || 0), 0);
+      console.log('🐾 Doorstep bookings:', doorstepBookings.length);
+      console.log('✂️ Grooming bookings:', groomingBookings.length);
       
-      // Calculate unique patients (unique userIds)
-      const uniqueUserIds = new Set(confirmedBookings.map(b => b.userId._id.toString()));
+      totalEarnings = doorstepBookings.reduce((sum, b) => sum + (b.totalAmount || 0), 0) +
+                      groomingBookings.reduce((sum, b) => sum + (b.totalAmount || 0), 0);
+      
+      const uniqueUserIds = new Set([
+        ...doorstepBookings.map(b => b.userId._id.toString()),
+        ...groomingBookings.map(b => b.userId._id.toString())
+      ]);
       totalPatients = uniqueUserIds.size;
       
-      // Format recent activities from confirmed bookings
-      recentActivities = confirmedBookings.map(booking => ({
+      const doorstepActivities = doorstepBookings.map(booking => ({
         _id: booking._id,
         title: booking.serviceType,
         description: `${booking.userId?.name || 'Patient'} - ${booking.petIds?.map(p => p.name).join(', ') || 'Pet'}`,
@@ -81,11 +97,32 @@ router.get('/dashboard/:userId', async (req, res) => {
         appointmentDate: booking.appointmentDate,
         timeSlot: booking.timeSlot,
         address: booking.address,
-        specialInstructions: booking.specialInstructions
+        specialInstructions: booking.specialInstructions,
+        type: 'doorstep'
       }));
       
-      console.log('💰 Total earnings:', totalEarnings, 'from', confirmedBookings.length, 'confirmed bookings');
-      console.log('👥 Total patients:', totalPatients, 'unique users');
+      const groomingActivities = groomingBookings.map(booking => ({
+        _id: booking._id,
+        title: `Grooming - ${booking.serviceType}`,
+        description: `${booking.userId?.name || 'Patient'} - ${booking.petId?.name || 'Pet'}`,
+        time: new Date(booking.appointmentDate).toLocaleDateString(),
+        color: '#558B2F',
+        patientName: booking.userId?.name,
+        patientPhone: booking.userId?.phone,
+        pets: booking.petId ? [booking.petId] : [],
+        appointmentDate: booking.appointmentDate,
+        timeSlot: booking.appointmentTime,
+        address: booking.address ? { street: booking.address } : null,
+        specialInstructions: booking.specialInstructions,
+        type: 'grooming'
+      }));
+      
+      recentActivities = [...doorstepActivities, ...groomingActivities]
+        .sort((a, b) => new Date(b.appointmentDate) - new Date(a.appointmentDate))
+        .slice(0, 10);
+      
+      console.log('💰 Total earnings:', totalEarnings);
+      console.log('👥 Total patients:', totalPatients);
       console.log('📋 Recent activities:', recentActivities.length);
     } catch (err) {
       console.error('Error calculating stats:', err);

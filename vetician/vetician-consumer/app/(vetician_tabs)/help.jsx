@@ -19,14 +19,13 @@ import SupportOptions from '../../components/petparent/NeedHelpPage/SupportOptio
 import TrackRequests from '../../components/petparent/NeedHelpPage/TrackRequests';
 import ReportIssueForm from '../../components/petparent/NeedHelpPage/ReportIssueForm';
 import SafetyCard from '../../components/petparent/NeedHelpPage/SafetyCard';
-import BottomDrawer from '../../components/petparent/NeedHelpPage/BottomDrawer';
 
 export default function NeedHelpScreen() {
   const router = useRouter();
+  const scrollViewRef = useRef(null);
+  const reportIssueRef = useRef(null);
 
-  // Drawer state
-  const [drawerVisible, setDrawerVisible] = useState(false);
-  const [drawerType, setDrawerType] = useState(null); // 'issue' | 'chat' | 'emergency'
+  // Selected issue state for pre-filling the form
   const [selectedIssue, setSelectedIssue] = useState(null);
 
   // Fade-in animation for whole page
@@ -40,30 +39,23 @@ export default function NeedHelpScreen() {
     }).start();
   }, []);
 
-  // Open drawer with specific type
-  const openDrawer = (type, issue = null) => {
-    setDrawerType(type);
-    setSelectedIssue(issue);
-    setDrawerVisible(true);
-  };
-
-  const closeDrawer = () => {
-    setDrawerVisible(false);
-    setTimeout(() => {
-      setDrawerType(null);
-      setSelectedIssue(null);
-    }, 300);
-  };
-
   // When user selects an issue from the list
   const handleSelectIssue = (issue) => {
-    openDrawer('issue', issue);
-  };
-
-  // When user taps "Contact Support" inside IssueDetails
-  const handleContactSupport = () => {
-    closeDrawer();
-    setTimeout(() => openDrawer('chat'), 350);
+    console.log('📋 Issue selected:', issue.title);
+    
+    // Set the selected issue to pre-fill the form
+    setSelectedIssue(issue);
+    
+    // Scroll to the Report Issue Form
+    setTimeout(() => {
+      reportIssueRef.current?.measureLayout(
+        scrollViewRef.current,
+        (x, y) => {
+          scrollViewRef.current?.scrollTo({ y: y - 20, animated: true });
+        },
+        () => {}
+      );
+    }, 100);
   };
 
   return (
@@ -75,37 +67,34 @@ export default function NeedHelpScreen() {
 
       {/* Scrollable Content */}
       <Animated.ScrollView
+        ref={scrollViewRef}
         style={[styles.scroll, { opacity: fadeAnim }]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
         {/* 1. Quick Help Actions */}
-        <QuickActions onOpenDrawer={openDrawer} />
+        <QuickActions onOpenDrawer={() => {}} />
 
         {/* 2. Common Issues */}
         <CommonIssues onSelectIssue={handleSelectIssue} />
 
         {/* 3. Live Support Options */}
-        <SupportOptions onOpenDrawer={openDrawer} />
+        <SupportOptions onOpenDrawer={() => {}} />
 
         {/* 4. Track Requests */}
         <TrackRequests onViewAll={() => {}} />
 
         {/* 5. Report Issue Form */}
-        <ReportIssueForm />
+        <View ref={reportIssueRef} collapsable={false}>
+          <ReportIssueForm 
+            selectedIssue={selectedIssue}
+            onClearIssue={() => setSelectedIssue(null)}
+          />
+        </View>
 
         {/* 6. Safety & Assurance */}
         <SafetyCard />
       </Animated.ScrollView>
-
-      {/* Bottom Drawer - handles issue details, chat, emergency */}
-      <BottomDrawer
-        visible={drawerVisible}
-        type={drawerType}
-        issue={selectedIssue}
-        onClose={closeDrawer}
-        onContactSupport={handleContactSupport}
-      />
     </View>
   );
 }

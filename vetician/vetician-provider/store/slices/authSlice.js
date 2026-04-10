@@ -750,6 +750,6 @@ const authSlice = createSlice({
   },
 });
 
-export const { clearError, clearLoading, setCredentials, clearUserPets, addBooking } = authSlice.actions;
+export const { signOut: signOutAction, clearError, clearLoading, setCredentials, clearUserPets, addBooking } = authSlice.actions;
 export { signOutUser as signOut }; // Export signOutUser as signOut for backend integration
 export default authSlice.reducer;

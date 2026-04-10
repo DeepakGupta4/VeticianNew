@@ -319,13 +319,15 @@ const uploadDocuments = catchAsync(async (req, res, next) => {
 
 // Get unverified paravets (Admin)
 const getUnverifiedParavets = catchAsync(async (req, res, next) => {
-  const paravets = await Paravet.find({ 'applicationStatus.approvalStatus': 'under_review' })
-    .populate('userId');
+  const paravets = await Paravet.find({ 
+    'applicationStatus.submitted': true,
+    'applicationStatus.approvalStatus': { $in: ['pending', 'under_review'] }
+  }).sort('-applicationStatus.submittedAt');
 
   res.status(200).json({
     success: true,
     count: paravets.length,
-    data: paravets
+    paravets: paravets
   });
 });
 

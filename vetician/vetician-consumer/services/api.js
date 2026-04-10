@@ -301,7 +301,10 @@ class ApiService {
       queryString = `?userLat=${locationParams.userLat}&userLon=${locationParams.userLon}`;
     }
     
-    return this.get(`/clinics/all${queryString}`);
+    console.log('🚀 getAllVerifiedClinics - Full URL:', `${this.baseURL}/auth/petparent/verified/all-clinic${queryString}`);
+    console.log('📍 Location params:', locationParams);
+    
+    return this.get(`/auth/petparent/verified/all-clinic${queryString}`);
   }
 
   getVerifiedPetResorts(filters = {}) {

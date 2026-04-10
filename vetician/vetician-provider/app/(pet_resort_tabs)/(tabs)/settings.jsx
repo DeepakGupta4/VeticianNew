@@ -3,6 +3,9 @@ import { useSelector, useDispatch } from 'react-redux';
 import { useRouter } from 'expo-router';
 import { signOut } from '../../../store/slices/authSlice';
 import { User, Mail, Calendar, MapPin, Phone, CreditCard as Edit, LogOut } from 'lucide-react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://vetician-backend-kovk.onrender.com/api';
 
 export default function Profile() {
   const { user } = useSelector(state => state.auth);
@@ -18,9 +21,66 @@ export default function Profile() {
         {
           text: 'Sign Out',
           style: 'destructive',
-          onPress: () => {
-            dispatch(signOut());
-            router.replace('/(auth)/signin');
+          onPress: async () => {
+            try {
+              console.log('🔓 Starting sign out process...');
+              
+              // Get tokens
+              const token = await AsyncStorage.getItem('token');
+              const refreshToken = await AsyncStorage.getItem('refreshToken');
+              
+              // Call backend logout
+              if (token) {
+                try {
+                  console.log('📡 Calling backend logout API...');
+                  const response = await fetch(`${API_URL}/auth/logout`, {
+                    method: 'POST',
+                    headers: { 
+                      'Content-Type': 'application/json', 
+                      'Authorization': `Bearer ${token}` 
+                    },
+                    body: JSON.stringify({ refreshToken: refreshToken || token }),
+                  });
+                  
+                  const data = await response.json();
+                  console.log('✅ Backend logout response:', data);
+                } catch (error) {
+                  console.error('❌ Backend logout error:', error.message);
+                }
+              }
+              
+              // Clear storage
+              await AsyncStorage.multiRemove([
+                'token', 'userId', 'user', 'refreshToken',
+                'userName', 'userEmail', 'userPhone', 'userRole'
+              ]);
+              
+              // Dispatch sign out
+              dispatch(signOut());
+              
+              // Navigate
+              router.replace('/(auth)/signin');
+              console.log('✅ Sign out complete!');
+              
+            } catch (error) {
+              console.error('❌ Sign out error:', error);
+              Alert.alert(
+                'Error', 
+                'Failed to sign out properly. Force sign out?',
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  { 
+                    text: 'Force Sign Out', 
+                    style: 'destructive',
+                    onPress: async () => {
+                      await AsyncStorage.clear();
+                      dispatch(signOut());
+                      router.replace('/(auth)/signin');
+                    }
+                  }
+                ]
+              );
+            }
           },
         },
       ]

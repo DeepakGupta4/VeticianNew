@@ -52,32 +52,63 @@ export default function ParavetBookings() {
   const fetchBookings = async () => {
     try {
       setLoading(true);
-      console.log('📥 Fetching bookings for paravet:', user._id);
-      const response = await ApiService.getParavetBookings(user._id);
-      console.log('✅ RAW API Response:', JSON.stringify(response, null, 2));
-      console.log('📋 response.success:', response.success);
-      console.log('📋 response.data type:', typeof response.data);
-      console.log('📋 response.data:', response.data);
-      console.log('📊 Bookings count:', response.data?.length || 0);
+      console.log('📥 Fetching bookings for paravet user._id:', user._id);
+      console.log('📥 Full user object:', JSON.stringify(user, null, 2));
       
-      if (response.success && response.data) {
-        console.log('✅ Response is successful, data exists');
-        if (Array.isArray(response.data)) {
-          console.log('✅ Data is an array with', response.data.length, 'items');
-          if (response.data.length > 0) {
-            console.log('👉 First booking:', JSON.stringify(response.data[0], null, 2));
-          }
-          setBookings(response.data);
-        } else {
-          console.log('❌ Data is NOT an array:', response.data);
-          setBookings([]);
-        }
+      // Try to get userId from AsyncStorage as well
+      const storedUserId = await AsyncStorage.getItem('userId');
+      console.log('💾 Stored userId from AsyncStorage:', storedUserId);
+      
+      const paravetId = storedUserId || user._id;
+      console.log('🎯 Using paravetId:', paravetId);
+      
+      const [doorstepResponse, groomingResponse] = await Promise.all([
+        ApiService.getParavetBookings(paravetId),
+        ApiService.getParavetGroomingBookings(paravetId)
+      ]);
+      
+      console.log('✅ Doorstep response:', JSON.stringify(doorstepResponse, null, 2));
+      console.log('✅ Grooming response:', JSON.stringify(groomingResponse, null, 2));
+      
+      const allBookings = [];
+      
+      if (doorstepResponse.success && doorstepResponse.data) {
+        console.log('🐾 Adding', doorstepResponse.data.length, 'doorstep bookings');
+        allBookings.push(...doorstepResponse.data);
       } else {
-        console.log('❌ Response not successful or no data');
-        setBookings([]);
+        console.log('⚠️ No doorstep bookings or failed:', doorstepResponse);
       }
+      
+      if (groomingResponse.success && groomingResponse.bookings) {
+        console.log('✂️ Adding', groomingResponse.bookings.length, 'grooming bookings');
+        const formattedGrooming = groomingResponse.bookings.map(booking => ({
+          _id: booking._id,
+          serviceType: `Grooming - ${booking.serviceType}`,
+          status: booking.status,
+          userId: booking.userId,
+          appointmentDate: booking.appointmentDate,
+          timeSlot: booking.appointmentTime,
+          totalAmount: booking.totalAmount,
+          petIds: booking.petId ? [booking.petId] : [],
+          specialInstructions: booking.specialInstructions,
+          address: booking.address ? { street: booking.address } : null,
+          bookingType: 'grooming'
+        }));
+        allBookings.push(...formattedGrooming);
+      } else {
+        console.log('⚠️ No grooming bookings or failed:', groomingResponse);
+      }
+      
+      allBookings.sort((a, b) => new Date(b.appointmentDate) - new Date(a.appointmentDate));
+      
+      console.log('📊 Total bookings:', allBookings.length);
+      if (allBookings.length > 0) {
+        console.log('📋 First booking:', JSON.stringify(allBookings[0], null, 2));
+      }
+      setBookings(allBookings);
     } catch (error) {
       console.error('❌ Error fetching bookings:', error);
+      console.error('❌ Error stack:', error.stack);
       if (error.message.includes('Session expired')) {
         Alert.alert('Session Expired', 'Please login again', [
           { text: 'OK', onPress: () => router.replace('/login') }
@@ -86,21 +117,25 @@ export default function ParavetBookings() {
       setBookings([]);
     } finally {
       setLoading(false);
-      console.log('🏁 Final bookings state length:', bookings.length);
     }
   };
 
-  const handleAccept = async (bookingId) => {
+  const handleAccept = async (bookingId, bookingType) => {
     try {
-      await ApiService.updateBookingStatus(bookingId, 'confirmed');
+      if (bookingType === 'grooming') {
+        await ApiService.updateGroomingBookingStatus(bookingId, 'confirmed');
+      } else {
+        await ApiService.updateBookingStatus(bookingId, 'confirmed');
+      }
       setBookings(prev => prev.map(b => b._id === bookingId ? { ...b, status: 'confirmed' } : b));
       Alert.alert('Success', 'Booking accepted');
     } catch (error) {
+      console.error('❌ Accept error:', error);
       Alert.alert('Error', 'Failed to accept booking');
     }
   };
 
-  const handleReject = async (bookingId) => {
+  const handleReject = async (bookingId, bookingType) => {
     Alert.alert('Reject Booking', 'Are you sure?', [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -108,10 +143,15 @@ export default function ParavetBookings() {
         style: 'destructive',
         onPress: async () => {
           try {
-            await ApiService.updateBookingStatus(bookingId, 'cancelled');
+            if (bookingType === 'grooming') {
+              await ApiService.updateGroomingBookingStatus(bookingId, 'cancelled', 'groomer');
+            } else {
+              await ApiService.updateBookingStatus(bookingId, 'cancelled');
+            }
             setBookings(prev => prev.filter(b => b._id !== bookingId));
             Alert.alert('Success', 'Booking rejected');
           } catch (error) {
+            console.error('❌ Reject error:', error);
             Alert.alert('Error', 'Failed to reject booking');
           }
         }
@@ -179,11 +219,11 @@ export default function ParavetBookings() {
         <Text style={styles.amount}>₹{item.totalAmount}</Text>
         {item.status === 'pending' && (
           <View style={styles.actions}>
-            <TouchableOpacity style={styles.rejectBtn} onPress={() => handleReject(item._id)}>
+            <TouchableOpacity style={styles.rejectBtn} onPress={() => handleReject(item._id, item.bookingType)}>
               <XCircle size={18} color="#fff" />
               <Text style={styles.btnText}>Reject</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.acceptBtn} onPress={() => handleAccept(item._id)}>
+            <TouchableOpacity style={styles.acceptBtn} onPress={() => handleAccept(item._id, item.bookingType)}>
               <CheckCircle size={18} color="#fff" />
               <Text style={styles.btnText}>Accept</Text>
             </TouchableOpacity>

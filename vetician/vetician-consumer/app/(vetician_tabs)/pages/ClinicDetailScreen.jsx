@@ -1042,6 +1042,106 @@ const ClinicDetailScreen = () => {
     }
   };
 
+  const handleBookAppointment = async () => {
+    if (!selectedTime) {
+      Alert.alert('Error', 'Please select a time slot');
+      return;
+    }
+
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const userId = await AsyncStorage.getItem('userId');
+      const apiUrl = process.env.EXPO_PUBLIC_API_URL || 'https://vetician-backend-kovk.onrender.com/api';
+
+      if (!token) {
+        Alert.alert('Error', 'Please login to book an appointment');
+        return;
+      }
+
+      // Fetch user's pets
+      let userPets = [];
+      try {
+        const petsResponse = await fetch(`${apiUrl}/auth/pets/user/${userId}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const petsData = await petsResponse.json();
+        if (petsData.success && petsData.pets && petsData.pets.length > 0) {
+          userPets = petsData.pets;
+        }
+      } catch (e) {
+        console.log('Could not fetch pets:', e);
+      }
+
+      if (userPets.length === 0) {
+        Alert.alert('No Pets Found', 'Please add a pet before booking an appointment');
+        return;
+      }
+
+      // Use first pet for now (you can add pet selection UI later)
+      const selectedPet = userPets[0];
+
+      // Parse selected time slot
+      const [time, period] = selectedTime.split(' ');
+      const [hours, minutes] = time.split(':');
+      let hour = parseInt(hours);
+      
+      if (period === 'PM' && hour !== 12) hour += 12;
+      if (period === 'AM' && hour === 12) hour = 0;
+      
+      const appointmentDate = new Date();
+      appointmentDate.setHours(hour, parseInt(minutes), 0, 0);
+
+      // Prepare booking data
+      const bookingData = {
+        clinicId: clinicDetails.clinicId,
+        veterinarianId: vet.vetId || null,
+        petName: selectedPet.name,
+        petType: selectedPet.species || selectedPet.type || 'Dog',
+        breed: selectedPet.breed || 'Mixed',
+        illness: 'General checkup',
+        date: appointmentDate.toISOString(),
+        bookingType: 'in-clinic', // Changed from 'clinic' to 'in-clinic'
+        contactInfo: await AsyncStorage.getItem('userPhone') || 'Not provided',
+        petPic: selectedPet.petPhoto || selectedPet.profilePic || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(selectedPet.name) + '&background=4CAF50&color=fff'
+      };
+
+      console.log('📦 Booking appointment:', bookingData);
+
+      const response = await fetch(`${apiUrl}/auth/petparent/appointments/book`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(bookingData)
+      });
+
+      const result = await response.json();
+      console.log('📡 Booking response:', result);
+
+      if (response.ok && result.success) {
+        setBookingVisible(false);
+        setSelectedTime(null);
+        Alert.alert(
+          'Appointment Booked! ✅',
+          `Your appointment with Dr. ${vet.name} has been booked for ${selectedTime}.\n\nClinic: ${clinicDetails.clinicName}`,
+          [
+            {
+              text: 'View Appointments',
+              onPress: () => router.push('/(vetician_tabs)/pages/MyBookings')
+            },
+            { text: 'OK' }
+          ]
+        );
+      } else {
+        Alert.alert('Error', result.message || 'Failed to book appointment');
+      }
+    } catch (error) {
+      console.error('❌ Booking error:', error);
+      Alert.alert('Error', 'Failed to book appointment. Please try again.');
+    }
+  };
+
   const timeSlots = ["09:30 AM", "11:00 AM", "12:30 PM", "04:00 PM", "05:30 PM", "07:00 PM"];
 
   return (
@@ -1189,11 +1289,7 @@ const ClinicDetailScreen = () => {
             </View>
             <TouchableOpacity 
               style={styles.confirmBtn} 
-              onPress={() => {
-                if(!selectedTime) return Alert.alert("Error", "Select a time");
-                Alert.alert("Success", `Appointment fixed for ${selectedTime}`);
-                setBookingVisible(false);
-              }}
+              onPress={handleBookAppointment}
             >
               <Text style={styles.confirmText}>Confirm Appointment</Text>
             </TouchableOpacity>

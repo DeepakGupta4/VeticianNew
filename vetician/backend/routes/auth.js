@@ -387,7 +387,13 @@ router.post('/admin/petresort/unverify/:resortId', unverifyPetResort);
    PUBLIC
 ========================= */
 
+// Test route
+router.get('/test-clinics', (req, res) => {
+  res.json({ success: true, message: 'Clinic route is working!' });
+});
+
 router.post('/petparent/verified/all-clinic', getAllClinicsWithVets);
+router.get('/petparent/verified/all-clinic', getAllClinicsWithVets);
 
 /* =========================
    OTP ROUTES

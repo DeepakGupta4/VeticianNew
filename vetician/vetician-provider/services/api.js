@@ -164,6 +164,20 @@ class ApiService {
     return this.get(`/doorstep/paravet/${paravetId}`);
   }
 
+  /* =========================
+     GROOMING BOOKINGS
+  ========================= */
+
+  getParavetGroomingBookings(paravetId) {
+    return this.get(`/grooming/bookings/groomer/${paravetId}`);
+  }
+
+  updateGroomingBookingStatus(bookingId, status, cancelledBy = null) {
+    const body = { status };
+    if (cancelledBy) body.cancelledBy = cancelledBy;
+    return this.patch(`/grooming/bookings/${bookingId}/status`, body);
+  }
+
   getDoorstepBooking(id) {
     return this.get(`/doorstep/${id}`);
   }

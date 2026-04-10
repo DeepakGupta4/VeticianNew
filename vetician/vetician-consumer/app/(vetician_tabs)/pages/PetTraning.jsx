@@ -11,17 +11,19 @@ import {
   StatusBar,
   FlatList,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useRouter } from 'expo-router';
+import { useSelector, useDispatch } from 'react-redux';
+import { getPetsByUserId } from '../../../store/slices/authSlice';
 
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../../constant/theme';
 import {
   TRAINING_CATEGORIES,
   FEATURED_TRAINER,
   TRAINING_PROGRAMS,
-  PETS,
 } from '../../../constant/trainingData';
 
 import TrainingCategoryCard from '../../../components/petparent/PetTraining/TrainingCategoryCard';
@@ -40,7 +42,10 @@ const SectionHeader = ({ title, subtitle }) => (
 
 const PetTrainingScreen = () => {
   const router = useRouter();
+  const dispatch = useDispatch();
   const insets = useSafeAreaInsets();
+  const { userPets } = useSelector(state => state.auth);
+  
   const [selectedCategory, setSelectedCategory] = useState('1');
   const [selectedPet, setSelectedPet] = useState('pet1');
   const [selectedProgram, setSelectedProgram] = useState(null);
@@ -49,10 +54,47 @@ const PetTrainingScreen = () => {
   const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  
+  // Pets state
+  const [pets, setPets] = useState([]);
+  const [petsLoading, setPetsLoading] = useState(true);
 
   useEffect(() => {
     fetchTrainingServices();
+    fetchPets();
   }, []);
+  
+  const fetchPets = async () => {
+    try {
+      console.log('🐾 Fetching pets from database for training...');
+      setPetsLoading(true);
+      
+      await dispatch(getPetsByUserId()).unwrap();
+      
+      const fetchedPets = userPets.data || [];
+      console.log('✅ Pets fetched for training:', fetchedPets.length);
+      
+      const transformedPets = fetchedPets.map(pet => ({
+        id: pet._id,
+        name: pet.name,
+        breed: pet.breed || pet.species,
+        age: pet.age ? `${pet.age} years` : 'Age unknown',
+        avatar: pet.profilePic || 'https://via.placeholder.com/60',
+        species: pet.species,
+        weight: pet.weight
+      }));
+      
+      setPets(transformedPets);
+      
+      if (transformedPets.length > 0 && !selectedPet) {
+        setSelectedPet(transformedPets[0].id);
+      }
+    } catch (error) {
+      console.error('❌ Error fetching pets:', error);
+    } finally {
+      setPetsLoading(false);
+    }
+  };
 
   const fetchTrainingServices = async () => {
     try {
@@ -181,19 +223,49 @@ const PetTrainingScreen = () => {
         {/* 4. Select Your Pet */}
         <View style={styles.section}>
           <SectionHeader title="Select Your Pet" subtitle="Who is getting trained?" />
-          <FlatList
-            data={PETS}
-            horizontal
-            keyExtractor={(item) => item.id}
-            showsHorizontalScrollIndicator={false}
-            renderItem={({ item }) => (
-              <PetSelectorCard
-                pet={item}
-                isSelected={selectedPet === item.id}
-                onSelect={setSelectedPet}
-              />
-            )}
-          />
+          {petsLoading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="small" color={COLORS.primaryGreen} />
+              <Text style={styles.loadingText}>Loading your pets...</Text>
+            </View>
+          ) : pets.length === 0 ? (
+            <View style={styles.emptyPetsContainer}>
+              <MaterialCommunityIcons name="paw-off" size={32} color={COLORS.textMuted} />
+              <Text style={styles.emptyText}>No pets registered yet</Text>
+              <TouchableOpacity 
+                style={styles.addPetButton} 
+                onPress={() => router.push('/(vetician_tabs)/(tabs)/pet')}
+              >
+                <Text style={styles.addPetButtonText}>Add Your First Pet</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <FlatList
+              data={pets}
+              horizontal
+              keyExtractor={(item) => item.id}
+              showsHorizontalScrollIndicator={false}
+              renderItem={({ item }) => (
+                <PetSelectorCard
+                  pet={item}
+                  isSelected={selectedPet === item.id}
+                  onSelect={setSelectedPet}
+                />
+              )}
+              ListFooterComponent={
+                <TouchableOpacity
+                  style={styles.addPetCard}
+                  onPress={() => router.push('/(vetician_tabs)/(tabs)/pet')}
+                  activeOpacity={0.85}
+                >
+                  <View style={styles.addPetIconWrapper}>
+                    <MaterialCommunityIcons name="plus-circle-outline" size={40} color={COLORS.primaryGreen} />
+                  </View>
+                  <Text style={styles.addPetText}>Add Pet</Text>
+                </TouchableOpacity>
+              }
+            />
+          )}
         </View>
 
         {/* 5. Training Progress */}
@@ -318,6 +390,53 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: COLORS.white,
+  },
+  emptyPetsContainer: {
+    padding: SPACING.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.lg,
+    gap: 8,
+  },
+  emptyText: {
+    fontSize: 14,
+    color: COLORS.textMuted,
+    textAlign: 'center',
+    marginTop: 8,
+  },
+  addPetButton: {
+    marginTop: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    backgroundColor: COLORS.primaryGreen,
+    borderRadius: RADIUS.md,
+  },
+  addPetButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.white,
+  },
+  addPetCard: {
+    width: 120,
+    marginRight: SPACING.md,
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.lg,
+    padding: SPACING.md,
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: COLORS.border,
+    borderStyle: 'dashed',
+    justifyContent: 'center',
+    minHeight: 140,
+  },
+  addPetIconWrapper: {
+    marginBottom: SPACING.sm,
+  },
+  addPetText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: COLORS.primaryGreen,
   },
 });
 

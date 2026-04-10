@@ -39,6 +39,12 @@ export default function Home() {
   const [showIncomingCall, setShowIncomingCall] = useState(false);
   const [inVideoCall, setInVideoCall] = useState(false);
   const [roomName, setRoomName] = useState(null);
+  const [stats, setStats] = useState({
+    todayAppointments: 0,
+    totalPatients: 0,
+    pendingRequests: 0,
+    completedCases: 0
+  });
 
   const fetchNotificationCount = async () => {
     try {
@@ -62,9 +68,33 @@ export default function Home() {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
-      if (data.success) setAppointments(data.appointments || []);
+      if (data.success) {
+        const appts = data.appointments || [];
+        setAppointments(appts);
+        
+        // Calculate stats from appointments
+        const today = new Date().toDateString();
+        const todayAppts = appts.filter(a => new Date(a.date).toDateString() === today);
+        const pendingCount = appts.filter(a => a.status === 'pending').length;
+        const completedCount = appts.filter(a => a.status === 'completed').length;
+        const uniquePatients = [...new Set(appts.map(a => a.userId))].length;
+        
+        setStats({
+          todayAppointments: todayAppts.length,
+          totalPatients: uniquePatients,
+          pendingRequests: pendingCount,
+          completedCases: completedCount
+        });
+        
+        console.log('✅ Stats updated:', {
+          todayAppointments: todayAppts.length,
+          totalPatients: uniquePatients,
+          pendingRequests: pendingCount,
+          completedCases: completedCount
+        });
+      }
     } catch (e) {
-      console.error('Appointments fetch error:', e.message);
+      console.error('❌ Appointments fetch error:', e.message);
     } finally {
       setRefreshing(false);
     }
@@ -95,9 +125,13 @@ export default function Home() {
     return () => socketService.disconnect();
   }, []);
 
-  const onRefresh = () => { setRefreshing(true); fetchAppointments(); };
+  const onRefresh = () => { 
+    setRefreshing(true); 
+    fetchAppointments();
+    fetchNotificationCount();
+  };
 
-  // Derived stats
+  // Derived stats from appointments for display
   const today = new Date().toDateString();
   const todayAppts = appointments.filter(a => new Date(a.date).toDateString() === today);
   const pendingCount = appointments.filter(a => a.status === 'pending').length;
@@ -137,11 +171,11 @@ export default function Home() {
     return <VideoSDKCall roomName={roomName} userName={user?.name || 'Doctor'} onEndCall={() => { setInVideoCall(false); setRoomName(null); }} />;
   }
 
-  const stats = [
-    { icon: PawPrint,   label: "Today's",   value: todayAppts.length, sub: 'Appointments', color: '#7CB342', route: '/(doc_tabs)/(tabs)/appointment' },
-    { icon: HeartPulse, label: 'Total',      value: uniquePatients,    sub: 'Patients',     color: '#558B2F', route: '/(doc_tabs)/(tabs)/patients' },
-    { icon: AlertCircle,label: 'Pending',    value: pendingCount,      sub: 'Requests',     color: '#F59E0B', route: '/(doc_tabs)/(tabs)/appointment' },
-    { icon: CheckCircle,label: 'Completed',  value: completedCount,    sub: 'Cases',        color: '#10B981', route: '/(doc_tabs)/(tabs)/appointment' },
+  const statsCards = [
+    { icon: PawPrint,   label: "Today's",   value: stats.todayAppointments, sub: 'Appointments', color: '#7CB342', route: '/(doc_tabs)/(tabs)/appointment' },
+    { icon: HeartPulse, label: 'Total',      value: stats.totalPatients,    sub: 'Patients',     color: '#558B2F', route: '/(doc_tabs)/(tabs)/patients' },
+    { icon: AlertCircle,label: 'Pending',    value: stats.pendingRequests,      sub: 'Requests',     color: '#F59E0B', route: '/(doc_tabs)/(tabs)/appointment' },
+    { icon: CheckCircle,label: 'Completed',  value: stats.completedCases,    sub: 'Cases',        color: '#10B981', route: '/(doc_tabs)/(tabs)/appointment' },
   ];
 
   const quickActions = [
@@ -196,7 +230,7 @@ export default function Home() {
 
         {/* Stats Grid */}
         <View style={styles.statsGrid}>
-          {stats.map((s, i) => (
+          {statsCards.map((s, i) => (
             <TouchableOpacity key={i} style={styles.statCard} onPress={() => router.push(s.route)} activeOpacity={0.8}>
               <View style={[styles.statIconWrap, { backgroundColor: `${s.color}15` }]}>
                 <s.icon size={22} color={s.color} />

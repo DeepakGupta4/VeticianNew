@@ -7,10 +7,14 @@ import {
   TouchableOpacity,
   TextInput,
   Alert,
-  ScrollView,
+  ActivityIndicator,
 } from 'react-native';
-import { MaterialIcons } from '@expo/vector-icons';
+import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS2 } from './colors';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useSelector } from 'react-redux';
+
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api';
 
 const ISSUE_TYPES = [
   'App Not Loading',
@@ -22,13 +26,25 @@ const ISSUE_TYPES = [
   'Other',
 ];
 
-export default function ReportIssueForm() {
+export default function ReportIssueForm({ selectedIssue, onClearIssue }) {
+  const { user } = useSelector(state => state.auth);
   const [selectedType, setSelectedType] = useState(null);
   const [message, setMessage] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [showTypes, setShowTypes] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [ticketId, setTicketId] = useState('');
 
-  const handleSubmit = () => {
+  // Pre-fill form when issue is selected from Common Issues
+  React.useEffect(() => {
+    if (selectedIssue) {
+      setSelectedType(selectedIssue.title);
+      setMessage(selectedIssue.description || '');
+      console.log('✅ Form pre-filled with:', selectedIssue.title);
+    }
+  }, [selectedIssue]);
+
+  const handleSubmit = async () => {
     if (!selectedType) {
       Alert.alert('Select Issue', 'Please select an issue type before submitting.');
       return;
@@ -37,12 +53,61 @@ export default function ReportIssueForm() {
       Alert.alert('Add Details', 'Please describe your issue in at least 10 characters.');
       return;
     }
-    setSubmitted(true);
-    setTimeout(() => {
-      setSubmitted(false);
-      setSelectedType(null);
-      setMessage('');
-    }, 3000);
+
+    setLoading(true);
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const userId = await AsyncStorage.getItem('userId');
+
+      const enquiryData = {
+        userId: userId || user?._id,
+        userName: user?.name || 'Anonymous',
+        userEmail: user?.email || '',
+        userPhone: user?.phone || '',
+        userRole: user?.role || 'parent',
+        issueType: selectedType,
+        description: message,
+        priority: 'Medium',
+        contactMethod: 'email',
+        status: 'open',
+        deviceInfo: {
+          platform: 'mobile',
+          version: '1.0'
+        }
+      };
+
+      const response = await fetch(`${API_URL}/support/enquiries`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` })
+        },
+        body: JSON.stringify(enquiryData)
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        setTicketId(data.enquiry.ticketId);
+        setSubmitted(true);
+        console.log('✅ Enquiry submitted:', data.enquiry.ticketId);
+        
+        setTimeout(() => {
+          setSubmitted(false);
+          setSelectedType(null);
+          setMessage('');
+          setTicketId('');
+          if (onClearIssue) onClearIssue();
+        }, 5000);
+      } else {
+        throw new Error(data.message || 'Failed to submit enquiry');
+      }
+    } catch (error) {
+      console.error('❌ Error submitting enquiry:', error);
+      Alert.alert('Error', error.message || 'Failed to submit enquiry. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -52,6 +117,22 @@ export default function ReportIssueForm() {
         <View style={styles.dot} />
         <Text style={styles.sectionSub}>Tell us what went wrong</Text>
       </View>
+
+      {selectedIssue && (
+        <View style={styles.prefilledBanner}>
+          <MaterialCommunityIcons name="information" size={16} color={COLORS2.primary} />
+          <Text style={styles.prefilledText}>
+            Form pre-filled with: {selectedIssue.title}
+          </Text>
+          <TouchableOpacity onPress={() => {
+            setSelectedType(null);
+            setMessage('');
+            if (onClearIssue) onClearIssue();
+          }}>
+            <MaterialCommunityIcons name="close-circle" size={18} color={COLORS2.subtext} />
+          </TouchableOpacity>
+        </View>
+      )}
 
       <View style={styles.card}>
         {submitted ? (
@@ -63,7 +144,7 @@ export default function ReportIssueForm() {
             <Text style={styles.successText}>
               We've received your report. Our team will reach out within 24 hours.
             </Text>
-            <Text style={styles.ticketLabel}>Ticket ID: #VT-{Math.floor(1000 + Math.random() * 9000)}</Text>
+            <Text style={styles.ticketLabel}>Ticket ID: {ticketId}</Text>
           </View>
         ) : (
           <>
@@ -133,13 +214,20 @@ export default function ReportIssueForm() {
             <TouchableOpacity
               style={[
                 styles.submitBtn,
-                (!selectedType || message.trim().length < 10) && styles.submitBtnDisabled,
+                ((!selectedType || message.trim().length < 10) || loading) && styles.submitBtnDisabled,
               ]}
               onPress={handleSubmit}
               activeOpacity={0.85}
+              disabled={loading}
             >
-              <MaterialIcons name="send" size={16} color="#fff" />
-              <Text style={styles.submitBtnText}>Submit Report</Text>
+              {loading ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <>
+                  <MaterialIcons name="send" size={16} color="#fff" />
+                  <Text style={styles.submitBtnText}>Submit Report</Text>
+                </>
+              )}
             </TouchableOpacity>
           </>
         )}
@@ -314,5 +402,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 6,
     borderRadius: 20,
+  },
+  prefilledBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS2.accent,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: COLORS2.primary,
+    gap: 8,
+  },
+  prefilledText: {
+    flex: 1,
+    fontSize: 12,
+    color: COLORS2.primary,
+    fontWeight: '600',
   },
 });

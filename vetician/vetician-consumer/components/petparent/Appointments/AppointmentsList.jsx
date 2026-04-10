@@ -1,24 +1,16 @@
 // components/appointments/AppointmentsList.js
 import React from 'react';
-import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, RefreshControl } from 'react-native';
 import { COLORS2 } from './colors';
 import AppointmentCard from './AppointmentCard';
 import EmptyState      from './EmptyState';
 
-/**
- * AppointmentsList
- * Renders upcoming and past appointments in separate groups.
- * Delegates cancel confirmation to the parent via onCancelPress.
- *
- * Props:
- *   appointments   — appointment[]
- *   onViewDetails  — (appointment) => void
- *   onCancelPress  — (appointment) => void  ← opens CancelConfirmDialog in parent
- */
 export default function AppointmentsList({
   appointments,
   onViewDetails,
   onCancelPress,
+  refreshing,
+  onRefresh,
 }) {
   if (appointments.length === 0) {
     return <EmptyState />;
@@ -31,6 +23,14 @@ export default function AppointmentsList({
     <ScrollView
       contentContainerStyle={styles.container}
       showsVerticalScrollIndicator={false}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing || false}
+          onRefresh={onRefresh}
+          colors={[COLORS2.primary]}
+          tintColor={COLORS2.primary}
+        />
+      }
     >
       {upcoming.length > 0 && (
         <View style={styles.group}>

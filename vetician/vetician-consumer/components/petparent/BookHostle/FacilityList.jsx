@@ -1,17 +1,40 @@
 import React from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
-import { FACILITIES } from './hostelData';
 
-export default function FacilityList() {
+export default function FacilityList({ facilities }) {
+  if (!facilities || facilities.length === 0) {
+    return null;
+  }
+
+  const facilityIcons = {
+    'supervision': 'eye-outline',
+    'play': 'soccer-field',
+    'vet': 'stethoscope',
+    'walks': 'walk',
+    'feeding': 'food-drumstick-outline',
+    'cameras': 'cctv',
+    'grooming': 'shower-head',
+    '24/7': 'eye-outline',
+    'play area': 'soccer-field',
+    'vet on call': 'stethoscope',
+    'daily walks': 'walk',
+    'pet cameras': 'cctv',
+  };
+
+  const getIcon = (label) => {
+    const key = label.toLowerCase();
+    return facilityIcons[key] || 'check-circle';
+  };
+
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.hs}>
-      {FACILITIES.map(f => (
-        <View key={f.id} style={styles.item}>
+      {facilities.map((f, index) => (
+        <View key={index} style={styles.item}>
           <View style={styles.iconWrap}>
-            <Icon name={f.icon} size={22} color="#1a1a1a" />
+            <Icon name={getIcon(f)} size={22} color="#1a1a1a" />
           </View>
-          <Text style={styles.label}>{f.label}</Text>
+          <Text style={styles.label}>{f}</Text>
         </View>
       ))}
     </ScrollView>

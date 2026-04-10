@@ -4,6 +4,9 @@ import { useSelector, useDispatch } from 'react-redux';
 import { useRouter } from 'expo-router';
 import { Bell, Shield, Palette, Globe, CircleHelp as HelpCircle, ChevronRight, LogOut } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { signOut as signOutThunk } from '../../../store/slices/authSlice';
+
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://vetician-backend-kovk.onrender.com/api';
 
 export default function Settings() {
   const { user } = useSelector(state => state.auth);
@@ -12,19 +15,32 @@ export default function Settings() {
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [darkModeEnabled, setDarkModeEnabled] = useState(false);
 
-  const handleLogout = () => {
-    Alert.alert('Logout', 'Are you sure you want to logout?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Logout',
-        style: 'destructive',
-        onPress: async () => {
-          await AsyncStorage.multiRemove(['token', 'userId', 'user', 'refreshToken']);
-          dispatch({ type: 'auth/signOut' });
-          router.replace('/(auth)/signin');
-        },
-      },
-    ]);
+  const handleLogout = async () => {
+    console.log('🔵 handleLogout called - Starting immediate logout');
+    try {
+      console.log('🔓 Starting logout process...');
+      
+      // Dispatch the signOut thunk which handles backend API call and storage cleanup
+      console.log('🚀 About to dispatch signOutThunk...');
+      await dispatch(signOutThunk()).unwrap();
+      
+      console.log('✅ Logout complete!');
+      
+      // Navigate to sign in
+      console.log('🔄 Navigating to sign in screen...');
+      router.replace('/(auth)/signin');
+      console.log('✅ Navigation complete!');
+      
+    } catch (error) {
+      console.error('❌ Logout error:', error);
+      
+      // Force logout even if there's an error
+      console.log('⚠️ Force logout initiated due to error');
+      await AsyncStorage.clear();
+      dispatch({ type: 'auth/signOut' });
+      router.replace('/(auth)/signin');
+      console.log('✅ Force logout complete');
+    }
   };
 
   const settingsGroups = [
